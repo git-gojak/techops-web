@@ -830,7 +830,29 @@
       renderError(error);
     }
   }
+  /* =====================================================
+     SIDEBAR MOBILE
+  ===================================================== */
 
+  function openSidebar() {
+    const sidebar = $("#sidebar");
+    const overlay = $("#sidebarOverlay");
+
+    sidebar?.classList.add("active");
+    overlay?.classList.add("active");
+
+    document.body.classList.add("sidebar-open");
+  }
+
+  function closeSidebar() {
+    const sidebar = $("#sidebar");
+    const overlay = $("#sidebarOverlay");
+
+    sidebar?.classList.remove("active");
+    overlay?.classList.remove("active");
+
+    document.body.classList.remove("sidebar-open");
+  }
   /* =====================================================
      11. NAVIGASI
   ===================================================== */
