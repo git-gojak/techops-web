@@ -333,29 +333,26 @@
      4. MEMUAT DATA
   ===================================================== */
 
-  async function loadAll() {
-    if (!TechOpsAPI.isAuthenticated()) {
-      throw new Error("Silakan login terlebih dahulu.");
-    }
+ 
+async function loadAll() {
+  setConnection(false, "Mengambil data...");
 
-    setConnection(false, "Mengambil data...");
+  const [computers, printers, maintenance] = await Promise.all([
+    TechOpsAPI.get("computers.list"),
+    TechOpsAPI.get("printers.list"),
+    TechOpsAPI.get("maintenance.list")
+  ]);
 
-    const [computers, printers, maintenance] = await Promise.all([
-      TechOpsAPI.get("computers.list"),
-      TechOpsAPI.get("printers.list"),
-      TechOpsAPI.get("maintenance.list")
-    ]);
+  state.computers = normalizeArray(computers);
+  state.printers = normalizeArray(printers);
+  state.maintenance = normalizeArray(maintenance);
 
-    state.computers = normalizeArray(computers);
-    state.printers = normalizeArray(printers);
-    state.maintenance = normalizeArray(maintenance);
+  state.loaded = true;
 
-    state.loaded = true;
+  setConnection(true, "Backend terhubung");
 
-    setConnection(true, "Backend terhubung");
-
-    return state;
-  }
+  return state;
+}
 
   /* =====================================================
      5. KOMPONEN TAMPILAN
