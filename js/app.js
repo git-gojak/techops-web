@@ -71,7 +71,7 @@
   }
 
   /* =====================================================
-     1. INFORMASI PENGGUNA DAN LOGOUT
+     1. INFORMASI ADMIN DAN TOMBOL LOGIN
   ===================================================== */
 
   function updateUserDisplay() {
@@ -79,13 +79,30 @@
     if (!actions) return;
 
     let userInfo = $("#techOpsUserInfo");
+    let loginButton = $("#techOpsLoginButton");
     let logoutButton = $("#techOpsLogout");
 
-    if (!state.user) {
+    if (!state.authenticated || !state.user) {
       userInfo?.remove();
       logoutButton?.remove();
+
+      if (!loginButton) {
+        loginButton = document.createElement("button");
+        loginButton.id = "techOpsLoginButton";
+        loginButton.type = "button";
+        loginButton.className = "button button-primary";
+        loginButton.textContent = "Login Admin";
+        loginButton.style.cssText =
+          "margin-left:8px;padding:8px 12px;font-size:12px;";
+
+        actions.appendChild(loginButton);
+        loginButton.addEventListener("click", () => renderLogin());
+      }
+
       return;
     }
+
+    loginButton?.remove();
 
     if (!userInfo) {
       userInfo = document.createElement("div");
@@ -101,7 +118,7 @@
         ${escapeHTML(state.user.nama)}
       </strong>
       <small style="font-size:10px;color:#64748b">
-        ${escapeHTML(state.user.role)}
+        Admin
       </small>
     `;
 
@@ -115,39 +132,47 @@
         "margin-left:8px;padding:8px 12px;font-size:12px;";
 
       actions.appendChild(logoutButton);
-
       logoutButton.addEventListener("click", handleLogout);
     }
   }
 
   /* =====================================================
-     2. HALAMAN LOGIN
+     2. POPUP LOGIN ADMIN
   ===================================================== */
 
   function renderLogin(message = "") {
-    state.authenticated = false;
-    state.loaded = false;
-    state.user = null;
+    let modal = $("#techOpsLoginModal");
 
-    updateUserDisplay();
-    setConnection(false, "Belum login");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "techOpsLoginModal";
 
-    const host = $("#appContent");
-
-    host.innerHTML = `
-      <section style="
-        min-height:65vh;
+      modal.style.cssText = `
+        position:fixed;
+        inset:0;
+        z-index:9999;
         display:flex;
         align-items:center;
         justify-content:center;
-        padding:24px 12px;
-      ">
+        padding:20px;
+        background:rgba(15,23,42,.55);
+      `;
+
+      modal.innerHTML = `
         <div class="panel" style="
           width:100%;
           max-width:420px;
           padding:30px;
           border-radius:16px;
+          position:relative;
         ">
+          <button type="button" id="closeTechOpsLogin"
+            style="
+              position:absolute;right:16px;top:12px;
+              border:0;background:transparent;
+              font-size:24px;cursor:pointer;color:#64748b;
+            " aria-label="Tutup">&times;</button>
+
           <div style="text-align:center;margin-bottom:25px">
             <div style="
               width:58px;height:58px;
@@ -155,40 +180,34 @@
               display:flex;align-items:center;justify-content:center;
               background:#eff6ff;border-radius:16px;color:#2563eb;
             ">
-              <i data-lucide="monitor-cog" style="width:30px;height:30px"></i>
+              <i data-lucide="monitor-cog"
+                style="width:30px;height:30px"></i>
             </div>
 
-            <h1 style="font-size:23px;margin-bottom:7px">
-              GoJak TechOps
-            </h1>
+            <h2 style="font-size:23px;margin-bottom:7px">
+              Login Admin
+            </h2>
 
             <p class="muted">
-              Silakan login untuk mengakses sistem.
+              Masuk untuk mengelola data GoJak TechOps.
             </p>
           </div>
 
           <form id="techOpsLoginForm">
-
             <div style="margin-bottom:17px">
               <label for="loginNama" style="
                 display:block;font-size:13px;
                 font-weight:600;margin-bottom:7px;
               ">Nama Pengguna</label>
 
-              <input
-                id="loginNama"
-                name="nama"
-                type="text"
-                autocomplete="username"
-                required
-                placeholder="Masukkan nama pengguna"
+              <input id="loginNama" name="nama"
+                type="text" autocomplete="username"
+                required placeholder="Masukkan nama pengguna"
                 style="
                   width:100%;padding:12px;
                   border:1px solid #d1d5db;
-                  border-radius:9px;
-                  box-sizing:border-box;
-                "
-              >
+                  border-radius:9px;box-sizing:border-box;
+                ">
             </div>
 
             <div style="margin-bottom:20px">
@@ -197,56 +216,63 @@
                 font-weight:600;margin-bottom:7px;
               ">Password</label>
 
-              <input
-                id="loginPassword"
-                name="password"
-                type="password"
-                autocomplete="current-password"
-                required
-                placeholder="Masukkan password"
+              <input id="loginPassword" name="password"
+                type="password" autocomplete="current-password"
+                required placeholder="Masukkan password"
                 style="
                   width:100%;padding:12px;
                   border:1px solid #d1d5db;
-                  border-radius:9px;
-                  box-sizing:border-box;
-                "
-              >
+                  border-radius:9px;box-sizing:border-box;
+                ">
             </div>
 
             <p id="loginError" style="
-              display:none;
-              color:#dc2626;
-              font-size:13px;
-              margin-bottom:15px;
+              display:none;color:#dc2626;
+              font-size:13px;margin-bottom:15px;
             "></p>
 
-            <button
-              type="submit"
-              id="loginSubmit"
+            <button type="submit" id="loginSubmit"
               class="button button-primary"
-              style="width:100%;justify-content:center;padding:12px"
-            >
+              style="width:100%;justify-content:center;padding:12px">
               Masuk
             </button>
-
           </form>
 
           <p style="
-            text-align:center;
-            font-size:11px;
-            color:#94a3b8;
-            margin-top:22px;
+            text-align:center;font-size:11px;
+            color:#94a3b8;margin-top:22px;
           ">
             GoJak TechOps — IT Operations
           </p>
         </div>
-      </section>
-    `;
+      `;
 
-    $("#techOpsLoginForm").addEventListener("submit", handleLogin);
+      document.body.appendChild(modal);
+
+      $("#techOpsLoginForm").addEventListener("submit", handleLogin);
+
+      $("#closeTechOpsLogin").addEventListener("click", () => {
+        modal.remove();
+      });
+
+      modal.addEventListener("click", event => {
+        if (event.target === modal) modal.remove();
+      });
+    }
+
+    const errorBox = $("#loginError");
+
+    if (errorBox) {
+      errorBox.textContent = message;
+      errorBox.style.display = message ? "block" : "none";
+    }
 
     iconRefresh();
   }
+
+  /* =====================================================
+     3. PROSES LOGIN ADMIN
+  ===================================================== */
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -258,7 +284,6 @@
 
     button.disabled = true;
     button.textContent = "Memeriksa login...";
-
     errorBox.style.display = "none";
 
     try {
@@ -272,11 +297,13 @@
       state.authenticated = true;
 
       updateUserDisplay();
+      $("#techOpsLoginModal")?.remove();
 
       await loadAll();
       renderCurrentPage();
 
-      toast("Login berhasil. Selamat datang, " + state.user.nama + ".");
+      toast("Login Admin berhasil. Selamat datang, " +
+        state.user.nama + ".");
 
     } catch (error) {
       errorBox.textContent = error.message || "Login gagal.";
@@ -291,7 +318,7 @@
   }
 
   /* =====================================================
-     3. LOGOUT
+     4. LOGOUT ADMIN
   ===================================================== */
 
   async function handleLogout() {
@@ -309,15 +336,15 @@
     try {
       await TechOpsAPI.logout();
 
-      state.computers = [];
-      state.printers = [];
-      state.maintenance = [];
       state.user = null;
       state.authenticated = false;
-      state.loaded = false;
 
-      renderLogin();
-      toast("Anda berhasil logout.");
+      updateUserDisplay();
+
+      await loadAll();
+      renderCurrentPage();
+
+      toast("Logout berhasil. Mode pengunjung aktif.");
 
     } catch (error) {
       toast("Logout gagal: " + error.message);
@@ -330,32 +357,31 @@
   }
 
   /* =====================================================
-     4. MEMUAT DATA
+     5. MEMUAT DATA PUBLIK
   ===================================================== */
 
- 
-async function loadAll() {
-  setConnection(false, "Mengambil data...");
+  async function loadAll() {
+    setConnection(false, "Mengambil data...");
 
-  const [computers, printers, maintenance] = await Promise.all([
-    TechOpsAPI.get("computers.list"),
-    TechOpsAPI.get("printers.list"),
-    TechOpsAPI.get("maintenance.list")
-  ]);
+    const [computers, printers, maintenance] = await Promise.all([
+      TechOpsAPI.get("computers.list"),
+      TechOpsAPI.get("printers.list"),
+      TechOpsAPI.get("maintenance.list")
+    ]);
 
-  state.computers = normalizeArray(computers);
-  state.printers = normalizeArray(printers);
-  state.maintenance = normalizeArray(maintenance);
+    state.computers = normalizeArray(computers);
+    state.printers = normalizeArray(printers);
+    state.maintenance = normalizeArray(maintenance);
 
-  state.loaded = true;
+    state.loaded = true;
 
-  setConnection(true, "Backend terhubung");
+    setConnection(true, "Backend terhubung");
 
-  return state;
-}
+    return state;
+  }
 
   /* =====================================================
-     5. KOMPONEN TAMPILAN
+     6. KOMPONEN TAMPILAN
   ===================================================== */
 
   function pageHeading(title, subtitle, eyebrow = "GOJAK TECHOPS") {
@@ -366,6 +392,7 @@ async function loadAll() {
           <h1>${escapeHTML(title)}</h1>
           <p class="muted">${escapeHTML(subtitle)}</p>
         </div>
+
         <button class="button button-secondary" id="refreshButton">
           <i data-lucide="refresh-cw"></i> Perbarui data
         </button>
@@ -381,6 +408,7 @@ async function loadAll() {
           <div class="stat-value">${escapeHTML(value)}</div>
           <div class="stat-note">${escapeHTML(note)}</div>
         </div>
+
         <span class="stat-icon ${color}">
           <i data-lucide="${icon}"></i>
         </span>
@@ -389,7 +417,7 @@ async function loadAll() {
   }
 
   /* =====================================================
-     6. DASHBOARD
+     7. DASHBOARD
   ===================================================== */
 
   function renderDashboard() {
@@ -403,10 +431,17 @@ async function loadAll() {
       ) +
       `
       <section class="stats-grid">
-        ${statCard("Total Komputer", state.computers.length, "monitor", "blue", "Data inventaris komputer")}
-        ${statCard("Total Printer", state.printers.length, "printer", "teal", "Data inventaris printer")}
-        ${statCard("Riwayat Maintenance", state.maintenance.length, "wrench", "amber", "Catatan perawatan/perbaikan")}
-        ${statCard("Koneksi Backend", "Online", "activity", "green", "Apps Script dapat diakses")}
+        ${statCard("Total Komputer", state.computers.length,
+          "monitor", "blue", "Data inventaris komputer")}
+
+        ${statCard("Total Printer", state.printers.length,
+          "printer", "teal", "Data inventaris printer")}
+
+        ${statCard("Riwayat Maintenance", state.maintenance.length,
+          "wrench", "amber", "Catatan perawatan/perbaikan")}
+
+        ${statCard("Koneksi Backend", "Online",
+          "activity", "green", "Apps Script dapat diakses")}
       </section>
 
       <section class="dashboard-grid">
@@ -414,29 +449,51 @@ async function loadAll() {
           <div class="panel-header">
             <div>
               <h2>Akses Cepat</h2>
-              <div class="panel-subtitle">Pilih modul yang ingin dibuka</div>
+              <div class="panel-subtitle">
+                Pilih modul yang ingin dibuka
+              </div>
             </div>
           </div>
 
           <div class="quick-links">
             <a class="quick-link" href="#computers">
-              <span class="stat-icon blue"><i data-lucide="monitor"></i></span>
-              <span><strong>Inventaris Komputer</strong><small>Lihat daftar dan spesifikasi</small></span>
+              <span class="stat-icon blue">
+                <i data-lucide="monitor"></i>
+              </span>
+              <span>
+                <strong>Inventaris Komputer</strong>
+                <small>Lihat daftar dan spesifikasi</small>
+              </span>
             </a>
 
             <a class="quick-link" href="#printers">
-              <span class="stat-icon teal"><i data-lucide="printer"></i></span>
-              <span><strong>Inventaris Printer</strong><small>Lihat data perangkat printer</small></span>
+              <span class="stat-icon teal">
+                <i data-lucide="printer"></i>
+              </span>
+              <span>
+                <strong>Inventaris Printer</strong>
+                <small>Lihat data perangkat printer</small>
+              </span>
             </a>
 
             <a class="quick-link" href="#maintenance">
-              <span class="stat-icon amber"><i data-lucide="wrench"></i></span>
-              <span><strong>Maintenance</strong><small>Lihat riwayat perawatan</small></span>
+              <span class="stat-icon amber">
+                <i data-lucide="wrench"></i>
+              </span>
+              <span>
+                <strong>Maintenance</strong>
+                <small>Lihat riwayat perawatan</small>
+              </span>
             </a>
 
             <a class="quick-link" href="#qr-info">
-              <span class="stat-icon green"><i data-lucide="qr-code"></i></span>
-              <span><strong>QR Info</strong><small>Cari perangkat dari serial/QR</small></span>
+              <span class="stat-icon green">
+                <i data-lucide="qr-code"></i>
+              </span>
+              <span>
+                <strong>QR Info</strong>
+                <small>Cari perangkat dari serial/QR</small>
+              </span>
             </a>
           </div>
         </article>
@@ -445,16 +502,38 @@ async function loadAll() {
           <div class="panel-header">
             <div>
               <h2>Status Sistem</h2>
-              <div class="panel-subtitle">Ringkasan koneksi saat ini</div>
+              <div class="panel-subtitle">
+                Ringkasan koneksi saat ini
+              </div>
             </div>
+
             <span class="badge green">Terhubung</span>
           </div>
 
-          <div class="detail-item"><small>Backend</small><strong>Google Apps Script</strong></div>
-          <div class="detail-item"><small>Database</small><strong>Google Sheets — techops-db</strong></div>
-          <div class="detail-item"><small>Frontend</small><strong>GitHub Pages — techops-web</strong></div>
-          <div class="detail-item"><small>Pengguna</small><strong>${escapeHTML(state.user?.nama || "-")}</strong></div>
-          <div class="detail-item"><small>Role</small><strong>${escapeHTML(state.user?.role || "-")}</strong></div>
+          <div class="detail-item">
+            <small>Backend</small>
+            <strong>Google Apps Script</strong>
+          </div>
+
+          <div class="detail-item">
+            <small>Database</small>
+            <strong>Google Sheets — techops-db</strong>
+          </div>
+
+          <div class="detail-item">
+            <small>Frontend</small>
+            <strong>GitHub Pages — techops-web</strong>
+          </div>
+
+          <div class="detail-item">
+            <small>Pengguna</small>
+            <strong>${escapeHTML(state.user?.nama || "Pengunjung")}</strong>
+          </div>
+
+          <div class="detail-item">
+            <small>Akses</small>
+            <strong>${state.authenticated ? "Admin" : "Publik (Lihat saja)"}</strong>
+          </div>
         </article>
       </section>
     `;
@@ -464,7 +543,7 @@ async function loadAll() {
   }
 
   /* =====================================================
-     7. ERROR
+     8. ERROR
   ===================================================== */
 
   function renderError(error) {
@@ -473,7 +552,9 @@ async function loadAll() {
         <i data-lucide="alert-triangle"></i>
         <h2>Data belum dapat dimuat</h2>
         <p>${escapeHTML(error.message || error)}</p>
-        <button class="button button-primary" id="retryButton">Coba lagi</button>
+        <button class="button button-primary" id="retryButton">
+          Coba lagi
+        </button>
       </section>
     `;
 
@@ -488,9 +569,8 @@ async function loadAll() {
   }
 
   async function refreshAndRender() {
-    if (!state.authenticated) return;
-
     const button = $("#refreshButton");
+
     if (button) button.disabled = true;
 
     try {
@@ -503,12 +583,10 @@ async function loadAll() {
   }
 
   /* =====================================================
-     8. NAVIGASI
+     9. NAVIGASI
   ===================================================== */
 
   function renderCurrentPage() {
-    if (!state.authenticated) return;
-
     const page = location.hash.replace("#", "") || "dashboard";
 
     state.page = pageNames[page] ? page : "dashboard";
@@ -520,17 +598,23 @@ async function loadAll() {
       );
     });
 
-    $("#pageCrumb").textContent =
-      pageNames[state.page] || "Dashboard";
+    const breadcrumb = $("#pageCrumb");
+    if (breadcrumb) {
+      breadcrumb.textContent = pageNames[state.page] || "Dashboard";
+    }
 
     if (state.page === "computers") {
       window.ComputersPage.render();
+
     } else if (state.page === "printers") {
       window.PrintersPage.render();
+
     } else if (state.page === "maintenance") {
       window.MaintenancePage.render();
+
     } else if (state.page === "qr-info") {
       window.QRInfoPage.render();
+
     } else {
       renderDashboard();
     }
@@ -539,46 +623,56 @@ async function loadAll() {
   }
 
   function openSidebar() {
-    $("#sidebar").classList.add("open");
-    $("#sidebarOverlay").classList.add("show");
+    $("#sidebar")?.classList.add("open");
+    $("#sidebarOverlay")?.classList.add("show");
   }
 
   function closeSidebar() {
-    $("#sidebar").classList.remove("open");
-    $("#sidebarOverlay").classList.remove("show");
+    $("#sidebar")?.classList.remove("open");
+    $("#sidebarOverlay")?.classList.remove("show");
   }
 
   /* =====================================================
-     9. INISIALISASI
+     10. INISIALISASI
   ===================================================== */
 
   async function init() {
-    $("#currentYear").textContent = new Date().getFullYear();
+    const year = $("#currentYear");
+    if (year) year.textContent = new Date().getFullYear();
 
-    $("#menuToggle").addEventListener("click", openSidebar);
-    $("#sidebarOverlay").addEventListener("click", closeSidebar);
+    $("#menuToggle")?.addEventListener("click", openSidebar);
+    $("#sidebarOverlay")?.addEventListener("click", closeSidebar);
 
     window.addEventListener("hashchange", renderCurrentPage);
+
+    updateUserDisplay();
 
     try {
       setConnection(false, "Memeriksa sesi...");
 
       const session = await TechOpsAPI.validateSession();
 
-      if (!session.success || !session.authenticated) {
-        renderLogin();
-      } else {
+      if (session && session.success && session.authenticated) {
         state.user = session.user;
         state.authenticated = true;
-
-        updateUserDisplay();
-
-        await loadAll();
-        renderCurrentPage();
+      } else {
+        state.user = null;
+        state.authenticated = false;
       }
 
     } catch (error) {
-      renderLogin(error.message);
+      console.warn("Pemeriksaan sesi Admin:", error);
+      state.user = null;
+      state.authenticated = false;
+    }
+
+    updateUserDisplay();
+
+    try {
+      await loadAll();
+      renderCurrentPage();
+    } catch (error) {
+      renderError(error);
     }
 
     if ("serviceWorker" in navigator && location.protocol === "https:") {
@@ -588,7 +682,7 @@ async function loadAll() {
   }
 
   /* =====================================================
-     10. PUBLIC STATE DAN UI
+     11. PUBLIC STATE DAN UI
   ===================================================== */
 
   window.TechOpsState = state;
