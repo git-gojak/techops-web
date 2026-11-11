@@ -70,6 +70,27 @@
     if (dot) dot.classList.toggle("online", !!ok);
   }
 
+  function pinInputStyle() {
+    return `
+      width:100%;
+      padding:13px;
+      border:1px solid #d1d5db;
+      border-radius:9px;
+      box-sizing:border-box;
+      font-size:20px;
+      letter-spacing:8px;
+      text-align:center;
+    `;
+  }
+
+  function showModalMessage(selector, message) {
+    const box = $(selector);
+    if (!box) return;
+
+    box.textContent = message || "";
+    box.style.display = message ? "block" : "none";
+  }
+
   /* =====================================================
      1. INFORMASI ADMIN DAN TOMBOL LOGIN
   ===================================================== */
@@ -81,10 +102,12 @@
     let userInfo = $("#techOpsUserInfo");
     let loginButton = $("#techOpsLoginButton");
     let logoutButton = $("#techOpsLogout");
+    let changePinButton = $("#techOpsChangePin");
 
     if (!state.authenticated || !state.user) {
       userInfo?.remove();
       logoutButton?.remove();
+      changePinButton?.remove();
 
       if (!loginButton) {
         loginButton = document.createElement("button");
@@ -115,12 +138,25 @@
 
     userInfo.innerHTML = `
       <strong style="font-size:12px">
-        ${escapeHTML(state.user.nama)}
+        ${escapeHTML(state.user.nama || "Admin")}
       </strong>
       <small style="font-size:10px;color:#64748b">
         Admin
       </small>
     `;
+
+    if (!changePinButton) {
+      changePinButton = document.createElement("button");
+      changePinButton.id = "techOpsChangePin";
+      changePinButton.type = "button";
+      changePinButton.className = "button button-secondary";
+      changePinButton.textContent = "Ganti PIN";
+      changePinButton.style.cssText =
+        "margin-left:8px;padding:8px 12px;font-size:12px;";
+
+      actions.appendChild(changePinButton);
+      changePinButton.addEventListener("click", renderChangePin);
+    }
 
     if (!logoutButton) {
       logoutButton = document.createElement("button");
@@ -137,7 +173,7 @@
   }
 
   /* =====================================================
-     2. POPUP LOGIN ADMIN
+     2. POPUP LOGIN ADMIN - PIN 6 DIGIT
   ===================================================== */
 
   function renderLogin(message = "") {
@@ -180,7 +216,7 @@
               display:flex;align-items:center;justify-content:center;
               background:#eff6ff;border-radius:16px;color:#2563eb;
             ">
-              <i data-lucide="monitor-cog"
+              <i data-lucide="shield-check"
                 style="width:30px;height:30px"></i>
             </div>
 
@@ -189,41 +225,28 @@
             </h2>
 
             <p class="muted">
-              Masuk untuk mengelola data GoJak TechOps.
+              Masukkan PIN Admin untuk mengelola data.
             </p>
           </div>
 
           <form id="techOpsLoginForm">
-            <div style="margin-bottom:17px">
-              <label for="loginNama" style="
-                display:block;font-size:13px;
-                font-weight:600;margin-bottom:7px;
-              ">Nama Pengguna</label>
-
-              <input id="loginNama" name="nama"
-                type="text" autocomplete="username"
-                required placeholder="Masukkan nama pengguna"
-                style="
-                  width:100%;padding:12px;
-                  border:1px solid #d1d5db;
-                  border-radius:9px;box-sizing:border-box;
-                ">
-            </div>
-
             <div style="margin-bottom:20px">
-              <label for="loginPassword" style="
+              <label for="loginPin" style="
                 display:block;font-size:13px;
-                font-weight:600;margin-bottom:7px;
-              ">Password</label>
+                font-weight:600;margin-bottom:9px;
+                text-align:center;
+              ">PIN Admin</label>
 
-              <input id="loginPassword" name="password"
-                type="password" autocomplete="current-password"
-                required placeholder="Masukkan password"
-                style="
-                  width:100%;padding:12px;
-                  border:1px solid #d1d5db;
-                  border-radius:9px;box-sizing:border-box;
-                ">
+              <input id="loginPin" name="pin"
+                type="password"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
+                maxlength="6"
+                minlength="6"
+                autocomplete="off"
+                required
+                placeholder="••••••"
+                style="${pinInputStyle()}">
             </div>
 
             <p id="loginError" style="
@@ -260,14 +283,10 @@
       });
     }
 
-    const errorBox = $("#loginError");
-
-    if (errorBox) {
-      errorBox.textContent = message;
-      errorBox.style.display = message ? "block" : "none";
-    }
-
+    showModalMessage("#loginError", message);
     iconRefresh();
+
+    $("#loginPin")?.focus();
   }
 
   /* =====================================================
@@ -277,23 +296,26 @@
   async function handleLogin(event) {
     event.preventDefault();
 
-    const nama = $("#loginNama").value.trim();
-    const password = $("#loginPassword").value;
+    const pin = $("#loginPin").value;
     const button = $("#loginSubmit");
     const errorBox = $("#loginError");
 
     button.disabled = true;
-    button.textContent = "Memeriksa login...";
+    button.textContent = "Memeriksa PIN...";
     errorBox.style.display = "none";
 
     try {
-      const result = await TechOpsAPI.login(nama, password);
+      const result = await TechOpsAPI.login(pin);
 
-      if (!result || !result.success || !result.user) {
-        throw new Error("Login gagal. Periksa nama dan password.");
+      if (!result || !result.success || !result.sessionId) {
+        throw new Error("Login gagal. Periksa PIN Admin.");
       }
 
-      state.user = result.user;
+      state.user = result.user || TechOpsAPI.getUser() || {
+        nama: "Admin",
+        role: "admin"
+      };
+
       state.authenticated = true;
 
       updateUserDisplay();
@@ -302,8 +324,7 @@
       await loadAll();
       renderCurrentPage();
 
-      toast("Login Admin berhasil. Selamat datang, " +
-        state.user.nama + ".");
+      toast("Login Admin berhasil.");
 
     } catch (error) {
       errorBox.textContent = error.message || "Login gagal.";
@@ -312,13 +333,241 @@
       button.disabled = false;
       button.textContent = "Masuk";
 
-      $("#loginPassword").value = "";
-      $("#loginPassword").focus();
+      $("#loginPin").value = "";
+      $("#loginPin").focus();
     }
   }
 
   /* =====================================================
-     4. LOGOUT ADMIN
+     4. POPUP GANTI PIN ADMIN
+  ===================================================== */
+
+  function renderChangePin(message = "") {
+    if (!state.authenticated) {
+      toast("Silakan login sebagai Admin terlebih dahulu.");
+      return;
+    }
+
+    let modal = $("#techOpsChangePinModal");
+
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "techOpsChangePinModal";
+
+      modal.style.cssText = `
+        position:fixed;
+        inset:0;
+        z-index:10000;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding:20px;
+        background:rgba(15,23,42,.55);
+      `;
+
+      modal.innerHTML = `
+        <div class="panel" style="
+          width:100%;
+          max-width:440px;
+          padding:28px;
+          border-radius:16px;
+          position:relative;
+        ">
+          <button type="button" id="closeTechOpsChangePin"
+            style="
+              position:absolute;right:16px;top:12px;
+              border:0;background:transparent;
+              font-size:24px;cursor:pointer;color:#64748b;
+            " aria-label="Tutup">&times;</button>
+
+          <div style="text-align:center;margin-bottom:22px">
+            <div style="
+              width:54px;height:54px;
+              margin:0 auto 14px;
+              display:flex;align-items:center;justify-content:center;
+              background:#eff6ff;border-radius:16px;color:#2563eb;
+            ">
+              <i data-lucide="key-round"
+                style="width:27px;height:27px"></i>
+            </div>
+
+            <h2 style="font-size:22px;margin-bottom:7px">
+              Ganti PIN Admin
+            </h2>
+
+            <p class="muted">
+              Masukkan PIN lama dan tentukan PIN baru.
+            </p>
+          </div>
+
+          <form id="techOpsChangePinForm">
+
+            <div style="margin-bottom:15px">
+              <label for="oldAdminPin" style="
+                display:block;font-size:13px;
+                font-weight:600;margin-bottom:7px;
+              ">PIN Lama</label>
+
+              <input id="oldAdminPin" type="password"
+                inputmode="numeric" pattern="[0-9]{6}"
+                maxlength="6" minlength="6"
+                autocomplete="off" required
+                placeholder="6 digit PIN lama"
+                style="${pinInputStyle()}">
+            </div>
+
+            <div style="margin-bottom:15px">
+              <label for="newAdminPin" style="
+                display:block;font-size:13px;
+                font-weight:600;margin-bottom:7px;
+              ">PIN Baru</label>
+
+              <input id="newAdminPin" type="password"
+                inputmode="numeric" pattern="[0-9]{6}"
+                maxlength="6" minlength="6"
+                autocomplete="off" required
+                placeholder="6 digit PIN baru"
+                style="${pinInputStyle()}">
+            </div>
+
+            <div style="margin-bottom:19px">
+              <label for="confirmAdminPin" style="
+                display:block;font-size:13px;
+                font-weight:600;margin-bottom:7px;
+              ">Konfirmasi PIN Baru</label>
+
+              <input id="confirmAdminPin" type="password"
+                inputmode="numeric" pattern="[0-9]{6}"
+                maxlength="6" minlength="6"
+                autocomplete="off" required
+                placeholder="Ulangi PIN baru"
+                style="${pinInputStyle()}">
+            </div>
+
+            <p id="changePinError" style="
+              display:none;color:#dc2626;
+              font-size:13px;margin-bottom:15px;
+            "></p>
+
+            <button type="submit" id="changePinSubmit"
+              class="button button-primary"
+              style="width:100%;justify-content:center;padding:12px">
+              Simpan PIN Baru
+            </button>
+          </form>
+
+          <p style="
+            text-align:center;font-size:11px;
+            color:#94a3b8;margin-top:18px;
+          ">
+            Setelah PIN diganti, Anda harus login kembali.
+          </p>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      $("#techOpsChangePinForm").addEventListener(
+        "submit",
+        handleChangePin
+      );
+
+      $("#closeTechOpsChangePin").addEventListener("click", () => {
+        modal.remove();
+      });
+
+      modal.addEventListener("click", event => {
+        if (event.target === modal) modal.remove();
+      });
+    }
+
+    showModalMessage("#changePinError", message);
+    iconRefresh();
+
+    $("#oldAdminPin")?.focus();
+  }
+
+  /* =====================================================
+     5. PROSES GANTI PIN ADMIN
+  ===================================================== */
+
+  async function handleChangePin(event) {
+    event.preventDefault();
+
+    const oldPin = $("#oldAdminPin").value;
+    const newPin = $("#newAdminPin").value;
+    const confirmPin = $("#confirmAdminPin").value;
+
+    const button = $("#changePinSubmit");
+    const errorBox = $("#changePinError");
+
+    errorBox.style.display = "none";
+
+    if (!/^[0-9]{6}$/.test(oldPin)) {
+      showModalMessage("#changePinError", "PIN lama harus 6 digit angka.");
+      return;
+    }
+
+    if (!/^[0-9]{6}$/.test(newPin)) {
+      showModalMessage("#changePinError", "PIN baru harus 6 digit angka.");
+      return;
+    }
+
+    if (newPin !== confirmPin) {
+      showModalMessage(
+        "#changePinError",
+        "Konfirmasi PIN baru tidak cocok."
+      );
+      $("#confirmAdminPin").value = "";
+      $("#confirmAdminPin").focus();
+      return;
+    }
+
+    if (oldPin === newPin) {
+      showModalMessage(
+        "#changePinError",
+        "PIN baru harus berbeda dari PIN lama."
+      );
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Menyimpan PIN...";
+
+    try {
+      const result = await TechOpsAPI.changePin(oldPin, newPin);
+
+      if (result && result.success === false) {
+        throw new Error(result.message || "Gagal mengganti PIN.");
+      }
+
+      state.user = null;
+      state.authenticated = false;
+
+      $("#techOpsChangePinModal")?.remove();
+
+      updateUserDisplay();
+
+      renderCurrentPage();
+
+      toast("PIN berhasil diganti. Silakan login kembali.");
+
+    } catch (error) {
+      showModalMessage(
+        "#changePinError",
+        error.message || "Gagal mengganti PIN."
+      );
+
+      button.disabled = false;
+      button.textContent = "Simpan PIN Baru";
+
+      $("#oldAdminPin").value = "";
+      $("#oldAdminPin").focus();
+    }
+  }
+
+  /* =====================================================
+     6. LOGOUT ADMIN
   ===================================================== */
 
   async function handleLogout() {
@@ -357,7 +606,7 @@
   }
 
   /* =====================================================
-     5. MEMUAT DATA PUBLIK
+     7. MEMUAT DATA PUBLIK
   ===================================================== */
 
   async function loadAll() {
@@ -381,7 +630,7 @@
   }
 
   /* =====================================================
-     6. KOMPONEN TAMPILAN
+     8. KOMPONEN TAMPILAN
   ===================================================== */
 
   function pageHeading(title, subtitle, eyebrow = "GOJAK TECHOPS") {
@@ -417,7 +666,7 @@
   }
 
   /* =====================================================
-     7. DASHBOARD
+     9. DASHBOARD
   ===================================================== */
 
   function renderDashboard() {
@@ -543,7 +792,7 @@
   }
 
   /* =====================================================
-     8. ERROR
+     10. ERROR
   ===================================================== */
 
   function renderError(error) {
@@ -583,7 +832,7 @@
   }
 
   /* =====================================================
-     9. NAVIGASI
+     11. NAVIGASI
   ===================================================== */
 
   function renderCurrentPage() {
@@ -633,7 +882,7 @@
   }
 
   /* =====================================================
-     10. INISIALISASI
+     12. INISIALISASI
   ===================================================== */
 
   async function init() {
@@ -650,11 +899,16 @@
     try {
       setConnection(false, "Memeriksa sesi...");
 
-      const session = await TechOpsAPI.validateSession();
+      const sessionValid = await TechOpsAPI.validateSession();
 
-      if (session && session.success && session.authenticated) {
-        state.user = session.user;
+      if (sessionValid === true) {
+        state.user = TechOpsAPI.getUser() || {
+          nama: "Admin",
+          role: "admin"
+        };
+
         state.authenticated = true;
+
       } else {
         state.user = null;
         state.authenticated = false;
@@ -682,7 +936,7 @@
   }
 
   /* =====================================================
-     11. PUBLIC STATE DAN UI
+     13. PUBLIC STATE DAN UI
   ===================================================== */
 
   window.TechOpsState = state;
