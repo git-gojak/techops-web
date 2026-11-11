@@ -14,6 +14,10 @@
   let bridgePromise = null;
   let bridgeResolve = null;
   let bridgeReject = null;
+  
+  let bridgeWindow = null;
+  let bridgeOrigin = "";
+
 
   let sessionId = "";
   let user = null;
@@ -56,6 +60,33 @@
       return false;
     }
   }
+
+function isBridgeFrameSource(source) {
+  if (!bridgeFrame || !source) return false;
+
+  const pending = [bridgeFrame.contentWindow];
+  const visited = new Set();
+
+  while (pending.length) {
+    const current = pending.shift();
+
+    if (!current || visited.has(current)) continue;
+
+    if (current === source) return true;
+
+    visited.add(current);
+
+    try {
+      for (let i = 0; i < current.frames.length; i++) {
+        pending.push(current.frames[i]);
+      }
+    } catch (error) {
+      // Frame yang tidak dapat diperiksa dilewati.
+    }
+  }
+
+  return false;
+}
 
   function initializeBridge() {
     if (bridgeReady && bridgeFrame) {
@@ -161,48 +192,54 @@
     });
   }
 
-  window.addEventListener("message", function (event) {
-    if (!bridgeFrame) return;
+  
+window.addEventListener("message", function (event) {
+  if (!bridgeFrame) return;
 
-    // Pastikan pesan berasal dari iframe AuthBridge yang benar.
-    if (event.source !== bridgeFrame.contentWindow) return;
+  // Pastikan sumber merupakan frame di dalam iframe AuthBridge.
+  if (!isBridgeFrameSource(event.source)) return;
 
-    // Apps Script dapat mengalihkan iframe ke domain Googleusercontent.
-    if (!isTrustedBridgeOrigin(event.origin)) return;
+  if (!isTrustedBridgeOrigin(event.origin)) return;
 
-    const message = event.data;
+  const message = event.data;
 
-    if (!message || message.source !== BRIDGE_SOURCE) return;
+  if (!message || message.source !== BRIDGE_SOURCE) return;
 
-    if (message.type === "BRIDGE_READY") {
-      bridgeReady = true;
+  if (message.type === "BRIDGE_READY") {
+    bridgeWindow = event.source;
+    bridgeOrigin = event.origin;
+    bridgeReady = true;
 
-      if (bridgeResolve) {
-        bridgeResolve();
-      }
-
-      bridgeResolve = null;
-      bridgeReject = null;
-
-      return;
+    if (bridgeResolve) {
+      bridgeResolve();
     }
 
-    const payload = message.payload || {};
-    const requestId = payload.requestId;
+    bridgeResolve = null;
+    bridgeReject = null;
 
-    if (!requestId || !pendingRequests.has(requestId)) return;
+    return;
+  }
 
-    const pending = pendingRequests.get(requestId);
-    pendingRequests.delete(requestId);
+  // Balasan berikutnya harus berasal dari frame yang sama.
+  if (event.source !== bridgeWindow) return;
 
-    if (payload.success) {
-      pending.resolve(payload.result);
-    } else {
-      pending.reject(
-        new Error(payload.message || "Permintaan gagal.")
-      );
-    }
-  });
+  const payload = message.payload || {};
+  const requestId = payload.requestId;
+
+  if (!requestId || !pendingRequests.has(requestId)) return;
+
+  const pending = pendingRequests.get(requestId);
+  pendingRequests.delete(requestId);
+
+  if (payload.success) {
+    pending.resolve(payload.result);
+  } else {
+    pending.reject(
+      new Error(payload.message || "Permintaan gagal.")
+    );
+  }
+});
+
 
   /* =====================================================
      LOGIN ADMIN - PIN 6 DIGIT
