@@ -313,7 +313,7 @@
 
       state.user = result.user || TechOpsAPI.getUser() || {
         nama: "Admin",
-        role: "admin"
+        role: "Admin"
       };
 
       state.authenticated = true;
@@ -836,50 +836,42 @@
   ===================================================== */
 
   function renderCurrentPage() {
-    const page = location.hash.replace("#", "") || "dashboard";
+  const page = location.hash.replace("#", "") || "dashboard";
 
-    state.page = pageNames[page] ? page : "dashboard";
+  // Simpan kode halaman, bukan nama tampilannya.
+  state.page = pageNames[page] ? page : "dashboard";
 
-    $$(".nav-link").forEach(link => {
-      link.classList.toggle(
-        "active",
-        link.dataset.page === state.page
-      );
-    });
+  $$(".nav-link").forEach(link => {
+    link.classList.toggle(
+      "active",
+      link.dataset.page === state.page
+    );
+  });
 
-    const breadcrumb = $("#pageCrumb");
-    if (breadcrumb) {
-      breadcrumb.textContent = pageNames[state.page] || "Dashboard";
-    }
-
-    if (state.page === "computers") {
-      window.ComputersPage.render();
-
-    } else if (state.page === "printers") {
-      window.PrintersPage.render();
-
-    } else if (state.page === "maintenance") {
-      window.MaintenancePage.render();
-
-    } else if (state.page === "qr-info") {
-      window.QRInfoPage.render();
-
-    } else {
-      renderDashboard();
-    }
-
-    closeSidebar();
+  const breadcrumb = $("#pageCrumb");
+  if (breadcrumb) {
+    breadcrumb.textContent =
+      pageNames[state.page] || "Dashboard";
   }
 
-  function openSidebar() {
-    $("#sidebar")?.classList.add("open");
-    $("#sidebarOverlay")?.classList.add("show");
+  if (state.page === "computers") {
+    window.ComputersPage.render();
+
+  } else if (state.page === "printers") {
+    window.PrintersPage.render();
+
+  } else if (state.page === "maintenance") {
+    window.MaintenancePage.render();
+
+  } else if (state.page === "qr-info") {
+    window.QRInfoPage.render();
+
+  } else {
+    renderDashboard();
   }
 
-  function closeSidebar() {
-    $("#sidebar")?.classList.remove("open");
-    $("#sidebarOverlay")?.classList.remove("show");
-  }
+  closeSidebar();
+}
 
   /* =====================================================
      12. INISIALISASI
@@ -904,7 +896,7 @@
       if (sessionValid === true) {
         state.user = TechOpsAPI.getUser() || {
           nama: "Admin",
-          role: "admin"
+          role: "Admin"
         };
 
         state.authenticated = true;
