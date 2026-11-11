@@ -4,8 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GoJak TechOps - Connection Test</title>
-
+  <title>GoJak TechOps - JSONP Test</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -15,14 +14,12 @@
       color: #202124;
       background: #f8fafc;
     }
-
     .panel {
       background: white;
       border: 1px solid #ddd;
       border-radius: 10px;
       padding: 20px;
     }
-
     button {
       padding: 11px 16px;
       margin: 5px 5px 5px 0;
@@ -32,17 +29,14 @@
       background: #1769aa;
       color: white;
     }
-
     button:disabled {
-      opacity: .45;
+      opacity: .5;
       cursor: not-allowed;
     }
-
     #status {
       font-weight: bold;
       margin-top: 18px;
     }
-
     pre {
       background: #f1f3f4;
       border-radius: 8px;
@@ -53,146 +47,122 @@
     }
   </style>
 </head>
-
 <body>
   <div class="panel">
-    <h2>GoJak TechOps — Connection Test</h2>
-
+    <h2>GoJak TechOps — JSONP Connection Test</h2>
     <p>
-      Pengujian komunikasi GitHub Pages dengan backend
-      Google Apps Script melalui popup.
+      Menguji komunikasi GitHub Pages dengan Apps Script
+      tanpa popup dan tanpa postMessage.
     </p>
 
-    <button onclick="openTestHost()">
-      1. Buka Backend Test
+    <button id="btnPing" onclick="runTest('ping')">
+      Tes Ping
     </button>
 
-    <button id="btnPing" onclick="sendTest('ping')" disabled>
-      2. Tes Ping
+    <button id="btnRead" onclick="runTest('public-read')">
+      Tes Baca Komputer
     </button>
 
-    <button id="btnRead" onclick="sendTest('public-read')" disabled>
-      3. Tes Baca Komputer
-    </button>
-
-    <p id="status">Belum terhubung.</p>
-
+    <p id="status">Belum ada pengujian.</p>
     <h3>Hasil Pengujian</h3>
     <pre id="result">Menunggu pengujian.</pre>
   </div>
 
   <script>
     const API_TEST_URL =
-      "https://script.google.com/macros/s/AKfycbzZDgkgWTr6_JUY9pBgr6RFtm41DKA3C7bazuTNw26IVBNEpgrN72IpawsIE74HV2MK/exec?page=api-test";
+      "https://script.google.com/macros/s/AKfycbzZDgkgWTr6_JUY9pBgr6RFtm41DKA3C7bazuTNw26IVBNEpgrN72IpawsIE74HV2MK/exec";
 
-    const REQUEST_SOURCE = "GOJAK_TECHOPS_TEST";
-    const BRIDGE_SOURCE = "GOJAK_TECHOPS_TEST_BRIDGE";
-
-    let testPopup = null;
-    let bridgeReady = false;
-    let bridgeOrigin = "";
+    let activeScript = null;
     let requestNumber = 0;
+    let requestTimer = null;
 
-    function setStatus(message) {
-      document.getElementById("status").textContent = message;
+    function setButtonsDisabled(disabled) {
+      document.getElementById("btnPing").disabled = disabled;
+      document.getElementById("btnRead").disabled = disabled;
     }
 
-    function showResult(result) {
+    function showResult(status, data) {
+      document.getElementById("status").textContent = status;
       document.getElementById("result").textContent =
-        JSON.stringify(result, null, 2);
+        JSON.stringify(data, null, 2);
     }
 
-    function isAppsScriptOrigin(origin) {
-      try {
-        const hostname = new URL(origin).hostname;
+    // Callback global yang dipanggil oleh respons JSONP Apps Script.
+    window.GoJakTestCallback = function(data) {
+      clearTimeout(requestTimer);
 
-        return hostname === "script.google.com" ||
-          hostname.endsWith(".googleusercontent.com");
-      } catch (error) {
-        return false;
+      if (activeScript) {
+        activeScript.remove();
+        activeScript = null;
       }
-    }
 
-    function openTestHost() {
-      bridgeReady = false;
-      bridgeOrigin = "";
+      setButtonsDisabled(false);
 
-      document.getElementById("btnPing").disabled = true;
-      document.getElementById("btnRead").disabled = true;
-
-      testPopup = window.open(
-        API_TEST_URL,
-        "GoJakTechOpsApiTest",
-        "popup,width=850,height=700"
+      showResult(
+        data && data.success
+          ? "KOMUNIKASI BERHASIL"
+          : "RESPONS DITERIMA, TETAPI TES GAGAL",
+        data
       );
+    };
 
-      if (!testPopup) {
-        setStatus("Popup diblokir browser. Izinkan popup untuk situs ini.");
-        return;
+    function runTest(action) {
+      if (activeScript) {
+        activeScript.remove();
+        activeScript = null;
       }
 
-      setStatus("Membuka halaman backend test...");
-    }
-
-    function sendTest(action) {
-      if (!testPopup || testPopup.closed || !bridgeReady) {
-        setStatus("Backend belum siap. Buka kembali popup test.");
-        return;
-      }
-
+      clearTimeout(requestTimer);
       requestNumber++;
 
-      const requestId = "github-" + requestNumber;
+      setButtonsDisabled(true);
 
-      testPopup.postMessage({
-        source: REQUEST_SOURCE,
-        type: "TEST_REQUEST",
-        payload: {
-          requestId: requestId,
-          action: action
+      document.getElementById("status").textContent =
+        "Menghubungi Apps Script: " + action;
+
+      document.getElementById("result").textContent =
+        "Menunggu respons...";
+
+      const url = API_TEST_URL +
+        "?page=api-test-jsonp" +
+        "&action=" + encodeURIComponent(action) +
+        "&callback=GoJakTestCallback" +
+        "&_=" + Date.now() + "-" + requestNumber;
+
+      const script = document.createElement("script");
+      activeScript = script;
+
+      script.src = url;
+      script.async = true;
+
+      script.onerror = function() {
+        clearTimeout(requestTimer);
+        setButtonsDisabled(false);
+        activeScript = null;
+
+        showResult("GAGAL MEMUAT RESPONS JSONP", {
+          action: action,
+          message:
+            "Browser tidak dapat memuat respons Apps Script. " +
+            "Periksa deployment dan URL endpoint."
+        });
+      };
+
+      requestTimer = setTimeout(function() {
+        if (activeScript === script) {
+          script.remove();
+          activeScript = null;
+          setButtonsDisabled(false);
+
+          showResult("TIMEOUT", {
+            action: action,
+            message: "Tidak ada respons dalam 20 detik."
+          });
         }
-      }, bridgeOrigin);
+      }, 20000);
 
-      setStatus("Mengirim permintaan: " + action);
-      showResult({
-        requestId: requestId,
-        action: action,
-        status: "Menunggu respons Apps Script..."
-      });
+      document.head.appendChild(script);
     }
-
-    window.addEventListener("message", function(event) {
-      if (!testPopup || event.source !== testPopup) return;
-      if (!isAppsScriptOrigin(event.origin)) return;
-
-      const message = event.data;
-
-      if (!message || message.source !== BRIDGE_SOURCE) return;
-
-      if (message.type === "BRIDGE_READY") {
-        bridgeReady = true;
-        bridgeOrigin = event.origin;
-
-        document.getElementById("btnPing").disabled = false;
-        document.getElementById("btnRead").disabled = false;
-
-        setStatus("Terhubung. Backend test siap menerima perintah.");
-        showResult(message.payload || {});
-        return;
-      }
-
-      if (message.type === "TEST_RESPONSE") {
-        const result = message.payload || {};
-
-        setStatus(
-          result.success
-            ? "Pengujian berhasil: " + result.action
-            : "Pengujian gagal: " + result.action
-        );
-
-        showResult(result);
-      }
-    });
   </script>
 </body>
 </html>
