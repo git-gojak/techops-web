@@ -171,24 +171,46 @@
 
       document.head.appendChild(script);
     }
-    function runPostTest() {
-  const form = document.createElement("form");
 
-  form.method = "POST";
-  form.action = API_TEST_URL;
-  form.target = "_blank";
+async function runPostTest() {
+  const output = document.getElementById("postTestResult")
+    || document.createElement("pre");
 
-  const token = document.createElement("input");
-  token.type = "hidden";
-  token.name = "testToken";
-  token.value = "GOJAK_POST_TEST_2026";
+  output.id = "postTestResult";
+  output.style.whiteSpace = "pre-wrap";
+  output.style.padding = "12px";
+  output.style.marginTop = "12px";
 
-  form.appendChild(token);
-  document.body.appendChild(form);
+  if (!output.parentNode) {
+    document.body.appendChild(output);
+  }
 
-  form.submit();
-  form.remove();
+  output.textContent = "Mengirim POST JSON...";
+
+  try {
+    const response = await fetch(API_TEST_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=UTF-8"
+      },
+      body: JSON.stringify({
+        testToken: "GOJAK_POST_TEST_2026"
+      }),
+      redirect: "follow"
+    });
+
+    const result = await response.json();
+
+    output.textContent =
+      JSON.stringify(result, null, 2);
+
+  } catch (error) {
+    output.textContent =
+      "POST GAGAL DIBACA FRONTEND:\n" +
+      error.message;
+  }
 }
+
   </script>
 </body>
 </html>
