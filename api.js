@@ -228,7 +228,7 @@
     sessionId = result.sessionId;
     user = result.user || {
       nama: "Admin",
-      role: "admin"
+      role: "Admin"
     };
 
     notifyAuthChange();
@@ -260,27 +260,27 @@
   ===================================================== */
 
   async function validateSession() {
-    if (!sessionId) return false;
+  if (!sessionId) return false;
 
-    try {
-      const result = await send("VALIDATE_SESSION", {
-        sessionId: sessionId
-      });
+  try {
+    const result = await send("VALIDATE_SESSION", {
+      sessionId: sessionId
+    });
 
-      if (result && result.valid) {
-        user = result.user || user;
-        notifyAuthChange();
-        return true;
-      }
-
-      clearSession();
-      return false;
-
-    } catch (error) {
-      clearSession();
-      return false;
+    if (result && result.success === true) {
+      user = result.user || user;
+      notifyAuthChange();
+      return true;
     }
+
+    clearSession();
+    return false;
+
+  } catch (error) {
+    clearSession();
+    return false;
   }
+}
 
   /* =====================================================
      LOGOUT ADMIN
