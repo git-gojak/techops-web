@@ -1,524 +1,329 @@
 
-/**
- * GOJAK TECHOPS — SECURE API CONNECTOR
- *
- * Frontend : GitHub Pages
- * Backend  : Google Apps Script
- * Bridge   : AuthBridge.html
- *
- * Komunikasi:
- * GitHub Pages -> AuthBridge -> API_request -> Google Sheets
- *
- * Tidak menggunakan JSONP.
- * Password dan session tidak dikirim melalui URL.
- */
-
-(function (global) {
+(function () {
   "use strict";
 
   const API_URL =
     "https://script.google.com/macros/s/AKfycbzZDgkgWTr6_JUY9pBgr6RFtm41DKA3C7bazuTNw26IVBNEpgrN72IpawsIE74HV2MK/exec";
 
   const PARENT_ORIGIN = "https://git-gojak.github.io";
-
   const PARENT_SOURCE = "GOJAK_TECHOPS";
   const BRIDGE_SOURCE = "GOJAK_TECHOPS_AUTH";
 
-  const TIMEOUT = 30000;
-
-  let iframe = null;
+  let bridgeFrame = null;
   let bridgeReady = false;
-  let bridgePromise = null;
-  let bridgeResolve = null;
-  let bridgeReject = null;
-
-  let sequence = 0;
   let sessionId = "";
-  let currentUser = null;
+  let user = null;
+  let requestCounter = 0;
 
-  const pending = new Map();
-
-  /* ===================================================
-     1. REQUEST ID
-  =================================================== */
+  const pendingRequests = new Map();
+  const authListeners = [];
 
   function createRequestId() {
-    sequence++;
-
-    return (
-      "gojak_" +
-      Date.now() +
-      "_" +
-      sequence
-    );
+    requestCounter++;
+    return "req_" + Date.now() + "_" + requestCounter;
   }
 
-
-  /* ===================================================
-     2. EVENT AUTH
-  =================================================== */
-
-  const authListeners = new Set();
-
-  function notifyAuth() {
-    const data = {
-      authenticated: !!sessionId,
-      user: currentUser
-    };
-
+  function notifyAuthChange() {
     authListeners.forEach(function (callback) {
       try {
-        callback(data);
+        callback({
+          authenticated: !!sessionId,
+          user: user
+        });
       } catch (error) {
-        console.error("Auth listener:", error);
+        console.error("Auth listener error:", error);
       }
     });
   }
 
-  function onAuthChange(callback) {
-    if (typeof callback !== "function") {
-      throw new Error("Callback harus berupa function.");
-    }
+  function initializeBridge() {
+    return new Promise(function (resolve, reject) {
+      if (bridgeReady && bridgeFrame) {
+        resolve();
+        return;
+      }
 
-    authListeners.add(callback);
+      if (bridgeFrame) {
+        const existing = bridgeFrame;
 
-    return function () {
-      authListeners.delete(callback);
-    };
-  }
+        if (existing.dataset.failed === "true") {
+          existing.remove();
+          bridgeFrame = null;
+        } else {
+          const checkInterval = setInterval(function () {
+            if (bridgeReady) {
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 100);
 
+          setTimeout(function () {
+            clearInterval(checkInterval);
+            if (!bridgeReady) {
+              reject(new Error("AuthBridge tidak merespons."));
+            }
+          }, 15000);
 
-  /* ===================================================
-     3. MEMBUAT IFRAME BRIDGE
-  =================================================== */
+          return;
+        }
+      }
 
-  function createBridge() {
-    if (bridgePromise) {
-      return bridgePromise;
-    }
+      bridgeFrame = document.createElement("iframe");
+      bridgeFrame.src = API_URL + "?page=auth-bridge";
+      bridgeFrame.style.display = "none";
+      bridgeFrame.setAttribute("aria-hidden", "true");
 
-    bridgePromise = new Promise(function (resolve, reject) {
-      bridgeResolve = resolve;
-      bridgeReject = reject;
-
-      iframe = document.createElement("iframe");
-
-      iframe.id = "gojakTechOpsAuthBridge";
-      iframe.title = "GoJak TechOps Authentication Bridge";
-
-      iframe.style.position = "fixed";
-      iframe.style.width = "1px";
-      iframe.style.height = "1px";
-      iframe.style.left = "-10000px";
-      iframe.style.top = "-10000px";
-      iframe.style.border = "0";
-      iframe.style.opacity = "0";
-
-      iframe.setAttribute("aria-hidden", "true");
-
-      iframe.src = API_URL + "?page=auth-bridge";
-
-      iframe.onerror = function () {
-        failBridge(
-          new Error("AuthBridge tidak dapat dimuat.")
-        );
+      bridgeFrame.onerror = function () {
+        bridgeFrame.dataset.failed = "true";
+        reject(new Error("Gagal memuat AuthBridge."));
       };
 
-      document.body.appendChild(iframe);
+      document.body.appendChild(bridgeFrame);
+
+      const checkInterval = setInterval(function () {
+        if (bridgeReady) {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 100);
 
       setTimeout(function () {
+        clearInterval(checkInterval);
+
         if (!bridgeReady) {
-          failBridge(
-            new Error(
-              "AuthBridge tidak merespons. Periksa deployment Apps Script."
-            )
-          );
+          reject(new Error("AuthBridge tidak merespons."));
         }
-      }, TIMEOUT);
+      }, 15000);
     });
-
-    return bridgePromise;
   }
 
+  function send(type, payload, responseType) {
+    return initializeBridge().then(function () {
+      return new Promise(function (resolve, reject) {
+        const requestId = createRequestId();
 
-  function failBridge(error) {
-    if (bridgeReady) return;
+        pendingRequests.set(requestId, {
+          resolve: resolve,
+          reject: reject
+        });
 
-    bridgeReady = false;
+        bridgeFrame.contentWindow.postMessage({
+          source: PARENT_SOURCE,
+          type: type,
+          requestId: requestId,
+          payload: payload || {}
+        }, PARENT_ORIGIN);
 
-    if (bridgeReject) {
-      bridgeReject(error);
-      bridgeReject = null;
-      bridgeResolve = null;
+        setTimeout(function () {
+          const pending = pendingRequests.get(requestId);
+
+          if (pending) {
+            pendingRequests.delete(requestId);
+            reject(new Error("Permintaan ke server timeout."));
+          }
+        }, 30000);
+      });
+    });
+  }
+
+  window.addEventListener("message", function (event) {
+    if (event.origin !== PARENT_ORIGIN) return;
+
+    if (!bridgeFrame || event.source !== bridgeFrame.contentWindow) {
+      return;
     }
-  }
-
-
-  /* ===================================================
-     4. MENERIMA PESAN DARI BRIDGE
-  =================================================== */
-
-  global.addEventListener("message", function (event) {
-
-    if (!iframe) return;
-
-    // Pesan harus berasal dari iframe yang kita buat.
-    if (event.source !== iframe.contentWindow) return;
 
     const message = event.data;
 
-    if (
-      !message ||
-      message.source !== BRIDGE_SOURCE ||
-      typeof message.type !== "string"
-    ) {
+    if (!message || message.source !== BRIDGE_SOURCE) return;
+
+    if (message.type === "BRIDGE_READY") {
+      bridgeReady = true;
       return;
     }
 
     const payload = message.payload || {};
+    const requestId = payload.requestId;
 
-    if (message.type === "BRIDGE_READY") {
+    if (!requestId || !pendingRequests.has(requestId)) return;
 
-      bridgeReady = true;
+    const pending = pendingRequests.get(requestId);
+    pendingRequests.delete(requestId);
 
-      if (bridgeResolve) {
-        bridgeResolve(true);
-        bridgeResolve = null;
-        bridgeReject = null;
-      }
-
-      return;
+    if (payload.success) {
+      pending.resolve(payload.result);
+    } else {
+      pending.reject(new Error(payload.message || "Permintaan gagal."));
     }
-
-    const requestId = String(payload.requestId || "");
-
-    if (!requestId || !pending.has(requestId)) {
-      return;
-    }
-
-    const request = pending.get(requestId);
-
-    clearTimeout(request.timer);
-    pending.delete(requestId);
-
-    if (request.type !== message.type) {
-      request.reject(
-        new Error("Jenis respons AuthBridge tidak sesuai.")
-      );
-      return;
-    }
-
-    if (payload.success === false) {
-      request.reject(
-        new Error(payload.message || "Permintaan gagal.")
-      );
-      return;
-    }
-
-    request.resolve(payload.result);
   });
 
-
-  /* ===================================================
-     5. MENGIRIM PESAN KE BRIDGE
-  =================================================== */
-
-  async function send(type, payload, responseType) {
-
-    await createBridge();
-
-    if (!iframe || !iframe.contentWindow) {
-      throw new Error("AuthBridge belum tersedia.");
+  async function login(pin) {
+    if (typeof pin !== "string" || !/^[0-9]{6}$/.test(pin)) {
+      throw new Error("PIN harus terdiri dari 6 digit angka.");
     }
 
-    const requestId = createRequestId();
+    const result = await send("LOGIN", {
+      pin: pin
+    }, "LOGIN_RESULT");
 
-    return new Promise(function (resolve, reject) {
-
-      const timer = setTimeout(function () {
-        pending.delete(requestId);
-
-        reject(
-          new Error("Waktu tunggu AuthBridge habis.")
-        );
-
-      }, TIMEOUT);
-
-      pending.set(requestId, {
-        resolve: resolve,
-        reject: reject,
-        timer: timer,
-        type: responseType
-      });
-
-      iframe.contentWindow.postMessage({
-
-        source: PARENT_SOURCE,
-
-        type: type,
-
-        requestId: requestId,
-
-        ...(payload || {})
-
-      }, "*");
-
-    });
-  }
-
-
-  /* ===================================================
-     6. LOGIN
-  =================================================== */
-
-  async function login(nama, password) {
-
-    nama = String(nama || "").trim();
-    password = String(password || "");
-
-    if (!nama || !password) {
-      throw new Error("Nama dan password wajib diisi.");
-    }
-
-    const result = await send(
-      "LOGIN",
-      {
-        nama: nama,
-        password: password
-      },
-      "LOGIN_RESULT"
-    );
-
-    if (
-      !result ||
-      result.success !== true ||
-      !result.sessionId ||
-      !result.user
-    ) {
+    if (!result || !result.success || !result.sessionId) {
       throw new Error(
         result && result.message
           ? result.message
-          : "Login gagal."
+          : "Login Admin gagal."
       );
     }
 
     sessionId = result.sessionId;
-    currentUser = result.user;
+    user = result.user || { nama: "Admin", role: "admin" };
 
-    notifyAuth();
+    notifyAuthChange();
 
-    return {
-      success: true,
-      user: currentUser
-    };
+    return result;
   }
 
+  async function initializePin(token, pin) {
+    if (typeof token !== "string" || !token) {
+      throw new Error("Token inisialisasi tidak valid.");
+    }
 
-  /* ===================================================
-     7. VALIDASI SESSION
-  =================================================== */
+    if (typeof pin !== "string" || !/^[0-9]{6}$/.test(pin)) {
+      throw new Error("PIN harus terdiri dari 6 digit angka.");
+    }
+
+    return send("INITIALIZE_PIN", {
+      token: token,
+      pin: pin
+    }, "INITIALIZE_PIN_RESULT");
+  }
 
   async function validateSession() {
-
-    if (!sessionId) {
-      return {
-        success: false,
-        authenticated: false,
-        message: "Belum ada sesi login."
-      };
-    }
+    if (!sessionId) return false;
 
     try {
+      const result = await send("VALIDATE_SESSION", {
+        sessionId: sessionId
+      }, "SESSION_RESULT");
 
-      const result = await send(
-        "VALIDATE_SESSION",
-        {
-          sessionId: sessionId
-        },
-        "SESSION_RESULT"
-      );
-
-      if (
-        !result ||
-        result.success !== true
-      ) {
-        clearSession();
-
-        return {
-          success: false,
-          authenticated: false
-        };
+      if (result && result.valid) {
+        user = result.user || user;
+        notifyAuthChange();
+        return true;
       }
-
-      // authValidateSession_ mengembalikan data user.
-      const user = result.user || result;
-
-      if (!user.role || !user.nama) {
-        throw new Error("Data pengguna tidak valid.");
-      }
-
-      currentUser = {
-        nama: user.nama,
-        role: user.role
-      };
-
-      notifyAuth();
-
-      return {
-        success: true,
-        authenticated: true,
-        user: currentUser
-      };
-
-    } catch (error) {
 
       clearSession();
+      return false;
 
-      return {
-        success: false,
-        authenticated: false,
-        message: error.message
-      };
+    } catch (error) {
+      clearSession();
+      return false;
     }
   }
 
-
-  /* ===================================================
-     8. LOGOUT
-  =================================================== */
-
   async function logout() {
-
     if (!sessionId) {
       clearSession();
-
-      return {
-        success: true
-      };
+      return true;
     }
 
-    const oldSession = sessionId;
+    const currentSession = sessionId;
 
     try {
-
-      const result = await send(
-        "LOGOUT",
-        {
-          sessionId: oldSession
-        },
-        "LOGOUT_RESULT"
-      );
+      await send("LOGOUT", {
+        sessionId: currentSession
+      }, "LOGOUT_RESULT");
 
       clearSession();
-
-      return result || {
-        success: true
-      };
+      return true;
 
     } catch (error) {
-
+      clearSession();
       throw error;
     }
   }
 
-
-  function clearSession() {
-    sessionId = "";
-    currentUser = null;
-
-    notifyAuth();
-  }
-
-
-  /* ===================================================
-     9. API REQUEST TERLINDUNGI
-  =================================================== */
-
-  async function request(action, payload = {}) {
-
+  async function changePin(oldPin, newPin) {
     if (!sessionId) {
-      throw new Error("Silakan login terlebih dahulu.");
+      throw new Error("Admin harus login terlebih dahulu.");
     }
-
-    if (!action) {
-      throw new Error("Action API wajib diisi.");
-    }
-
-    const result = await send(
-      "API_REQUEST",
-      {
-        sessionId: sessionId,
-        action: action,
-        payload: payload
-      },
-      "API_RESULT"
-    );
 
     if (
-      !result ||
-      result.success !== true
+      !/^[0-9]{6}$/.test(oldPin) ||
+      !/^[0-9]{6}$/.test(newPin)
     ) {
+      throw new Error("PIN harus terdiri dari 6 digit angka.");
+    }
+
+    if (oldPin === newPin) {
+      throw new Error("PIN baru harus berbeda dari PIN lama.");
+    }
+
+    const result = await send("CHANGE_PIN", {
+      sessionId: sessionId,
+      oldPin: oldPin,
+      newPin: newPin
+    }, "CHANGE_PIN_RESULT");
+
+    // Backend mengganti versi session sehingga semua sesi lama tidak berlaku.
+    clearSession();
+
+    return result;
+  }
+
+  async function request(action, payload) {
+    const result = await send("API_REQUEST", {
+      sessionId: sessionId || "",
+      action: action,
+      payload: payload || {}
+    }, "API_RESULT");
+
+    if (!result || result.success === false) {
       throw new Error(
         result && result.message
           ? result.message
-          : "Permintaan API gagal."
+          : "Permintaan data gagal."
       );
     }
 
     return result;
   }
 
-
-  /* ===================================================
-     10. GET — KOMPATIBILITAS MODUL LAMA
-  =================================================== */
-
-  async function get(action, params = {}) {
-
-    const result = await request(
-      action,
-      params
-    );
-
+  async function get(action, params) {
+    const result = await request(action, params || {});
     return result.data;
   }
 
-
-  /* ===================================================
-     11. STATUS AUTENTIKASI
-  =================================================== */
+  function clearSession() {
+    sessionId = "";
+    user = null;
+    notifyAuthChange();
+  }
 
   function isAuthenticated() {
     return !!sessionId;
   }
 
   function getUser() {
-    return currentUser;
+    return user;
   }
 
+  function onAuthChange(callback) {
+    if (typeof callback === "function") {
+      authListeners.push(callback);
+    }
+  }
 
-  /* ===================================================
-     12. PUBLIC API
-  =================================================== */
-
-  global.TechOpsAPI = Object.freeze({
-
+  window.TechOpsAPI = {
     get: get,
-
     request: request,
-
     login: login,
-
+    initializePin: initializePin,
     validateSession: validateSession,
-
     logout: logout,
-
+    changePin: changePin,
     isAuthenticated: isAuthenticated,
-
     getUser: getUser,
-
     onAuthChange: onAuthChange
+  };
 
-  });
-
-})(window);
+})();
