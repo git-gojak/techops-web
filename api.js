@@ -11,6 +11,10 @@
 
   let bridgeFrame = null;
   let bridgeReady = false;
+  let bridgePromise = null;
+  let bridgeResolve = null;
+  let bridgeReject = null;
+
   let sessionId = "";
   let user = null;
   let requestCounter = 0;
@@ -36,102 +40,135 @@
     });
   }
 
+  function clearSession() {
+    sessionId = "";
+    user = null;
+    notifyAuthChange();
+  }
+
+  function isTrustedBridgeOrigin(origin) {
+    try {
+      const hostname = new URL(origin).hostname;
+
+      return hostname === "script.google.com" ||
+        hostname.endsWith(".googleusercontent.com");
+    } catch (error) {
+      return false;
+    }
+  }
+
   function initializeBridge() {
-    return new Promise(function (resolve, reject) {
-      if (bridgeReady && bridgeFrame) {
-        resolve();
-        return;
-      }
+    if (bridgeReady && bridgeFrame) {
+      return Promise.resolve();
+    }
 
-      if (bridgeFrame) {
-        const existing = bridgeFrame;
+    if (bridgePromise) {
+      return bridgePromise;
+    }
 
-        if (existing.dataset.failed === "true") {
-          existing.remove();
-          bridgeFrame = null;
-        } else {
-          const checkInterval = setInterval(function () {
-            if (bridgeReady) {
-              clearInterval(checkInterval);
-              resolve();
-            }
-          }, 100);
-
-          setTimeout(function () {
-            clearInterval(checkInterval);
-            if (!bridgeReady) {
-              reject(new Error("AuthBridge tidak merespons."));
-            }
-          }, 15000);
-
-          return;
-        }
-      }
+    bridgePromise = new Promise(function (resolve, reject) {
+      bridgeResolve = resolve;
+      bridgeReject = reject;
 
       bridgeFrame = document.createElement("iframe");
       bridgeFrame.src = API_URL + "?page=auth-bridge";
       bridgeFrame.style.display = "none";
       bridgeFrame.setAttribute("aria-hidden", "true");
+      bridgeFrame.setAttribute("title", "GoJak TechOps Auth Bridge");
+
+      const timeout = setTimeout(function () {
+        if (!bridgeReady) {
+          bridgePromise = null;
+          bridgeFrame?.remove();
+          bridgeFrame = null;
+
+          if (bridgeReject) {
+            bridgeReject(new Error("AuthBridge tidak merespons."));
+          }
+
+          bridgeResolve = null;
+          bridgeReject = null;
+        }
+      }, 20000);
 
       bridgeFrame.onerror = function () {
-        bridgeFrame.dataset.failed = "true";
-        reject(new Error("Gagal memuat AuthBridge."));
+        clearTimeout(timeout);
+
+        bridgePromise = null;
+        bridgeReady = false;
+
+        if (bridgeReject) {
+          bridgeReject(new Error("Gagal memuat AuthBridge."));
+        }
+
+        bridgeResolve = null;
+        bridgeReject = null;
+
+        bridgeFrame?.remove();
+        bridgeFrame = null;
       };
+
+      bridgeFrame.dataset.timeout = String(timeout);
 
       document.body.appendChild(bridgeFrame);
 
-      const checkInterval = setInterval(function () {
-        if (bridgeReady) {
-          clearInterval(checkInterval);
-          resolve();
-        }
-      }, 100);
+      const originalResolve = resolve;
 
-      setTimeout(function () {
-        clearInterval(checkInterval);
-
-        if (!bridgeReady) {
-          reject(new Error("AuthBridge tidak merespons."));
-        }
-      }, 15000);
+      bridgeResolve = function () {
+        clearTimeout(timeout);
+        originalResolve();
+      };
     });
+
+    return bridgePromise;
   }
 
-  function send(type, payload, responseType) {
+  function send(type, payload) {
     return initializeBridge().then(function () {
       return new Promise(function (resolve, reject) {
         const requestId = createRequestId();
 
+        const timeout = setTimeout(function () {
+          pendingRequests.delete(requestId);
+          reject(new Error("Permintaan ke server timeout."));
+        }, 30000);
+
         pendingRequests.set(requestId, {
-          resolve: resolve,
-          reject: reject
+          resolve: function (result) {
+            clearTimeout(timeout);
+            resolve(result);
+          },
+          reject: function (error) {
+            clearTimeout(timeout);
+            reject(error);
+          }
         });
 
-        bridgeFrame.contentWindow.postMessage({
-          source: PARENT_SOURCE,
-          type: type,
-          requestId: requestId,
-          payload: payload || {}
-        }, PARENT_ORIGIN);
+        try {
+          bridgeFrame.contentWindow.postMessage({
+            source: PARENT_SOURCE,
+            type: type,
+            requestId: requestId,
+            payload: payload || {}
+          }, "*");
 
-        setTimeout(function () {
-          const pending = pendingRequests.get(requestId);
-
-          if (pending) {
-            pendingRequests.delete(requestId);
-            reject(new Error("Permintaan ke server timeout."));
-          }
-        }, 30000);
+        } catch (error) {
+          clearTimeout(timeout);
+          pendingRequests.delete(requestId);
+          reject(error);
+        }
       });
     });
   }
 
   window.addEventListener("message", function (event) {
-    if (event.origin !== PARENT_ORIGIN) return;
+    if (!bridgeFrame) return;
 
-    if (!bridgeFrame || event.source !== bridgeFrame.contentWindow) {
-      return;
-    }
+    // Pastikan pesan berasal dari iframe AuthBridge yang benar.
+    if (event.source !== bridgeFrame.contentWindow) return;
+
+    // Apps Script dapat mengalihkan iframe ke domain Googleusercontent.
+    if (!isTrustedBridgeOrigin(event.origin)) return;
 
     const message = event.data;
 
@@ -139,6 +176,14 @@
 
     if (message.type === "BRIDGE_READY") {
       bridgeReady = true;
+
+      if (bridgeResolve) {
+        bridgeResolve();
+      }
+
+      bridgeResolve = null;
+      bridgeReject = null;
+
       return;
     }
 
@@ -153,9 +198,15 @@
     if (payload.success) {
       pending.resolve(payload.result);
     } else {
-      pending.reject(new Error(payload.message || "Permintaan gagal."));
+      pending.reject(
+        new Error(payload.message || "Permintaan gagal.")
+      );
     }
   });
+
+  /* =====================================================
+     LOGIN ADMIN - PIN 6 DIGIT
+  ===================================================== */
 
   async function login(pin) {
     if (typeof pin !== "string" || !/^[0-9]{6}$/.test(pin)) {
@@ -164,7 +215,7 @@
 
     const result = await send("LOGIN", {
       pin: pin
-    }, "LOGIN_RESULT");
+    });
 
     if (!result || !result.success || !result.sessionId) {
       throw new Error(
@@ -175,12 +226,19 @@
     }
 
     sessionId = result.sessionId;
-    user = result.user || { nama: "Admin", role: "admin" };
+    user = result.user || {
+      nama: "Admin",
+      role: "admin"
+    };
 
     notifyAuthChange();
 
     return result;
   }
+
+  /* =====================================================
+     INISIALISASI PIN PERTAMA KALI
+  ===================================================== */
 
   async function initializePin(token, pin) {
     if (typeof token !== "string" || !token) {
@@ -194,8 +252,12 @@
     return send("INITIALIZE_PIN", {
       token: token,
       pin: pin
-    }, "INITIALIZE_PIN_RESULT");
+    });
   }
+
+  /* =====================================================
+     VALIDASI SESSION
+  ===================================================== */
 
   async function validateSession() {
     if (!sessionId) return false;
@@ -203,7 +265,7 @@
     try {
       const result = await send("VALIDATE_SESSION", {
         sessionId: sessionId
-      }, "SESSION_RESULT");
+      });
 
       if (result && result.valid) {
         user = result.user || user;
@@ -220,6 +282,10 @@
     }
   }
 
+  /* =====================================================
+     LOGOUT ADMIN
+  ===================================================== */
+
   async function logout() {
     if (!sessionId) {
       clearSession();
@@ -231,7 +297,7 @@
     try {
       await send("LOGOUT", {
         sessionId: currentSession
-      }, "LOGOUT_RESULT");
+      });
 
       clearSession();
       return true;
@@ -241,6 +307,10 @@
       throw error;
     }
   }
+
+  /* =====================================================
+     GANTI PIN ADMIN
+  ===================================================== */
 
   async function changePin(oldPin, newPin) {
     if (!sessionId) {
@@ -262,20 +332,28 @@
       sessionId: sessionId,
       oldPin: oldPin,
       newPin: newPin
-    }, "CHANGE_PIN_RESULT");
+    });
 
-    // Backend mengganti versi session sehingga semua sesi lama tidak berlaku.
+    if (result && result.success === false) {
+      throw new Error(result.message || "Gagal mengganti PIN.");
+    }
+
     clearSession();
 
     return result;
   }
+
+  /* =====================================================
+     REQUEST DATA
+     Session kosong diizinkan untuk akses publik.
+  ===================================================== */
 
   async function request(action, payload) {
     const result = await send("API_REQUEST", {
       sessionId: sessionId || "",
       action: action,
       payload: payload || {}
-    }, "API_RESULT");
+    });
 
     if (!result || result.success === false) {
       throw new Error(
@@ -293,11 +371,9 @@
     return result.data;
   }
 
-  function clearSession() {
-    sessionId = "";
-    user = null;
-    notifyAuthChange();
-  }
+  /* =====================================================
+     STATUS AUTHENTIKASI
+  ===================================================== */
 
   function isAuthenticated() {
     return !!sessionId;
@@ -312,6 +388,10 @@
       authListeners.push(callback);
     }
   }
+
+  /* =====================================================
+     PUBLIC API
+  ===================================================== */
 
   window.TechOpsAPI = {
     get: get,
