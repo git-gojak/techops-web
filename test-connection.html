@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GoJak TechOps - Connection Test</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 35px auto;
+      padding: 20px;
+      color: #202124;
+      background: #f8fafc;
+    }
+
+    .panel {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    button {
+      padding: 11px 16px;
+      margin: 5px 5px 5px 0;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #1769aa;
+      color: white;
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    #status {
+      font-weight: bold;
+      margin-top: 18px;
+    }
+
+    pre {
+      background: #f1f3f4;
+      border-radius: 8px;
+      padding: 15px;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      min-height: 100px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="panel">
+    <h2>GoJak TechOps — Connection Test</h2>
+
+    <p>
+      Pengujian komunikasi GitHub Pages dengan backend
+      Google Apps Script melalui popup.
+    </p>
+
+    <button onclick="openTestHost()">
+      1. Buka Backend Test
+    </button>
+
+    <button id="btnPing" onclick="sendTest('ping')" disabled>
+      2. Tes Ping
+    </button>
+
+    <button id="btnRead" onclick="sendTest('public-read')" disabled>
+      3. Tes Baca Komputer
+    </button>
+
+    <p id="status">Belum terhubung.</p>
+
+    <h3>Hasil Pengujian</h3>
+    <pre id="result">Menunggu pengujian.</pre>
+  </div>
+
+  <script>
+    const API_TEST_URL =
+      "https://script.google.com/macros/s/AKfycbzZDgkgWTr6_JUY9pBgr6RFtm41DKA3C7bazuTNw26IVBNEpgrN72IpawsIE74HV2MK/exec?page=api-test";
+
+    const REQUEST_SOURCE = "GOJAK_TECHOPS_TEST";
+    const BRIDGE_SOURCE = "GOJAK_TECHOPS_TEST_BRIDGE";
+
+    let testPopup = null;
+    let bridgeReady = false;
+    let bridgeOrigin = "";
+    let requestNumber = 0;
+
+    function setStatus(message) {
+      document.getElementById("status").textContent = message;
+    }
+
+    function showResult(result) {
+      document.getElementById("result").textContent =
+        JSON.stringify(result, null, 2);
+    }
+
+    function isAppsScriptOrigin(origin) {
+      try {
+        const hostname = new URL(origin).hostname;
+
+        return hostname === "script.google.com" ||
+          hostname.endsWith(".googleusercontent.com");
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function openTestHost() {
+      bridgeReady = false;
+      bridgeOrigin = "";
+
+      document.getElementById("btnPing").disabled = true;
+      document.getElementById("btnRead").disabled = true;
+
+      testPopup = window.open(
+        API_TEST_URL,
+        "GoJakTechOpsApiTest",
+        "popup,width=850,height=700"
+      );
+
+      if (!testPopup) {
+        setStatus("Popup diblokir browser. Izinkan popup untuk situs ini.");
+        return;
+      }
+
+      setStatus("Membuka halaman backend test...");
+    }
+
+    function sendTest(action) {
+      if (!testPopup || testPopup.closed || !bridgeReady) {
+        setStatus("Backend belum siap. Buka kembali popup test.");
+        return;
+      }
+
+      requestNumber++;
+
+      const requestId = "github-" + requestNumber;
+
+      testPopup.postMessage({
+        source: REQUEST_SOURCE,
+        type: "TEST_REQUEST",
+        payload: {
+          requestId: requestId,
+          action: action
+        }
+      }, bridgeOrigin);
+
+      setStatus("Mengirim permintaan: " + action);
+      showResult({
+        requestId: requestId,
+        action: action,
+        status: "Menunggu respons Apps Script..."
+      });
+    }
+
+    window.addEventListener("message", function(event) {
+      if (!testPopup || event.source !== testPopup) return;
+      if (!isAppsScriptOrigin(event.origin)) return;
+
+      const message = event.data;
+
+      if (!message || message.source !== BRIDGE_SOURCE) return;
+
+      if (message.type === "BRIDGE_READY") {
+        bridgeReady = true;
+        bridgeOrigin = event.origin;
+
+        document.getElementById("btnPing").disabled = false;
+        document.getElementById("btnRead").disabled = false;
+
+        setStatus("Terhubung. Backend test siap menerima perintah.");
+        showResult(message.payload || {});
+        return;
+      }
+
+      if (message.type === "TEST_RESPONSE") {
+        const result = message.payload || {};
+
+        setStatus(
+          result.success
+            ? "Pengujian berhasil: " + result.action
+            : "Pengujian gagal: " + result.action
+        );
+
+        showResult(result);
+      }
+    });
+  </script>
+</body>
+</html>
