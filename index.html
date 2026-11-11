@@ -1,155 +1,68 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0f172a">
-
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <meta name="description" content="GoJak TechOps - IT Asset Management System">
   <title>GoJak TechOps</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      padding: 24px;
-      min-height: 100vh;
-      font-family: Arial, sans-serif;
-      background: #f1f5f9;
-      color: #1e293b;
-    }
-
-    .container {
-      max-width: 700px;
-      margin: 40px auto;
-    }
-
-    .header {
-      background: #0f172a;
-      color: white;
-      padding: 24px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-    }
-
-    .header h1 {
-      margin: 0 0 8px;
-      font-size: 25px;
-    }
-
-    .header p {
-      margin: 0;
-      color: #cbd5e1;
-    }
-
-    .card {
-      background: white;
-      padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px #0000000d;
-    }
-
-    .status {
-      padding: 12px;
-      background: #f1f5f9;
-      border-radius: 8px;
-      margin: 16px 0;
-    }
-
-    .success {
-      color: #15803d;
-      background: #dcfce7;
-    }
-
-    .error {
-      color: #b91c1c;
-      background: #fee2e2;
-    }
-
-    button {
-      border: 0;
-      border-radius: 8px;
-      padding: 12px 18px;
-      background: #2563eb;
-      color: white;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: 0.6;
-      cursor: wait;
-    }
-
-    #result {
-      margin-top: 18px;
-      overflow-wrap: anywhere;
-    }
-  </style>
-
-  <script src="./api.js"></script>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./assets/icons/icon-192.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/style.css">
 </head>
-
 <body>
-  <main class="container">
-
-    <header class="header">
-      <h1>GoJak TechOps</h1>
-      <p>IT Asset Management System</p>
-    </header>
-
-    <section class="card">
-      <h2>Koneksi Backend</h2>
-
-      <div id="status" class="status">
-        Menunggu pengujian API...
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard" aria-label="GoJak TechOps Dashboard">
+        <span class="brand-mark"><i data-lucide="monitor-cog"></i></span>
+        <span class="brand-copy"><strong>GoJak TechOps</strong><small>IT Operations</small></span>
+      </a>
+      <div class="nav-caption">MENU UTAMA</div>
+      <nav class="nav-menu">
+        <a href="#dashboard" class="nav-link active" data-page="dashboard"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+        <a href="#computers" class="nav-link" data-page="computers"><i data-lucide="monitor"></i><span>Inventaris Komputer</span></a>
+        <a href="#printers" class="nav-link" data-page="printers"><i data-lucide="printer"></i><span>Inventaris Printer</span></a>
+        <a href="#maintenance" class="nav-link" data-page="maintenance"><i data-lucide="wrench"></i><span>Maintenance</span></a>
+        <a href="#qr-info" class="nav-link" data-page="qr-info"><i data-lucide="scan-qr-code"></i><span>QR Info</span></a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="connection-indicator"><span class="status-dot"></span><span id="sidebarConnection">Memeriksa koneksi</span></div>
+        <small>GoJak TechOps <span id="appVersion">v1.0.0</span></small>
       </div>
+    </aside>
 
-      <button id="testButton" onclick="testAPI()">
-        Uji Koneksi API
-      </button>
+    <div class="main-area">
+      <header class="topbar">
+        <button class="icon-button mobile-menu" id="menuToggle" aria-label="Buka menu"><i data-lucide="menu"></i></button>
+        <div class="breadcrumb"><span>GoJak TechOps</span><i data-lucide="chevron-right"></i><strong id="pageCrumb">Dashboard</strong></div>
+        <div class="topbar-actions">
+          <span class="environment-label"><span class="status-dot"></span> Sistem</span>
+          <div class="avatar" title="GoJak TechOps">GT</div>
+        </div>
+      </header>
 
-      <div id="result"></div>
-    </section>
+      <main class="content" id="appContent">
+        <section class="page-heading">
+          <div><p class="eyebrow">OVERVIEW</p><h1>Dashboard</h1><p class="muted">Ringkasan inventaris dan operasional perangkat IT.</p></div>
+          <button class="button button-secondary" id="refreshButton"><i data-lucide="refresh-cw"></i> Perbarui data</button>
+        </section>
+        <div class="loading-panel"><span class="spinner"></span> Memuat GoJak TechOps...</div>
+      </main>
 
-  </main>
+      <footer class="footer"><span>© <span id="currentYear"></span> GoJak TechOps</span><span>IT Asset Management System</span></footer>
+    </div>
+  </div>
 
-  <script>
-    async function testAPI() {
-      const status = document.getElementById("status");
-      const result = document.getElementById("result");
-      const button = document.getElementById("testButton");
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
-      button.disabled = true;
-      status.className = "status";
-      status.textContent = "Menghubungi backend...";
-      result.textContent = "";
-
-      try {
-        const response = await TechOpsAPI.get("computers.list");
-
-        if (Array.isArray(response)) {
-          status.className = "status success";
-          status.textContent = "Koneksi API berhasil.";
-
-          result.textContent =
-            "Total komputer berhasil dibaca: " + response.length;
-        } else if (response && response.success === false) {
-          throw new Error(response.message || "API mengembalikan kesalahan.");
-        } else {
-          throw new Error("Format respons API tidak sesuai.");
-        }
-
-      } catch (error) {
-        status.className = "status error";
-        status.textContent = "Koneksi API gagal: " + error.message;
-      } finally {
-        button.disabled = false;
-      }
-    }
-  </script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="./api.js"></script>
+  <script src="./js/app.js"></script>
+  <script src="./js/dashboard.js"></script>
+  <script src="./js/computers.js"></script>
+  <script src="./js/printers.js"></script>
+  <script src="./js/maintenance.js"></script>
+  <script src="./js/qr-info.js"></script>
 </body>
 </html>

@@ -1,0 +1,1 @@
+/* Dashboard renderer is maintained in app.js so all dashboard data shares one state. */

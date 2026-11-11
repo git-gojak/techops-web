@@ -1,0 +1,27 @@
+{
+  "id": "./",
+  "name": "GoJak TechOps",
+  "short_name": "TechOps",
+  "description": "IT Asset Management System",
+  "lang": "id-ID",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#111827",
+  "background_color": "#f3f6fb",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

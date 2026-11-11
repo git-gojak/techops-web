@@ -1,90 +1,56 @@
-
 /**
- * GOJAK TECHOPS — FRONTEND API CONNECTOR
- * GitHub Pages -> Google Apps Script
+ * GoJak TechOps API connector
+ * Frontend GitHub Pages -> Google Apps Script JSONP
+ *
+ * Public read-only requests only. Do not put secrets or passwords here.
  */
-
 (function (global) {
   "use strict";
 
-  const API_URL =
-    "https://script.google.com/macros/s/AKfycbzZDgkgWTr6_JUY9pBgr6RFtm41DKA3C7bazuTNw26IVBNEpgrN72IpawsIE74HV2MK/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbzZDgkgWTr6_JUY9pBgr6RFtm41DKA3C7bazuTNw26IVBNEpgrN72IpawsIE74HV2MK/exec";
+  let sequence = 0;
 
-  let requestCounter = 0;
-
-  /**
-   * Mengirim permintaan GET menggunakan JSONP.
-   *
-   * Contoh:
-   * TechOpsAPI.get("computers.list")
-   * TechOpsAPI.get("computers.get", { serial: "FCGBZR3" })
-   */
   function get(action, params = {}) {
-    return new Promise(function (resolve, reject) {
-      if (!action) {
-        reject(new Error("Action API wajib diisi."));
-        return;
-      }
+    return new Promise((resolve, reject) => {
+      if (!action) return reject(new Error("Action API wajib diisi."));
 
-      const callbackName =
-        "__techOpsCallback_" +
-        Date.now() +
-        "_" +
-        (++requestCounter);
-
+      const callback = "__gojakTechOps_" + Date.now() + "_" + (++sequence);
       const script = document.createElement("script");
-      let timeoutId;
+      let timer;
 
-      function cleanup() {
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        delete global[callbackName];
-
-        if (script.parentNode) {
-          script.parentNode.removeChild(script);
-        }
-      }
-
-      global[callbackName] = function (response) {
-        cleanup();
-        resolve(response);
+      const cleanup = () => {
+        if (timer) clearTimeout(timer);
+        try { delete global[callback]; } catch (_) { global[callback] = undefined; }
+        if (script.parentNode) script.parentNode.removeChild(script);
       };
 
-      script.onerror = function () {
+      global[callback] = (payload) => {
         cleanup();
-        reject(new Error("Gagal menghubungi TechOps API."));
+        resolve(payload);
       };
 
-      const query = new URLSearchParams();
+      script.onerror = () => {
+        cleanup();
+        reject(new Error("Tidak dapat memuat respons Apps Script. Periksa URL, deployment, dan action API."));
+      };
 
-      query.set("action", action);
-
-      Object.keys(params).forEach(function (key) {
-        const value = params[key];
-
-        if (value !== undefined && value !== null) {
+      const query = new URLSearchParams({ action, callback });
+      Object.entries(params || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && String(value) !== "") {
           query.set(key, String(value));
         }
       });
 
-      query.set("callback", callbackName);
+      timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("Waktu tunggu API habis (20 detik)."));
+      }, 20000);
 
       script.async = true;
       script.src = API_URL + "?" + query.toString();
-
-      timeoutId = setTimeout(function () {
-        cleanup();
-        reject(new Error("TechOps API tidak memberikan respons."));
-      }, 20000);
-
       document.head.appendChild(script);
     });
   }
 
-  global.TechOpsAPI = {
-    get: get
-  };
-
+  global.TechOpsAPI = Object.freeze({ get });
 })(window);
