@@ -4,6 +4,7 @@
 
   const ui = () => window.TechOpsUI;
   const state = () => window.TechOpsState;
+  const api = () => window.TechOpsAPI;
 
   let currentDevices = [];
   let selectedDevice = null;
@@ -52,33 +53,36 @@
         key: `computer-${index}`,
         type: "Komputer",
         name: getValue(item, [
-          "Computer Name", "computer_name", "computerName", "nama_aset"
+          "komputer", "Computer Name", "computer_name",
+          "computerName", "nama_aset"
         ]),
         serial: getValue(item, [
-          "Asset/Serial ID", "Asset Serial ID", "serial",
+          "serial", "Asset/Serial ID", "Asset Serial ID",
           "asset_id", "serial_number"
         ]),
-        manufacturer: getValue(item, ["Manufacturer", "manufacturer"]),
-        model: getValue(item, ["Model", "model"]),
-        unit: getValue(item, ["Pengguna", "Unit", "unit"]),
+        manufacturer: getValue(item, ["merek", "Manufacturer", "manufacturer"]),
+        model: getValue(item, ["model", "Model"]),
+        unit: getValue(item, ["pengguna", "Pengguna", "Unit", "unit"]),
         source: item
       });
     });
 
     printers.forEach((item, index) => {
+      const manufacturer = getValue(item, [
+        "merek", "manufacturer", "Manufacturer"
+      ]);
+      const model = getValue(item, ["model", "Model"]);
+
       result.push({
         key: `printer-${index}`,
         type: "Printer",
-        name: getValue(item, [
-          "nama_aset", "Nama Printer", "printer_name",
-          "model", "Model"
-        ]),
+        name: [manufacturer, model].filter(Boolean).join(" "),
         serial: getValue(item, [
-          "sn_asset", "SN/Asset", "serial", "Serial Number"
+          "serial", "sn_asset", "SN/Asset", "Serial Number"
         ]),
-        manufacturer: getValue(item, ["manufacturer", "Manufacturer"]),
-        model: getValue(item, ["model", "Model"]),
-        unit: getValue(item, ["Unit", "unit"]),
+        manufacturer,
+        model,
+        unit: getValue(item, ["unit", "Unit"]),
         source: item
       });
     });
@@ -145,15 +149,8 @@
 
     const rows = all.filter(row =>
       [
-        "Tanggal",
-        "jenis_aset",
-        "nama_aset",
-        "serial",
-        "kegiatan",
-        "kondisi",
-        "keterangan",
-        "teknisi",
-        "jadwal"
+        "Tanggal", "jenis_aset", "nama_aset", "serial",
+        "kegiatan", "kondisi", "keterangan", "teknisi", "jadwal"
       ].some(key =>
         String(row[key] ?? "").toLowerCase().includes(q)
       )
@@ -219,8 +216,7 @@
     currentDevices = getDevices();
     selectedDevice = null;
 
-    const today = new Date();
-    const dateValue = toInputDate(today);
+    const dateValue = toInputDate(new Date());
 
     const deviceOptions = currentDevices.map(device => `
       <option value="${ui().escapeHTML(device.key)}">
@@ -250,7 +246,6 @@
           </div>
 
           <div class="computer-form-grid">
-
             <div class="computer-form-field computer-field-wide">
               <label class="computer-field-label" for="maintenanceQr">
                 QR / Barcode / Serial / Asset ID
@@ -262,8 +257,7 @@
                 autocomplete="off"
               >
               <small class="computer-field-hint">
-                Masukkan kode dari label perangkat untuk mencari
-                data inventaris.
+                Masukkan kode perangkat untuk mencari data inventaris.
               </small>
             </div>
 
@@ -300,7 +294,6 @@
               <input id="maintenanceUnit" type="text" readonly
                 placeholder="Otomatis dari inventaris">
             </div>
-
           </div>
         </section>
 
@@ -316,7 +309,6 @@
           </div>
 
           <div class="computer-form-grid">
-
             <div class="computer-form-field">
               <label class="computer-field-label" for="maintenanceDate">
                 Tanggal <span class="computer-form-required">*</span>
@@ -330,8 +322,7 @@
                 Jenis Kegiatan <span class="computer-form-required">*</span>
               </label>
               <select id="maintenanceActivity" required>
-                <option value="">Pilih kegiatan</option>
-                <option value="Perawatan">Perawatan</option>
+                <option value="Perawatan" selected>Perawatan</option>
                 <option value="Perbaikan">Perbaikan</option>
               </select>
             </div>
@@ -350,9 +341,9 @@
 
             <div class="computer-form-field">
               <label class="computer-field-label" for="maintenanceCondition">
-                Kondisi Perangkat
+                Kondisi Perangkat <span class="computer-form-required">*</span>
               </label>
-              <select id="maintenanceCondition">
+              <select id="maintenanceCondition" required>
                 <option value="">Pilih kondisi</option>
                 <option value="Baik">Baik</option>
                 <option value="Perlu Perhatian">Perlu Perhatian</option>
@@ -365,7 +356,7 @@
                 Refill
               </label>
               <select id="maintenanceRefill">
-                <option value="T">Tidak</option>
+                <option value="T" selected>Tidak</option>
                 <option value="Y">Ya</option>
               </select>
             </div>
@@ -380,7 +371,6 @@
                 placeholder="Keterangan tambahan (opsional)"
               ></textarea>
             </div>
-
           </div>
         </section>
 
@@ -391,38 +381,24 @@
             </span>
             <div>
               <span class="computer-section-number">03</span>
-              <h3>Teknisi dan Jadwal</h3>
+              <h3>Penanganan dan Jadwal</h3>
             </div>
           </div>
 
           <div class="computer-form-grid">
-
             <div class="computer-form-field">
               <label class="computer-field-label" for="maintenanceHandlerType">
                 Penanganan Oleh
               </label>
               <select id="maintenanceHandlerType">
-                <option value="Teknisi">Teknisi</option>
+                <option value="Teknisi" selected>Teknisi</option>
                 <option value="Vendor">Vendor</option>
               </select>
             </div>
 
-            <div class="computer-form-field">
-              <label class="computer-field-label" for="maintenanceTechnician">
-                Nama Teknisi / Vendor
-                <span class="computer-form-required">*</span>
-              </label>
-              <input
-                id="maintenanceTechnician"
-                type="text"
-                placeholder="Masukkan nama teknisi atau vendor"
-                required
-              >
-            </div>
-
             <div class="computer-form-field computer-field-wide">
               <label class="computer-field-label" for="maintenanceSchedule">
-                Jadwal Maintenance Berikutnya
+                Perkiraan Jadwal Maintenance Berikutnya
               </label>
               <input
                 id="maintenanceSchedule"
@@ -431,11 +407,10 @@
                 placeholder="Dihitung otomatis"
               >
               <small class="computer-field-hint">
-                Perawatan komputer: 6 bulan. Perawatan printer: 3 bulan.
-                Perbaikan tidak membuat jadwal otomatis.
+                Komputer: 6 bulan. Printer: 3 bulan.
+                Jadwal perbaikan dikosongkan.
               </small>
             </div>
-
           </div>
         </section>
 
@@ -446,12 +421,12 @@
             id="maintenanceCancel">
             Batal
           </button>
-          <button type="submit" class="button button-primary">
+          <button type="submit" class="button button-primary"
+            id="maintenanceSubmit">
             <i data-lucide="save"></i>
             Simpan Maintenance
           </button>
         </div>
-
       </form>
     `;
 
@@ -513,6 +488,7 @@
     deviceSelect.addEventListener("change", () => {
       selectedDevice =
         currentDevices.find(item => item.key === deviceSelect.value) || null;
+
       fillDeviceFields();
       updateSchedule();
     });
@@ -540,22 +516,91 @@
     document.getElementById("maintenanceCancel")
       .addEventListener("click", closeModal);
 
-    form.addEventListener("submit", event => {
-      event.preventDefault();
+    form.addEventListener("submit", submitMaintenance);
+  }
 
-      const message =
-        document.getElementById("maintenanceFormMessage");
+  async function submitMaintenance(event) {
+    event.preventDefault();
 
-      if (!selectedDevice) {
-        message.textContent = "Pilih perangkat dari inventaris terlebih dahulu.";
-        return;
+    if (!isAdmin()) {
+      showFormMessage("Sesi Admin tidak aktif. Silakan login kembali.", true);
+      return;
+    }
+
+    if (!selectedDevice) {
+      showFormMessage("Pilih perangkat dari inventaris terlebih dahulu.", true);
+      return;
+    }
+
+    const form = document.getElementById("maintenanceForm");
+    if (!form.reportValidity()) return;
+
+    const submitButton = document.getElementById("maintenanceSubmit");
+    submitButton.disabled = true;
+    submitButton.textContent = "Menyimpan...";
+
+    const payload = {
+      jenis_aset: selectedDevice.type,
+      serial: selectedDevice.serial,
+      Tanggal: document.getElementById("maintenanceDate").value,
+      jenis_kegiatan: document.getElementById("maintenanceActivity").value,
+      kegiatan: document.getElementById("maintenanceDescription").value.trim(),
+      kondisi: document.getElementById("maintenanceCondition").value,
+      keterangan: document.getElementById("maintenanceNotes").value.trim(),
+      refill: document.getElementById("maintenanceRefill").value,
+      teknisi: document.getElementById("maintenanceHandlerType").value
+    };
+
+    try {
+      if (!api() || typeof api().request !== "function") {
+        throw new Error("TechOpsAPI.request tidak tersedia.");
       }
 
-      if (!form.reportValidity()) return;
+      // Backend akan mengambil nama perangkat dan menghitung jadwal.
+      await api().request("maintenance.create", {
+        data: payload
+      });
 
-      message.textContent =
-        "Formulir tampilan sudah siap. Penyimpanan backend belum diaktifkan pada tahap ini.";
-    });
+      // Ambil ulang riwayat dari backend setelah penyimpanan berhasil.
+      const latest = await api().get("maintenance.list");
+
+      const records = Array.isArray(latest)
+        ? latest
+        : Array.isArray(latest?.data)
+          ? latest.data
+          : Array.isArray(latest?.result)
+            ? latest.result
+            : null;
+
+      if (records) {
+        state().maintenance = records;
+      }
+
+      closeModal();
+      render();
+
+    } catch (error) {
+      showFormMessage(
+        error && error.message
+          ? error.message
+          : "Gagal menyimpan data maintenance.",
+        true
+      );
+
+      submitButton.disabled = false;
+      submitButton.innerHTML =
+        '<i data-lucide="save"></i> Simpan Maintenance';
+
+      ui().iconRefresh();
+    }
+  }
+
+  function showFormMessage(message, isError) {
+    const target = document.getElementById("maintenanceFormMessage");
+    if (!target) return;
+
+    target.textContent = message;
+    target.classList.toggle("error", !!isError);
   }
 
   function fillDeviceFields() {
