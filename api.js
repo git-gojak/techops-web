@@ -14,10 +14,9 @@
   let bridgePromise = null;
   let bridgeResolve = null;
   let bridgeReject = null;
-  
+
   let bridgeWindow = null;
   let bridgeOrigin = "";
-
 
   let sessionId = "";
   let user = null;
@@ -61,35 +60,35 @@
     }
   }
 
-function isBridgeFrameSource(source) {
-  if (!bridgeFrame || !source) return false;
+  function isBridgeFrameSource(source) {
+    if (!bridgeFrame || !source) return false;
 
-  const pending = [bridgeFrame.contentWindow];
-  const visited = new Set();
+    const pending = [bridgeFrame.contentWindow];
+    const visited = new Set();
 
-  while (pending.length) {
-    const current = pending.shift();
+    while (pending.length) {
+      const current = pending.shift();
 
-    if (!current || visited.has(current)) continue;
+      if (!current || visited.has(current)) continue;
 
-    if (current === source) return true;
+      if (current === source) return true;
 
-    visited.add(current);
+      visited.add(current);
 
-    try {
-      for (let i = 0; i < current.frames.length; i++) {
-        pending.push(current.frames[i]);
+      try {
+        for (let i = 0; i < current.frames.length; i++) {
+          pending.push(current.frames[i]);
+        }
+      } catch (error) {
+        // Frame lintas domain yang tidak dapat diperiksa dilewati.
       }
-    } catch (error) {
-      // Frame yang tidak dapat diperiksa dilewati.
     }
+
+    return false;
   }
 
-  return false;
-}
-
   function initializeBridge() {
-    if (bridgeReady && bridgeFrame) {
+    if (bridgeReady && bridgeFrame && bridgeWindow) {
       return Promise.resolve();
     }
 
@@ -109,7 +108,11 @@ function isBridgeFrameSource(source) {
 
       const timeout = setTimeout(function () {
         if (!bridgeReady) {
+          bridgeReady = false;
+          bridgeWindow = null;
+          bridgeOrigin = "";
           bridgePromise = null;
+
           bridgeFrame?.remove();
           bridgeFrame = null;
 
@@ -125,8 +128,10 @@ function isBridgeFrameSource(source) {
       bridgeFrame.onerror = function () {
         clearTimeout(timeout);
 
-        bridgePromise = null;
         bridgeReady = false;
+        bridgeWindow = null;
+        bridgeOrigin = "";
+        bridgePromise = null;
 
         if (bridgeReject) {
           bridgeReject(new Error("Gagal memuat AuthBridge."));
@@ -138,8 +143,6 @@ function isBridgeFrameSource(source) {
         bridgeFrame?.remove();
         bridgeFrame = null;
       };
-
-      bridgeFrame.dataset.timeout = String(timeout);
 
       document.body.appendChild(bridgeFrame);
 
@@ -157,6 +160,11 @@ function isBridgeFrameSource(source) {
   function send(type, payload) {
     return initializeBridge().then(function () {
       return new Promise(function (resolve, reject) {
+        if (!bridgeWindow || !bridgeOrigin || !bridgeReady) {
+          reject(new Error("Koneksi AuthBridge belum siap."));
+          return;
+        }
+
         const requestId = createRequestId();
 
         const timeout = setTimeout(function () {
@@ -176,12 +184,13 @@ function isBridgeFrameSource(source) {
         });
 
         try {
-          bridgeFrame.contentWindow.postMessage({
+          // Kirim ke frame yang benar-benar mengirim BRIDGE_READY.
+          bridgeWindow.postMessage({
             source: PARENT_SOURCE,
             type: type,
             requestId: requestId,
             payload: payload || {}
-          }, "*");
+          }, bridgeOrigin);
 
         } catch (error) {
           clearTimeout(timeout);
@@ -192,73 +201,64 @@ function isBridgeFrameSource(source) {
     });
   }
 
-  
-window.addEventListener("message", function (event) {
-  if (!bridgeFrame) return;
+  window.addEventListener("message", function (event) {
+    if (!bridgeFrame) return;
 
-  // Pastikan sumber merupakan frame di dalam iframe AuthBridge.
-  if (!isBridgeFrameSource(event.source)) return;
+    if (!isBridgeFrameSource(event.source)) return;
 
-  if (!isTrustedBridgeOrigin(event.origin)) return;
+    if (!isTrustedBridgeOrigin(event.origin)) return;
 
-  const message = event.data;
+    const message = event.data;
 
-  if (!message || message.source !== BRIDGE_SOURCE) return;
+    if (!message || message.source !== BRIDGE_SOURCE) return;
 
-  if (message.type === "BRIDGE_READY") {
-    bridgeWindow = event.source;
-    bridgeOrigin = event.origin;
-    bridgeReady = true;
+    if (message.type === "BRIDGE_READY") {
+      bridgeWindow = event.source;
+      bridgeOrigin = event.origin;
+      bridgeReady = true;
 
-    if (bridgeResolve) {
-      bridgeResolve();
+      if (bridgeResolve) {
+        bridgeResolve();
+      }
+
+      bridgeResolve = null;
+      bridgeReject = null;
+
+      return;
     }
 
-    bridgeResolve = null;
-    bridgeReject = null;
+    if (event.source !== bridgeWindow) return;
+    if (event.origin !== bridgeOrigin) return;
 
-    return;
-  }
+    const payload = message.payload || {};
+    const requestId = payload.requestId;
 
-  // Balasan berikutnya harus berasal dari frame yang sama.
-  if (event.source !== bridgeWindow) return;
+    if (!requestId || !pendingRequests.has(requestId)) return;
 
-  const payload = message.payload || {};
-  const requestId = payload.requestId;
+    const pending = pendingRequests.get(requestId);
+    pendingRequests.delete(requestId);
 
-  if (!requestId || !pendingRequests.has(requestId)) return;
+    if (payload.success) {
+      pending.resolve(payload.result);
+    } else {
+      pending.reject(
+        new Error(payload.message || "Permintaan gagal.")
+      );
+    }
+  });
 
-  const pending = pendingRequests.get(requestId);
-  pendingRequests.delete(requestId);
-
-  if (payload.success) {
-    pending.resolve(payload.result);
-  } else {
-    pending.reject(
-      new Error(payload.message || "Permintaan gagal.")
-    );
-  }
-});
-
-
-  /* =====================================================
-     LOGIN ADMIN - PIN 6 DIGIT
-  ===================================================== */
+  /* LOGIN ADMIN */
 
   async function login(pin) {
     if (typeof pin !== "string" || !/^[0-9]{6}$/.test(pin)) {
       throw new Error("PIN harus terdiri dari 6 digit angka.");
     }
 
-    const result = await send("LOGIN", {
-      pin: pin
-    });
+    const result = await send("LOGIN", { pin: pin });
 
     if (!result || !result.success || !result.sessionId) {
       throw new Error(
-        result && result.message
-          ? result.message
-          : "Login Admin gagal."
+        result?.message || "Login Admin gagal."
       );
     }
 
@@ -273,91 +273,83 @@ window.addEventListener("message", function (event) {
     return result;
   }
 
-  /* =====================================================
-     INISIALISASI PIN PERTAMA KALI
-  ===================================================== */
+  /* INISIALISASI PIN */
 
   async function initializePin(token, pin) {
-  if (!/^\d{6}$/.test(String(pin || ""))) {
-    throw new Error("PIN harus terdiri dari 6 digit.");
-  }
-
-  const result = await send("INITIALIZE_PIN", {
-    token: token,
-    pin: pin
-  });
-
-  if (!result || result.success === false) {
-    throw new Error(
-      result?.message || "Gagal menginisialisasi PIN."
-    );
-  }
-
-  return result;
-}
-
-  /* =====================================================
-     VALIDASI SESSION
-  ===================================================== */
-
-  async function validateSession() {
-  if (!sessionId) return false;
-
-  try {
-    const result = await send("VALIDATE_SESSION", {
-      sessionId: sessionId
-    });
-
-    if (result && result.success === true) {
-      user = result.user || user;
-      notifyAuthChange();
-      return true;
+    if (!/^\d{6}$/.test(String(pin || ""))) {
+      throw new Error("PIN harus terdiri dari 6 digit.");
     }
 
-    clearSession();
-    return false;
-
-  } catch (error) {
-    clearSession();
-    return false;
-  }
-}
-
-  /* =====================================================
-     LOGOUT ADMIN
-  ===================================================== */
-
-  async function logout() {
-  if (!sessionId) {
-    clearSession();
-    return true;
-  }
-
-  const currentSession = sessionId;
-
-  try {
-    const result = await send("LOGOUT", {
-      sessionId: currentSession
+    const result = await send("INITIALIZE_PIN", {
+      token: token,
+      pin: pin
     });
 
     if (!result || result.success === false) {
       throw new Error(
-        result?.message || "Logout gagal."
+        result?.message || "Gagal menginisialisasi PIN."
       );
     }
 
-    clearSession();
-    return true;
-
-  } catch (error) {
-    clearSession();
-    throw error;
+    return result;
   }
-}
 
-  /* =====================================================
-     GANTI PIN ADMIN
-  ===================================================== */
+  /* VALIDASI SESSION */
+
+  async function validateSession() {
+    if (!sessionId) return false;
+
+    try {
+      const result = await send("VALIDATE_SESSION", {
+        sessionId: sessionId
+      });
+
+      if (result && result.success === true) {
+        user = result.user || user;
+        notifyAuthChange();
+        return true;
+      }
+
+      clearSession();
+      return false;
+
+    } catch (error) {
+      clearSession();
+      return false;
+    }
+  }
+
+  /* LOGOUT ADMIN */
+
+  async function logout() {
+    if (!sessionId) {
+      clearSession();
+      return true;
+    }
+
+    const currentSession = sessionId;
+
+    try {
+      const result = await send("LOGOUT", {
+        sessionId: currentSession
+      });
+
+      if (!result || result.success === false) {
+        throw new Error(
+          result?.message || "Logout gagal."
+        );
+      }
+
+      clearSession();
+      return true;
+
+    } catch (error) {
+      clearSession();
+      throw error;
+    }
+  }
+
+  /* GANTI PIN ADMIN */
 
   async function changePin(oldPin, newPin) {
     if (!sessionId) {
@@ -390,10 +382,7 @@ window.addEventListener("message", function (event) {
     return result;
   }
 
-  /* =====================================================
-     REQUEST DATA
-     Session kosong diizinkan untuk akses publik.
-  ===================================================== */
+  /* REQUEST DATA */
 
   async function request(action, payload) {
     const result = await send("API_REQUEST", {
@@ -404,9 +393,7 @@ window.addEventListener("message", function (event) {
 
     if (!result || result.success === false) {
       throw new Error(
-        result && result.message
-          ? result.message
-          : "Permintaan data gagal."
+        result?.message || "Permintaan data gagal."
       );
     }
 
@@ -418,9 +405,7 @@ window.addEventListener("message", function (event) {
     return result.data;
   }
 
-  /* =====================================================
-     STATUS AUTHENTIKASI
-  ===================================================== */
+  /* STATUS AUTHENTIKASI */
 
   function isAuthenticated() {
     return !!sessionId;
@@ -436,9 +421,7 @@ window.addEventListener("message", function (event) {
     }
   }
 
-  /* =====================================================
-     PUBLIC API
-  ===================================================== */
+  /* PUBLIC API */
 
   window.TechOpsAPI = {
     get: get,
