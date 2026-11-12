@@ -23,8 +23,8 @@
       icon: "settings",
       fields: [
         ["tinta", "Jenis Tinta", "text"],
-        ["ftp", "Tanggal FTP", "text"],
-        ["mp", "MP", "text"]
+        ["ftp", "Tanggal FTP", "date"],
+        ["mp", "Masa Pakai (MP)", "text"]
       ]
     }
   ];
@@ -43,6 +43,64 @@
     return ui().escapeHTML(value == null ? "" : String(value));
   }
 
+  function normalizeFTPDate(value) {
+    if (!value) return "";
+
+    const text = String(value).trim();
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      return text;
+    }
+
+    const match = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+
+    if (match) {
+      return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+    }
+
+    return "";
+  }
+
+  function calculateMP(ftp) {
+    const value = normalizeFTPDate(ftp);
+    if (!value) return "";
+
+    const [year, month, day] = value.split("-").map(Number);
+
+    const start = new Date(Date.UTC(year, month - 1, day));
+    const now = new Date();
+
+    const end = new Date(Date.UTC(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    ));
+
+    if (start > end) return "Belum dimulai";
+
+    let years = end.getUTCFullYear() - start.getUTCFullYear();
+    let months = end.getUTCMonth() - start.getUTCMonth();
+    let days = end.getUTCDate() - start.getUTCDate();
+
+    if (days < 0) {
+      const previousMonthDays = new Date(Date.UTC(
+        end.getUTCFullYear(),
+        end.getUTCMonth(),
+        0
+      )).getUTCDate();
+
+      days += previousMonthDays;
+      months--;
+    }
+
+    if (months < 0) {
+      months += 12;
+      years--;
+    }
+
+    return `${years}y ${months}m ${days}d`;
+  }
+
   function request(action, payload) {
     return window.TechOpsAPI.request(action, payload || {})
       .then(result => {
@@ -51,7 +109,6 @@
             result?.message || "Permintaan gagal diproses."
           );
         }
-
         return result.data;
       });
   }
@@ -161,6 +218,8 @@
               <th>MEREK</th>
               <th>MODEL</th>
               <th>TINTA</th>
+              <th>FTP</th>
+              <th>MP</th>
               <th>STATUS</th>
               <th>AKSI</th>
             </tr>
@@ -179,6 +238,8 @@
                 <td>${escape(row.merek)}</td>
                 <td>${escape(row.model)}</td>
                 <td>${escape(row.tinta)}</td>
+                <td>${escape(row.ftp)}</td>
+                <td>${escape(calculateMP(row.ftp) || "-")}</td>
                 <td>
                   <span class="badge ${archived ? "gray" : "green"}">
                     ${archived ? "Arsip" : escape(row.status || "Aktif")}
@@ -186,35 +247,26 @@
                 </td>
                 <td>
                   <div class="computer-table-actions">
-                    <button
-                      class="table-action"
-                      type="button"
-                      data-action="detail"
-                      data-serial="${serial}"
-                    >Detail</button>
+                    <button class="table-action" type="button"
+                      data-action="detail" data-serial="${serial}">
+                      Detail
+                    </button>
 
                     ${isAdmin() ? `
                       ${!archived ? `
-                        <button
-                          class="table-action"
-                          type="button"
-                          data-action="edit"
-                          data-serial="${serial}"
-                        >Edit</button>
-
-                        <button
-                          class="table-action danger"
-                          type="button"
-                          data-action="archive"
-                          data-serial="${serial}"
-                        >Arsipkan</button>
+                        <button class="table-action" type="button"
+                          data-action="edit" data-serial="${serial}">
+                          Edit
+                        </button>
+                        <button class="table-action danger" type="button"
+                          data-action="archive" data-serial="${serial}">
+                          Arsipkan
+                        </button>
                       ` : `
-                        <button
-                          class="table-action"
-                          type="button"
-                          data-action="unarchive"
-                          data-serial="${serial}"
-                        >Aktifkan</button>
+                        <button class="table-action" type="button"
+                          data-action="unarchive" data-serial="${serial}">
+                          Aktifkan
+                        </button>
                       `}
                     ` : ""}
                   </div>
@@ -256,14 +308,16 @@
       model: "Model",
       tinta: "Jenis Tinta",
       ftp: "Tanggal FTP",
-      mp: "MP",
+      mp: "Masa Pakai",
       status: "Status"
     };
 
     const body = Object.entries(labels).map(([key, label]) =>
       `<div class="detail-item">
         <small>${label}</small>
-        <strong>${escape(row[key] || "-")}</strong>
+        <strong>${escape(
+          key === "mp" ? calculateMP(row.ftp) || "-" : row[key] || "-"
+        )}</strong>
       </div>`
     ).join("");
 
@@ -276,8 +330,13 @@
   function renderFormField(field, row, editing) {
     const [key, label, type] = field;
     const required = key === "serial";
-    const readonly = editing && key === "serial";
-    const value = row[key] == null ? "" : row[key];
+    const readonly = (editing && key === "serial") || key === "mp";
+
+    const value = key === "mp"
+      ? calculateMP(row.ftp)
+      : key === "ftp"
+        ? normalizeFTPDate(row.ftp)
+        : row[key] == null ? "" : row[key];
 
     return `
       <label class="computer-form-field">
@@ -296,9 +355,11 @@
           autocomplete="off"
         >
 
-        ${readonly
-          ? '<small class="computer-field-hint">Serial Number tidak dapat diubah.</small>'
-          : ""}
+        ${key === "mp"
+          ? '<small class="computer-field-hint">Dihitung otomatis berdasarkan tanggal FTP.</small>'
+          : readonly && key === "serial"
+            ? '<small class="computer-field-hint">Serial Number tidak dapat diubah.</small>'
+            : ""}
       </label>`;
   }
 
@@ -391,12 +452,24 @@
 
     ui().$("#cancelPrinterForm").addEventListener("click", closeModal);
 
-    ui().$("#printerForm").addEventListener("submit", async event => {
+    const form = ui().$("#printerForm");
+    const ftpInput = form.elements.namedItem("ftp");
+    const mpInput = form.elements.namedItem("mp");
+
+    function updateMP() {
+      mpInput.value = calculateMP(ftpInput.value);
+    }
+
+    ftpInput.addEventListener("input", updateMP);
+    ftpInput.addEventListener("change", updateMP);
+
+    updateMP();
+
+    form.addEventListener("submit", async event => {
       event.preventDefault();
 
       if (busy) return;
 
-      const form = event.currentTarget;
       const data = {};
 
       FIELDS.forEach(([key]) => {
@@ -408,6 +481,9 @@
         showFormMessage("Serial Number wajib diisi.", "error");
         return;
       }
+
+      data.ftp = normalizeFTPDate(data.ftp);
+      data.mp = calculateMP(data.ftp);
 
       if (editing) {
         data.serial = String(serial);
