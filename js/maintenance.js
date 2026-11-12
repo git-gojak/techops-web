@@ -6,8 +6,9 @@
   const state = () => window.TechOpsState;
   const api = () => window.TechOpsAPI;
 
-  let currentDevices = [];
   let selectedDevice = null;
+  let qrScanner = null;
+  let scannerStarting = false;
 
   function isAdmin() {
     return !!state().authenticated;
@@ -29,65 +30,13 @@
 
     for (const key of keys) {
       const value = normalized[key.toLowerCase().replace(/[\s_-]/g, "")];
+
       if (value !== undefined && value !== null && value !== "") {
         return String(value);
       }
     }
 
     return "";
-  }
-
-  function getDevices() {
-    const computers = Array.isArray(state().computers)
-      ? state().computers
-      : [];
-
-    const printers = Array.isArray(state().printers)
-      ? state().printers
-      : [];
-
-    const result = [];
-
-    computers.forEach((item, index) => {
-      result.push({
-        key: `computer-${index}`,
-        type: "Komputer",
-        name: getValue(item, [
-          "komputer", "Computer Name", "computer_name",
-          "computerName", "nama_aset"
-        ]),
-        serial: getValue(item, [
-          "serial", "Asset/Serial ID", "Asset Serial ID",
-          "asset_id", "serial_number"
-        ]),
-        manufacturer: getValue(item, ["merek", "Manufacturer", "manufacturer"]),
-        model: getValue(item, ["model", "Model"]),
-        unit: getValue(item, ["pengguna", "Pengguna", "Unit", "unit"]),
-        source: item
-      });
-    });
-
-    printers.forEach((item, index) => {
-      const manufacturer = getValue(item, [
-        "merek", "manufacturer", "Manufacturer"
-      ]);
-      const model = getValue(item, ["model", "Model"]);
-
-      result.push({
-        key: `printer-${index}`,
-        type: "Printer",
-        name: [manufacturer, model].filter(Boolean).join(" "),
-        serial: getValue(item, [
-          "serial", "sn_asset", "SN/Asset", "Serial Number"
-        ]),
-        manufacturer,
-        model,
-        unit: getValue(item, ["unit", "Unit"]),
-        source: item
-      });
-    });
-
-    return result.filter(item => item.name || item.serial);
   }
 
   function render() {
@@ -112,18 +61,21 @@
               placeholder="Cari perangkat, serial, kegiatan, teknisi..."
             >
           </div>
+
           <div style="display:flex;align-items:center;gap:10px">
             <span class="badge">${rows.length} riwayat</span>
+
             ${
               isAdmin()
-                ? `<button class="button button-primary" id="addMaintenance">
-                    <i data-lucide="plus"></i>
-                    Catat Maintenance
+                ? `<button class="button button-primary" id="scanMaintenanceQR">
+                    <i data-lucide="scan-qr-code"></i>
+                    Scan QR
                   </button>`
                 : ""
             }
           </div>
         </div>
+
         <div id="maintenanceTable"></div>
       </section>`;
 
@@ -132,7 +84,7 @@
     });
 
     if (isAdmin()) {
-      ui().$("#addMaintenance").addEventListener("click", openForm);
+      ui().$("#scanMaintenanceQR").addEventListener("click", openScanner);
     }
 
     drawTable("");
@@ -177,9 +129,10 @@
               <th>SERIAL</th>
               <th>KEGIATAN</th>
               <th>KONDISI</th>
-              <th>TEKNISI / VENDOR</th>
+              <th>PENANGANAN</th>
             </tr>
           </thead>
+
           <tbody>
             ${rows.map(row => `
               <tr>
@@ -205,94 +158,371 @@
           </tbody>
         </table>
       </div>
+
       <div class="table-footer">
         <span>Menampilkan ${rows.length} dari ${all.length} riwayat</span>
       </div>`;
   }
 
-  function openForm() {
+  // =====================================================
+  // SCAN QR
+  // =====================================================
+
+  function openScanner() {
     if (!isAdmin()) return;
 
-    currentDevices = getDevices();
     selectedDevice = null;
 
-    const dateValue = toInputDate(new Date());
+    const content = `
+      <div style="padding:4px 0 12px">
+        <p style="margin:0 0 14px;color:var(--text-secondary)">
+          Arahkan kamera ke QR Code komputer atau printer.
+        </p>
 
-    const deviceOptions = currentDevices.map(device => `
-      <option value="${ui().escapeHTML(device.key)}">
-        ${ui().escapeHTML(device.type)} —
-        ${ui().escapeHTML(device.name)}
-        ${device.serial ? `(${ui().escapeHTML(device.serial)})` : ""}
-      </option>
-    `).join("");
+        <div
+          id="maintenanceQrReader"
+          style="
+            width:100%;
+            max-width:440px;
+            margin:0 auto;
+            overflow:hidden;
+            border-radius:12px;
+            background:#111;
+          "
+        ></div>
+
+        <div
+          id="maintenanceScanMessage"
+          style="
+            margin-top:14px;
+            text-align:center;
+            font-size:13px;
+            color:var(--text-secondary);
+          "
+        >
+          Menyiapkan kamera...
+        </div>
+      </div>
+    `;
+
+    showModal("Scan QR Perangkat", content, "computer-modal");
+
+    startScanner();
+  }
+
+  async function startScanner() {
+    const message = document.getElementById("maintenanceScanMessage");
+
+    if (!window.Html5Qrcode) {
+      message.textContent = "Library QR Scanner tidak ditemukan.";
+      return;
+    }
+
+    if (scannerStarting) return;
+
+    scannerStarting = true;
+
+    try {
+      qrScanner = new Html5Qrcode("maintenanceQrReader");
+
+      await qrScanner.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1
+        },
+        async decodedText => {
+          if (!qrScanner) return;
+
+          await stopScanner();
+
+          message.textContent = "QR terbaca. Memeriksa inventaris...";
+
+          await lookupDevice(decodedText);
+        },
+        () => {}
+      );
+
+      message.textContent = "Kamera aktif. Silakan scan QR perangkat.";
+
+    } catch (error) {
+      message.textContent =
+        "Kamera tidak dapat dibuka. Periksa izin kamera browser.";
+      console.error("Maintenance QR scanner:", error);
+
+    } finally {
+      scannerStarting = false;
+    }
+  }
+
+  async function stopScanner() {
+    if (!qrScanner) return;
+
+    const scanner = qrScanner;
+    qrScanner = null;
+
+    try {
+      if (scanner.isScanning) {
+        await scanner.stop();
+      }
+
+      await scanner.clear();
+
+    } catch (error) {
+      console.warn("QR scanner stop:", error);
+    }
+  }
+
+  // =====================================================
+  // LOOKUP QR MELALUI API QR INFO
+  // =====================================================
+
+  async function lookupDevice(qrText) {
+    const message = document.getElementById("maintenanceScanMessage");
+
+    try {
+      const result = await api().get("qr.info", {
+        qr: String(qrText || "").trim()
+      });
+
+      if (!result || result.success === false || !result.perangkat) {
+        throw new Error(
+          result?.message || "Perangkat tidak ditemukan dalam inventaris."
+        );
+      }
+
+      const assetType = String(result.jenis_aset || "").toLowerCase();
+
+      if (assetType !== "komputer" && assetType !== "printer") {
+        throw new Error("Jenis perangkat tidak dikenali.");
+      }
+
+      const device = result.perangkat;
+
+      selectedDevice = {
+        type: assetType === "komputer" ? "Komputer" : "Printer",
+
+        serial: getValue(device, [
+          "serial",
+          "Asset/Serial ID",
+          "Asset Serial ID",
+          "asset_id",
+          "sn_asset",
+          "Serial Number"
+        ]),
+
+        name: assetType === "komputer"
+          ? getValue(device, [
+              "komputer",
+              "Computer Name",
+              "computer_name",
+              "computerName",
+              "nama_aset"
+            ])
+          : [
+              getValue(device, ["merek", "manufacturer", "Manufacturer"]),
+              getValue(device, ["model", "Model"])
+            ].filter(Boolean).join(" "),
+
+        manufacturer: getValue(device, [
+          "merek",
+          "manufacturer",
+          "Manufacturer"
+        ]),
+
+        model: getValue(device, ["model", "Model"]),
+
+        pengguna: getValue(device, [
+          "pengguna",
+          "Pengguna"
+        ]),
+
+        unit: getValue(device, [
+          "unit",
+          "Unit"
+        ])
+      };
+
+      if (!selectedDevice.serial) {
+        throw new Error("Serial perangkat tidak ditemukan.");
+      }
+
+      showDeviceConfirmation();
+
+    } catch (error) {
+      console.error("QR lookup:", error);
+
+      if (message) {
+        message.innerHTML = `
+          <span style="color:var(--danger,#dc2626)">
+            ${ui().escapeHTML(error.message || "Gagal memeriksa QR.")}
+          </span>
+          <div style="margin-top:12px">
+            <button
+              type="button"
+              class="button button-secondary"
+              id="maintenanceScanAgain"
+            >
+              Scan Ulang
+            </button>
+          </div>
+        `;
+
+        document.getElementById("maintenanceScanAgain")
+          .addEventListener("click", openScanner);
+      }
+    }
+  }
+
+  // =====================================================
+  // KONFIRMASI IDENTITAS PERANGKAT
+  // =====================================================
+
+  function showDeviceConfirmation() {
+    const device = selectedDevice;
+    if (!device) return;
+
+    let details = "";
+
+    if (device.type === "Komputer") {
+      details = `
+        <div class="computer-form-field">
+          <label class="computer-field-label">Serial</label>
+          <input type="text" readonly
+            value="${ui().escapeHTML(device.serial)}">
+        </div>
+
+        <div class="computer-form-field">
+          <label class="computer-field-label">Merek</label>
+          <input type="text" readonly
+            value="${ui().escapeHTML(device.manufacturer || "-")}">
+        </div>
+
+        <div class="computer-form-field computer-field-wide">
+          <label class="computer-field-label">Pengguna</label>
+          <input type="text" readonly
+            value="${ui().escapeHTML(device.pengguna || "-")}">
+        </div>
+      `;
+    } else {
+      details = `
+        <div class="computer-form-field">
+          <label class="computer-field-label">Unit</label>
+          <input type="text" readonly
+            value="${ui().escapeHTML(device.unit || "-")}">
+        </div>
+
+        <div class="computer-form-field">
+          <label class="computer-field-label">Merek</label>
+          <input type="text" readonly
+            value="${ui().escapeHTML(device.manufacturer || "-")}">
+        </div>
+
+        <div class="computer-form-field">
+          <label class="computer-field-label">Model</label>
+          <input type="text" readonly
+            value="${ui().escapeHTML(device.model || "-")}">
+        </div>
+      `;
+    }
+
+    const content = `
+      <div class="computer-form-intro">
+        QR berhasil dibaca. Pastikan identitas perangkat berikut sudah benar.
+      </div>
+
+      <section class="computer-form-section">
+        <div class="computer-section-heading">
+          <span class="computer-section-icon">
+            <i data-lucide="monitor-check"></i>
+          </span>
+          <div>
+            <span class="computer-section-number">PERANGKAT DITEMUKAN</span>
+            <h3>${ui().escapeHTML(device.type)}</h3>
+          </div>
+        </div>
+
+        <div class="computer-form-grid">
+          ${details}
+        </div>
+      </section>
+
+      <div class="computer-form-footer">
+        <button
+          type="button"
+          class="button button-secondary"
+          id="maintenanceRescan"
+        >
+          Scan Ulang
+        </button>
+
+        <button
+          type="button"
+          class="button button-primary"
+          id="maintenanceContinue"
+        >
+          Lanjutkan ke Maintenance
+        </button>
+      </div>
+    `;
+
+    showModal("Konfirmasi Perangkat", content, "computer-modal");
+
+    document.getElementById("maintenanceRescan")
+      .addEventListener("click", openScanner);
+
+    document.getElementById("maintenanceContinue")
+      .addEventListener("click", () => openForm(device));
+  }
+
+  // =====================================================
+  // FORM MAINTENANCE
+  // =====================================================
+
+  function openForm(device) {
+    if (!isAdmin() || !device) return;
+
+    selectedDevice = device;
+
+    const dateValue = toInputDate(new Date());
 
     const content = `
       <form id="maintenanceForm" class="computer-form">
 
         <div class="computer-form-intro">
-          Identifikasi perangkat terlebih dahulu. Informasi perangkat
-          akan diambil otomatis dari inventaris komputer atau printer.
+          Perangkat sudah teridentifikasi dari inventaris.
+          Silakan isi detail kegiatan maintenance.
         </div>
 
         <section class="computer-form-section">
           <div class="computer-section-heading">
             <span class="computer-section-icon">
-              <i data-lucide="scan-search"></i>
+              <i data-lucide="monitor-check"></i>
             </span>
             <div>
               <span class="computer-section-number">01</span>
-              <h3>Identifikasi Perangkat</h3>
+              <h3>Identitas Perangkat</h3>
             </div>
           </div>
 
           <div class="computer-form-grid">
-            <div class="computer-form-field computer-field-wide">
-              <label class="computer-field-label" for="maintenanceQr">
-                QR / Barcode / Serial / Asset ID
-              </label>
-              <input
-                id="maintenanceQr"
-                type="text"
-                placeholder="Masukkan kode QR, serial, atau Asset ID"
-                autocomplete="off"
-              >
-              <small class="computer-field-hint">
-                Masukkan kode perangkat untuk mencari data inventaris.
-              </small>
-            </div>
-
-            <div class="computer-form-field computer-field-wide">
-              <label class="computer-field-label" for="maintenanceDevice">
-                Pilih Perangkat <span class="computer-form-required">*</span>
-              </label>
-              <select id="maintenanceDevice" required>
-                <option value="">Pilih komputer atau printer</option>
-                ${deviceOptions}
-              </select>
-            </div>
-
             <div class="computer-form-field">
               <label class="computer-field-label">Jenis Aset</label>
-              <input id="maintenanceAssetType" type="text" readonly
-                placeholder="Otomatis dari inventaris">
+              <input type="text" readonly
+                value="${ui().escapeHTML(device.type)}">
             </div>
 
             <div class="computer-form-field">
+              <label class="computer-field-label">Serial</label>
+              <input type="text" readonly
+                value="${ui().escapeHTML(device.serial)}">
+            </div>
+
+            <div class="computer-form-field computer-field-wide">
               <label class="computer-field-label">Nama Perangkat</label>
-              <input id="maintenanceAssetName" type="text" readonly
-                placeholder="Otomatis dari inventaris">
-            </div>
-
-            <div class="computer-form-field">
-              <label class="computer-field-label">Serial / Asset ID</label>
-              <input id="maintenanceSerial" type="text" readonly
-                placeholder="Otomatis dari inventaris">
-            </div>
-
-            <div class="computer-form-field">
-              <label class="computer-field-label">Unit / Pengguna</label>
-              <input id="maintenanceUnit" type="text" readonly
-                placeholder="Otomatis dari inventaris">
+              <input type="text" readonly
+                value="${ui().escapeHTML(device.name || device.model || "-")}">
             </div>
           </div>
         </section>
@@ -309,27 +539,43 @@
           </div>
 
           <div class="computer-form-grid">
+
             <div class="computer-form-field">
               <label class="computer-field-label" for="maintenanceDate">
                 Tanggal <span class="computer-form-required">*</span>
               </label>
-              <input id="maintenanceDate" type="date"
-                value="${dateValue}" required>
+              <input
+                id="maintenanceDate"
+                type="date"
+                value="${dateValue}"
+                required
+              >
             </div>
 
-            <div class="computer-form-field">
-              <label class="computer-field-label" for="maintenanceActivity">
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label">
                 Jenis Kegiatan <span class="computer-form-required">*</span>
               </label>
-              <select id="maintenanceActivity" required>
-                <option value="Perawatan" selected>Perawatan</option>
-                <option value="Perbaikan">Perbaikan</option>
-              </select>
+
+              <div style="display:flex;gap:22px;flex-wrap:wrap">
+                <label>
+                  <input type="radio" name="maintenanceActivity"
+                    value="Perawatan" checked>
+                  Perawatan
+                </label>
+
+                <label>
+                  <input type="radio" name="maintenanceActivity"
+                    value="Perbaikan">
+                  Perbaikan
+                </label>
+              </div>
             </div>
 
             <div class="computer-form-field computer-field-wide">
               <label class="computer-field-label" for="maintenanceDescription">
-                Uraian Kegiatan <span class="computer-form-required">*</span>
+                Uraian Kegiatan
+                <span class="computer-form-required">*</span>
               </label>
               <textarea
                 id="maintenanceDescription"
@@ -339,31 +585,56 @@
               ></textarea>
             </div>
 
-            <div class="computer-form-field">
-              <label class="computer-field-label" for="maintenanceCondition">
-                Kondisi Perangkat <span class="computer-form-required">*</span>
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label">
+                Kondisi Perangkat
+                <span class="computer-form-required">*</span>
               </label>
-              <select id="maintenanceCondition" required>
-                <option value="">Pilih kondisi</option>
-                <option value="Baik">Baik</option>
-                <option value="Perlu Perhatian">Perlu Perhatian</option>
-                <option value="Rusak">Rusak</option>
-              </select>
+
+              <div style="display:flex;gap:22px;flex-wrap:wrap">
+                <label>
+                  <input type="radio" name="maintenanceCondition"
+                    value="Baik" required>
+                  Baik
+                </label>
+
+                <label>
+                  <input type="radio" name="maintenanceCondition"
+                    value="Perlu Perhatian" required>
+                  Perlu Perhatian
+                </label>
+
+                <label>
+                  <input type="radio" name="maintenanceCondition"
+                    value="Rusak" required>
+                  Rusak
+                </label>
+              </div>
             </div>
 
-            <div class="computer-form-field">
-              <label class="computer-field-label" for="maintenanceRefill">
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label">
                 Refill
               </label>
-              <select id="maintenanceRefill">
-                <option value="T" selected>Tidak</option>
-                <option value="Y">Ya</option>
-              </select>
+
+              <div style="display:flex;gap:22px;flex-wrap:wrap">
+                <label>
+                  <input type="radio" name="maintenanceRefill"
+                    value="T" checked>
+                  Tidak
+                </label>
+
+                <label>
+                  <input type="radio" name="maintenanceRefill"
+                    value="Y">
+                  Ya
+                </label>
+              </div>
             </div>
 
             <div class="computer-form-field computer-field-wide">
               <label class="computer-field-label" for="maintenanceNotes">
-                Keterangan Tambahan
+                Keterangan
               </label>
               <textarea
                 id="maintenanceNotes"
@@ -377,7 +648,7 @@
         <section class="computer-form-section">
           <div class="computer-section-heading">
             <span class="computer-section-icon">
-              <i data-lucide="user-cog"></i>
+              <i data-lucide="calendar-clock"></i>
             </span>
             <div>
               <span class="computer-section-number">03</span>
@@ -386,43 +657,57 @@
           </div>
 
           <div class="computer-form-grid">
-            <div class="computer-form-field">
-              <label class="computer-field-label" for="maintenanceHandlerType">
-                Penanganan Oleh
+
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label">
+                Penanganan
               </label>
-              <select id="maintenanceHandlerType">
-                <option value="Teknisi" selected>Teknisi</option>
-                <option value="Vendor">Vendor</option>
-              </select>
+
+              <div style="display:flex;gap:22px;flex-wrap:wrap">
+                <label>
+                  <input type="radio" name="maintenanceHandler"
+                    value="Teknisi" checked>
+                  Teknisi
+                </label>
+
+                <label>
+                  <input type="radio" name="maintenanceHandler"
+                    value="Vendor">
+                  Vendor
+                </label>
+              </div>
             </div>
 
             <div class="computer-form-field computer-field-wide">
-              <label class="computer-field-label" for="maintenanceSchedule">
-                Perkiraan Jadwal Maintenance Berikutnya
+              <label class="computer-field-label"
+                for="maintenanceSchedule">
+                Jadwal Maintenance Berikutnya
               </label>
+
               <input
                 id="maintenanceSchedule"
                 type="date"
                 readonly
                 placeholder="Dihitung otomatis"
               >
+
               <small class="computer-field-hint">
                 Komputer: 6 bulan. Printer: 3 bulan.
-                Jadwal perbaikan dikosongkan.
+                Perbaikan tidak memiliki jadwal berikutnya.
               </small>
             </div>
           </div>
         </section>
 
-        <div id="maintenanceFormMessage" class="computer-form-message"></div>
+        <div id="maintenanceFormMessage"
+          class="computer-form-message"></div>
 
         <div class="computer-form-footer">
-          <button type="button" class="button button-secondary"
-            id="maintenanceCancel">
-            Batal
-          </button>
-          <button type="submit" class="button button-primary"
-            id="maintenanceSubmit">
+          <button
+            type="submit"
+            class="button button-primary"
+            id="maintenanceSubmit"
+          >
             <i data-lucide="save"></i>
             Simpan Maintenance
           </button>
@@ -432,7 +717,12 @@
 
     showModal("Catat Maintenance", content, "computer-modal");
     bindFormEvents();
+    updateSchedule();
   }
+
+  // =====================================================
+  // MODAL
+  // =====================================================
 
   function showModal(title, content, variant) {
     closeModal();
@@ -450,11 +740,17 @@
             </span>
             <h2>${ui().escapeHTML(title)}</h2>
           </div>
-          <button type="button" class="icon-button"
-            id="maintenanceModalClose" aria-label="Tutup">
+
+          <button
+            type="button"
+            class="icon-button"
+            id="maintenanceModalClose"
+            aria-label="Tutup"
+          >
             <i data-lucide="x"></i>
           </button>
         </div>
+
         <div class="modal-body">
           ${content}
         </div>
@@ -474,126 +770,138 @@
   }
 
   function closeModal() {
+    stopScanner();
+
     const modal = document.getElementById("maintenanceModal");
     if (modal) modal.remove();
   }
 
+  // =====================================================
+  // EVENT FORM
+  // =====================================================
+
   function bindFormEvents() {
     const form = document.getElementById("maintenanceForm");
-    const deviceSelect = document.getElementById("maintenanceDevice");
-    const qrInput = document.getElementById("maintenanceQr");
-    const activity = document.getElementById("maintenanceActivity");
-    const date = document.getElementById("maintenanceDate");
 
-    deviceSelect.addEventListener("change", () => {
-      selectedDevice =
-        currentDevices.find(item => item.key === deviceSelect.value) || null;
-
-      fillDeviceFields();
-      updateSchedule();
+    form.querySelectorAll(
+      'input[name="maintenanceActivity"], #maintenanceDate'
+    ).forEach(input => {
+      input.addEventListener("change", updateSchedule);
     });
-
-    qrInput.addEventListener("input", () => {
-      const query = qrInput.value.trim().toLowerCase();
-      if (!query) return;
-
-      const found = currentDevices.find(device => {
-        return [device.name, device.serial]
-          .some(value => String(value || "").toLowerCase() === query);
-      });
-
-      if (found) {
-        deviceSelect.value = found.key;
-        selectedDevice = found;
-        fillDeviceFields();
-        updateSchedule();
-      }
-    });
-
-    activity.addEventListener("change", updateSchedule);
-    date.addEventListener("change", updateSchedule);
-
-    document.getElementById("maintenanceCancel")
-      .addEventListener("click", closeModal);
 
     form.addEventListener("submit", submitMaintenance);
   }
 
-  
-async function submitMaintenance(event) {
-  event.preventDefault();
+  // =====================================================
+  // SIMPAN MAINTENANCE
+  // =====================================================
 
-  if (!isAdmin()) {
-    showFormMessage("Sesi Admin tidak aktif. Silakan login kembali.", true);
-    return;
-  }
+  async function submitMaintenance(event) {
+    event.preventDefault();
 
-  if (!selectedDevice) {
-    showFormMessage("Pilih perangkat dari inventaris terlebih dahulu.", true);
-    return;
-  }
-
-  const form = document.getElementById("maintenanceForm");
-  if (!form.reportValidity()) return;
-
-  const submitButton = document.getElementById("maintenanceSubmit");
-  submitButton.disabled = true;
-  submitButton.textContent = "Menyimpan...";
-
-  const payload = {
-    jenis_aset: selectedDevice.type,
-    serial: selectedDevice.serial,
-    Tanggal: document.getElementById("maintenanceDate").value,
-    jenis_kegiatan: document.getElementById("maintenanceActivity").value,
-    kegiatan: document.getElementById("maintenanceDescription").value.trim(),
-    kondisi: document.getElementById("maintenanceCondition").value,
-    keterangan: document.getElementById("maintenanceNotes").value.trim(),
-    refill: document.getElementById("maintenanceRefill").value,
-    teknisi: document.getElementById("maintenanceHandlerType").value
-  };
-
-  try {
-    // 1. Simpan ke backend
-    await api().request("maintenance.create", {
-      data: payload
-    });
-
-  } catch (error) {
-    showFormMessage(
-      error?.message || "Gagal menyimpan maintenance.",
-      true
-    );
-
-    submitButton.disabled = false;
-    submitButton.innerHTML =
-      '<i data-lucide="save"></i> Simpan Maintenance';
-
-    ui().iconRefresh();
-    return;
-  }
-
-  // 2. Penyimpanan berhasil. Tutup form agar tidak terkirim ulang.
-  closeModal();
-
-  // 3. Muat ulang riwayat secara terpisah.
-  try {
-    const latest = await api().get("maintenance.list");
-
-    if (Array.isArray(latest)) {
-      state().maintenance = latest;
+    if (!isAdmin()) {
+      showFormMessage(
+        "Sesi Admin tidak aktif. Silakan login kembali.",
+        true
+      );
+      return;
     }
 
-  } catch (error) {
-    console.warn(
-      "Maintenance berhasil disimpan, tetapi refresh riwayat gagal:",
-      error
-    );
+    if (!selectedDevice || !selectedDevice.serial) {
+      showFormMessage("Perangkat belum teridentifikasi.", true);
+      return;
+    }
+
+    const form = document.getElementById("maintenanceForm");
+    if (!form.reportValidity()) return;
+
+    const activity = form.querySelector(
+      'input[name="maintenanceActivity"]:checked'
+    )?.value;
+
+    const condition = form.querySelector(
+      'input[name="maintenanceCondition"]:checked'
+    )?.value;
+
+    const refill = form.querySelector(
+      'input[name="maintenanceRefill"]:checked'
+    )?.value || "T";
+
+    const handler = form.querySelector(
+      'input[name="maintenanceHandler"]:checked'
+    )?.value || "Teknisi";
+
+    const description = document
+      .getElementById("maintenanceDescription")
+      .value.trim();
+
+    if (!activity || !condition || !description) {
+      showFormMessage("Lengkapi seluruh kolom wajib.", true);
+      return;
+    }
+
+    const submitButton = document.getElementById("maintenanceSubmit");
+    submitButton.disabled = true;
+    submitButton.textContent = "Menyimpan...";
+
+    const payload = {
+      serial: selectedDevice.serial,
+
+      Tanggal: document.getElementById("maintenanceDate").value,
+
+      jenis_kegiatan: activity,
+
+      kegiatan: `${activity}: ${description}`,
+
+      kondisi: condition,
+
+      keterangan: document
+        .getElementById("maintenanceNotes")
+        .value.trim(),
+
+      refill: refill,
+
+      teknisi: handler
+    };
+
+    try {
+      await api().request("maintenance.create", {
+        data: payload
+      });
+
+    } catch (error) {
+      showFormMessage(
+        error?.message || "Gagal menyimpan maintenance.",
+        true
+      );
+
+      submitButton.disabled = false;
+      submitButton.innerHTML =
+        '<i data-lucide="save"></i> Simpan Maintenance';
+
+      ui().iconRefresh();
+      return;
+    }
+
+    // Simpan berhasil. Muat ulang riwayat.
+    closeModal();
+
+    try {
+      const latest = await api().get("maintenance.list");
+
+      if (Array.isArray(latest)) {
+        state().maintenance = latest;
+      }
+
+    } catch (error) {
+      console.warn("Refresh riwayat maintenance gagal:", error);
+    }
+
+    render();
+
+    // Siapkan scanner untuk perangkat berikutnya.
+    openScanner();
   }
-
-  // 4. Tampilkan halaman Maintenance.
-  render();
-}
-
 
   function showFormMessage(message, isError) {
     const target = document.getElementById("maintenanceFormMessage");
@@ -603,29 +911,19 @@ async function submitMaintenance(event) {
     target.classList.toggle("error", !!isError);
   }
 
-  function fillDeviceFields() {
-    document.getElementById("maintenanceAssetType").value =
-      selectedDevice?.type || "";
-
-    document.getElementById("maintenanceAssetName").value =
-      selectedDevice?.name || "";
-
-    document.getElementById("maintenanceSerial").value =
-      selectedDevice?.serial || "";
-
-    document.getElementById("maintenanceUnit").value =
-      selectedDevice?.unit || "";
-  }
+  // =====================================================
+  // JADWAL MAINTENANCE
+  // =====================================================
 
   function updateSchedule() {
-    const activity =
-      document.getElementById("maintenanceActivity").value;
+    const activity = document.querySelector(
+      'input[name="maintenanceActivity"]:checked'
+    )?.value;
 
-    const dateValue =
-      document.getElementById("maintenanceDate").value;
+    const dateValue = document.getElementById("maintenanceDate")?.value;
+    const output = document.getElementById("maintenanceSchedule");
 
-    const output =
-      document.getElementById("maintenanceSchedule");
+    if (!output) return;
 
     output.value = "";
 
@@ -639,6 +937,7 @@ async function submitMaintenance(event) {
 
   function addMonthsClamped(value, months) {
     const parts = value.split("-").map(Number);
+
     const year = parts[0];
     const month = parts[1] - 1;
     const day = parts[2];
@@ -666,6 +965,7 @@ async function submitMaintenance(event) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
+
     return `${year}-${month}-${day}`;
   }
 
@@ -684,4 +984,5 @@ async function submitMaintenance(event) {
   }
 
   window.MaintenancePage = { render };
+
 })();
