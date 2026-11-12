@@ -278,19 +278,23 @@ window.addEventListener("message", function (event) {
   ===================================================== */
 
   async function initializePin(token, pin) {
-    if (typeof token !== "string" || !token) {
-      throw new Error("Token inisialisasi tidak valid.");
-    }
-
-    if (typeof pin !== "string" || !/^[0-9]{6}$/.test(pin)) {
-      throw new Error("PIN harus terdiri dari 6 digit angka.");
-    }
-
-    return send("INITIALIZE_PIN", {
-      token: token,
-      pin: pin
-    });
+  if (!/^\d{6}$/.test(String(pin || ""))) {
+    throw new Error("PIN harus terdiri dari 6 digit.");
   }
+
+  const result = await send("INITIALIZE_PIN", {
+    token: token,
+    pin: pin
+  });
+
+  if (!result || result.success === false) {
+    throw new Error(
+      result?.message || "Gagal menginisialisasi PIN."
+    );
+  }
+
+  return result;
+}
 
   /* =====================================================
      VALIDASI SESSION
@@ -324,26 +328,32 @@ window.addEventListener("message", function (event) {
   ===================================================== */
 
   async function logout() {
-    if (!sessionId) {
-      clearSession();
-      return true;
-    }
-
-    const currentSession = sessionId;
-
-    try {
-      await send("LOGOUT", {
-        sessionId: currentSession
-      });
-
-      clearSession();
-      return true;
-
-    } catch (error) {
-      clearSession();
-      throw error;
-    }
+  if (!sessionId) {
+    clearSession();
+    return true;
   }
+
+  const currentSession = sessionId;
+
+  try {
+    const result = await send("LOGOUT", {
+      sessionId: currentSession
+    });
+
+    if (!result || result.success === false) {
+      throw new Error(
+        result?.message || "Logout gagal."
+      );
+    }
+
+    clearSession();
+    return true;
+
+  } catch (error) {
+    clearSession();
+    throw error;
+  }
+}
 
   /* =====================================================
      GANTI PIN ADMIN
