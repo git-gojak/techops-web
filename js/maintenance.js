@@ -519,81 +519,81 @@
     form.addEventListener("submit", submitMaintenance);
   }
 
-  async function submitMaintenance(event) {
-    event.preventDefault();
+  
+async function submitMaintenance(event) {
+  event.preventDefault();
 
-    if (!isAdmin()) {
-      showFormMessage("Sesi Admin tidak aktif. Silakan login kembali.", true);
-      return;
-    }
-
-    if (!selectedDevice) {
-      showFormMessage("Pilih perangkat dari inventaris terlebih dahulu.", true);
-      return;
-    }
-
-    const form = document.getElementById("maintenanceForm");
-    if (!form.reportValidity()) return;
-
-    const submitButton = document.getElementById("maintenanceSubmit");
-    submitButton.disabled = true;
-    submitButton.textContent = "Menyimpan...";
-
-    const payload = {
-      jenis_aset: selectedDevice.type,
-      serial: selectedDevice.serial,
-      Tanggal: document.getElementById("maintenanceDate").value,
-      jenis_kegiatan: document.getElementById("maintenanceActivity").value,
-      kegiatan: document.getElementById("maintenanceDescription").value.trim(),
-      kondisi: document.getElementById("maintenanceCondition").value,
-      keterangan: document.getElementById("maintenanceNotes").value.trim(),
-      refill: document.getElementById("maintenanceRefill").value,
-      teknisi: document.getElementById("maintenanceHandlerType").value
-    };
-
-    try {
-      if (!api() || typeof api().request !== "function") {
-        throw new Error("TechOpsAPI.request tidak tersedia.");
-      }
-
-      // Backend akan mengambil nama perangkat dan menghitung jadwal.
-      await api().request("maintenance.create", {
-        data: payload
-      });
-
-      // Ambil ulang riwayat dari backend setelah penyimpanan berhasil.
-      const latest = await api().get("maintenance.list");
-
-      const records = Array.isArray(latest)
-        ? latest
-        : Array.isArray(latest?.data)
-          ? latest.data
-          : Array.isArray(latest?.result)
-            ? latest.result
-            : null;
-
-      if (records) {
-        state().maintenance = records;
-      }
-
-      closeModal();
-      render();
-
-    } catch (error) {
-      showFormMessage(
-        error && error.message
-          ? error.message
-          : "Gagal menyimpan data maintenance.",
-        true
-      );
-
-      submitButton.disabled = false;
-      submitButton.innerHTML =
-        '<i data-lucide="save"></i> Simpan Maintenance';
-
-      ui().iconRefresh();
-    }
+  if (!isAdmin()) {
+    showFormMessage("Sesi Admin tidak aktif. Silakan login kembali.", true);
+    return;
   }
+
+  if (!selectedDevice) {
+    showFormMessage("Pilih perangkat dari inventaris terlebih dahulu.", true);
+    return;
+  }
+
+  const form = document.getElementById("maintenanceForm");
+  if (!form.reportValidity()) return;
+
+  const submitButton = document.getElementById("maintenanceSubmit");
+  submitButton.disabled = true;
+  submitButton.textContent = "Menyimpan...";
+
+  const payload = {
+    jenis_aset: selectedDevice.type,
+    serial: selectedDevice.serial,
+    Tanggal: document.getElementById("maintenanceDate").value,
+    jenis_kegiatan: document.getElementById("maintenanceActivity").value,
+    kegiatan: document.getElementById("maintenanceDescription").value.trim(),
+    kondisi: document.getElementById("maintenanceCondition").value,
+    keterangan: document.getElementById("maintenanceNotes").value.trim(),
+    refill: document.getElementById("maintenanceRefill").value,
+    teknisi: document.getElementById("maintenanceHandlerType").value
+  };
+
+  try {
+    // 1. Simpan ke backend
+    await api().request("maintenance.create", {
+      data: payload
+    });
+
+  } catch (error) {
+    showFormMessage(
+      error?.message || "Gagal menyimpan maintenance.",
+      true
+    );
+
+    submitButton.disabled = false;
+    submitButton.innerHTML =
+      '<i data-lucide="save"></i> Simpan Maintenance';
+
+    ui().iconRefresh();
+    return;
+  }
+
+  // 2. Penyimpanan berhasil. Tutup form agar tidak terkirim ulang.
+  closeModal();
+
+  // 3. Muat ulang riwayat secara terpisah.
+  try {
+    const latest = await api().get("maintenance.list");
+
+    if (Array.isArray(latest)) {
+      state().maintenance = latest;
+    }
+
+  } catch (error) {
+    console.warn(
+      "Maintenance berhasil disimpan, tetapi refresh riwayat gagal:",
+      error
+    );
+  }
+
+  // 4. Tampilkan halaman Maintenance.
+  render();
+}
+
 
   function showFormMessage(message, isError) {
     const target = document.getElementById("maintenanceFormMessage");
