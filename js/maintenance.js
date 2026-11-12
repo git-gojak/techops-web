@@ -5,71 +5,92 @@
   const ui = () => window.TechOpsUI;
   const state = () => window.TechOpsState;
 
-  let currentQuery = "";
+  let currentDevices = [];
   let selectedDevice = null;
-  let modalElement = null;
-
-  const $ = (selector, root = document) => root.querySelector(selector);
-
-  function esc(value) {
-    return ui().escapeHTML(String(value ?? ""));
-  }
 
   function isAdmin() {
     return !!state().authenticated;
   }
 
-  function today() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  }
+  function getValue(obj, keys) {
+    if (!obj) return "";
 
-  function formatDate(value) {
-    if (!value) return "-";
-    const d = new Date(value);
-    return Number.isNaN(d.getTime())
-      ? String(value)
-      : d.toLocaleDateString("id-ID", {
-          day: "2-digit", month: "short", year: "numeric"
-        });
-  }
-
-  function getValue(row, keys) {
     for (const key of keys) {
-      if (row && row[key] !== undefined && row[key] !== null && row[key] !== "") {
-        return row[key];
+      if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
+        return String(obj[key]);
       }
     }
+
+    const normalized = {};
+    Object.keys(obj).forEach(key => {
+      normalized[key.toLowerCase().replace(/[\s_-]/g, "")] = obj[key];
+    });
+
+    for (const key of keys) {
+      const value = normalized[key.toLowerCase().replace(/[\s_-]/g, "")];
+      if (value !== undefined && value !== null && value !== "") {
+        return String(value);
+      }
+    }
+
     return "";
   }
 
   function getDevices() {
-    const computers = (state().computers || [])
-      .filter(r => !r.archived && !r.arsip)
-      .map(raw => ({
+    const computers = Array.isArray(state().computers)
+      ? state().computers
+      : [];
+
+    const printers = Array.isArray(state().printers)
+      ? state().printers
+      : [];
+
+    const result = [];
+
+    computers.forEach((item, index) => {
+      result.push({
+        key: `computer-${index}`,
         type: "Komputer",
-        name: getValue(raw, ["Computer Name", "computer_name", "computerName", "nama_aset", "nama"]) || "Komputer tanpa nama",
-        serial: getValue(raw, ["Asset/Serial ID", "asset_serial_id", "serial", "serial_number", "asset_id"]),
-        raw
-      }));
+        name: getValue(item, [
+          "Computer Name", "computer_name", "computerName", "nama_aset"
+        ]),
+        serial: getValue(item, [
+          "Asset/Serial ID", "Asset Serial ID", "serial",
+          "asset_id", "serial_number"
+        ]),
+        manufacturer: getValue(item, ["Manufacturer", "manufacturer"]),
+        model: getValue(item, ["Model", "model"]),
+        unit: getValue(item, ["Pengguna", "Unit", "unit"]),
+        source: item
+      });
+    });
 
-    const printers = (state().printers || [])
-      .filter(r => !r.archived && !r.arsip)
-      .map(raw => ({
+    printers.forEach((item, index) => {
+      result.push({
+        key: `printer-${index}`,
         type: "Printer",
-        name: getValue(raw, ["nama_aset", "nama", "printer_name", "printerName"]) ||
-          [getValue(raw, ["manufacturer", "Manufacturer"]), getValue(raw, ["model", "Model"])].filter(Boolean).join(" ") ||
-          "Printer tanpa nama",
-        serial: getValue(raw, ["sn_asset", "serial", "serial_number", "originalSnAsset"]),
-        raw
-      }));
+        name: getValue(item, [
+          "nama_aset", "Nama Printer", "printer_name",
+          "model", "Model"
+        ]),
+        serial: getValue(item, [
+          "sn_asset", "SN/Asset", "serial", "Serial Number"
+        ]),
+        manufacturer: getValue(item, ["manufacturer", "Manufacturer"]),
+        model: getValue(item, ["model", "Model"]),
+        unit: getValue(item, ["Unit", "unit"]),
+        source: item
+      });
+    });
 
-    return [...computers, ...printers];
+    return result.filter(item => item.name || item.serial);
   }
 
   function render() {
     const host = ui().$("#appContent");
-    const rows = state().maintenance || [];
+    const rows = Array.isArray(state().maintenance)
+      ? state().maintenance
+      : [];
 
     host.innerHTML =
       ui().pageHeading(
@@ -85,55 +106,71 @@
               id="maintenanceSearch"
               type="search"
               placeholder="Cari perangkat, serial, kegiatan, teknisi..."
-              value="${esc(currentQuery)}"
             >
           </div>
-          <div class="computer-toolbar-actions">
+          <div style="display:flex;align-items:center;gap:10px">
             <span class="badge">${rows.length} riwayat</span>
-            ${isAdmin() ? `
-              <button type="button" class="button button-primary" id="addMaintenanceBtn">
-                <i data-lucide="plus"></i>
-                Catat Maintenance
-              </button>` : ""}
+            ${
+              isAdmin()
+                ? `<button class="button button-primary" id="addMaintenance">
+                    <i data-lucide="plus"></i>
+                    Catat Maintenance
+                  </button>`
+                : ""
+            }
           </div>
         </div>
         <div id="maintenanceTable"></div>
       </section>`;
 
-    $("#maintenanceSearch").addEventListener("input", event => {
-      currentQuery = event.target.value;
-      drawTable(currentQuery);
+    ui().$("#maintenanceSearch").addEventListener("input", event => {
+      drawTable(event.target.value);
     });
 
-    $("#addMaintenanceBtn")?.addEventListener("click", openForm);
+    if (isAdmin()) {
+      ui().$("#addMaintenance").addEventListener("click", openForm);
+    }
 
-    drawTable(currentQuery);
+    drawTable("");
     ui().bindRefresh();
     ui().iconRefresh();
   }
 
   function drawTable(query) {
-    const all = state().maintenance || [];
-    const q = String(query || "").trim().toLowerCase();
+    const all = Array.isArray(state().maintenance)
+      ? state().maintenance
+      : [];
+
+    const q = String(query || "").toLowerCase();
 
     const rows = all.filter(row =>
-      ["Tanggal", "jenis_aset", "nama_aset", "serial", "kegiatan",
-       "kondisi", "keterangan", "teknisi", "jadwal"]
-        .some(key => String(row[key] ?? "").toLowerCase().includes(q))
+      [
+        "Tanggal",
+        "jenis_aset",
+        "nama_aset",
+        "serial",
+        "kegiatan",
+        "kondisi",
+        "keterangan",
+        "teknisi",
+        "jadwal"
+      ].some(key =>
+        String(row[key] ?? "").toLowerCase().includes(q)
+      )
     );
 
-    const host = $("#maintenanceTable");
-    if (!host) return;
+    const host = ui().$("#maintenanceTable");
 
     if (!rows.length) {
-      host.innerHTML = `<div class="empty-state">
-        ${q ? "Tidak ada riwayat maintenance yang cocok." : "Belum ada riwayat maintenance."}
-      </div>`;
+      host.innerHTML =
+        `<div class="empty-state">
+          Tidak ada riwayat maintenance yang cocok.
+        </div>`;
       return;
     }
 
-    host.innerHTML = `
-      <div class="table-wrap">
+    host.innerHTML =
+      `<div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
@@ -149,17 +186,23 @@
           <tbody>
             ${rows.map(row => `
               <tr>
-                <td>${esc(formatDate(row.Tanggal))}</td>
+                <td>${ui().escapeHTML(formatDate(row.Tanggal))}</td>
                 <td>
-                  <span class="badge ${String(row.jenis_aset).toLowerCase() === "printer" ? "green" : ""}">
-                    ${esc(row.jenis_aset)}
+                  <span class="badge ${
+                    String(row.jenis_aset).toLowerCase() === "printer"
+                      ? "green"
+                      : ""
+                  }">
+                    ${ui().escapeHTML(row.jenis_aset || "-")}
                   </span>
                 </td>
-                <td class="primary-cell">${esc(row.nama_aset)}</td>
-                <td>${esc(row.serial)}</td>
-                <td>${esc(row.kegiatan)}</td>
-                <td>${esc(row.kondisi)}</td>
-                <td>${esc(row.teknisi)}</td>
+                <td class="primary-cell">
+                  ${ui().escapeHTML(row.nama_aset || "-")}
+                </td>
+                <td>${ui().escapeHTML(row.serial || "-")}</td>
+                <td>${ui().escapeHTML(row.kegiatan || "-")}</td>
+                <td>${ui().escapeHTML(row.kondisi || "-")}</td>
+                <td>${ui().escapeHTML(row.teknisi || "-")}</td>
               </tr>
             `).join("")}
           </tbody>
@@ -170,327 +213,429 @@
       </div>`;
   }
 
-  function openModal(title, content, variant) {
-    closeModal();
-
-    modalElement = document.createElement("div");
-    modalElement.className = "modal-backdrop";
-
-    modalElement.innerHTML = `
-      <section class="modal ${variant || ""}">
-        <div class="modal-header">
-          <div class="modal-title-wrap">
-            <span class="modal-title-eyebrow">GOJAK TECHOPS · IT SERVICE</span>
-            <h2>${esc(title)}</h2>
-          </div>
-          <button type="button" class="icon-button" id="closeMaintenanceModal" aria-label="Tutup">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-        ${content}
-      </section>`;
-
-    document.body.appendChild(modalElement);
-
-    $("#closeMaintenanceModal", modalElement).addEventListener("click", closeModal);
-
-    modalElement.addEventListener("click", event => {
-      if (event.target === modalElement) closeModal();
-    });
-
-    if (window.lucide) window.lucide.createIcons();
-  }
-
   function openForm() {
     if (!isAdmin()) return;
 
+    currentDevices = getDevices();
     selectedDevice = null;
-    const devices = getDevices();
 
-    const options = devices.map((device, index) => `
-      <option value="${index}">
-        ${esc(device.type)} — ${esc(device.name)}
-        ${device.serial ? ` (${esc(device.serial)})` : ""}
+    const today = new Date();
+    const dateValue = toInputDate(today);
+
+    const deviceOptions = currentDevices.map(device => `
+      <option value="${ui().escapeHTML(device.key)}">
+        ${ui().escapeHTML(device.type)} —
+        ${ui().escapeHTML(device.name)}
+        ${device.serial ? `(${ui().escapeHTML(device.serial)})` : ""}
       </option>
     `).join("");
 
-    openModal("Catat Maintenance", `
+    const content = `
       <form id="maintenanceForm" class="computer-form">
 
-        <div class="computer-form-required">
-          <span>*</span> Wajib diisi
+        <div class="computer-form-intro">
+          Identifikasi perangkat terlebih dahulu. Informasi perangkat
+          akan diambil otomatis dari inventaris komputer atau printer.
         </div>
 
         <section class="computer-form-section">
           <div class="computer-section-heading">
-            <div class="computer-section-icon"><i data-lucide="scan-search"></i></div>
+            <span class="computer-section-icon">
+              <i data-lucide="scan-search"></i>
+            </span>
             <div>
+              <span class="computer-section-number">01</span>
               <h3>Identifikasi Perangkat</h3>
-              <p>Pilih perangkat yang akan dilakukan perawatan atau perbaikan.</p>
             </div>
-            <span class="computer-section-number">01</span>
           </div>
 
           <div class="computer-form-grid">
-            <label class="computer-form-field computer-field-wide">
-              <span class="computer-field-label">QR / Barcode / Serial</span>
-              <div class="computer-toolbar-actions">
-                <input id="maintenanceQr" type="text"
-                  placeholder="Masukkan kode QR, barcode, atau serial"
-                  autocomplete="off">
-                <button type="button" class="button button-secondary" id="findMaintenanceQr">
-                  Cari
-                </button>
-              </div>
-              <span class="computer-field-hint">
-                Masukkan hasil pemindaian atau kode perangkat secara manual.
-              </span>
-            </label>
 
-            <label class="computer-form-field computer-field-wide">
-              <span class="computer-field-label">Pilih Perangkat <span>*</span></span>
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label" for="maintenanceQr">
+                QR / Barcode / Serial / Asset ID
+              </label>
+              <input
+                id="maintenanceQr"
+                type="text"
+                placeholder="Masukkan kode QR, serial, atau Asset ID"
+                autocomplete="off"
+              >
+              <small class="computer-field-hint">
+                Masukkan kode dari label perangkat untuk mencari
+                data inventaris.
+              </small>
+            </div>
+
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label" for="maintenanceDevice">
+                Pilih Perangkat <span class="computer-form-required">*</span>
+              </label>
               <select id="maintenanceDevice" required>
-                <option value="">-- Pilih komputer atau printer --</option>
-                ${options}
+                <option value="">Pilih komputer atau printer</option>
+                ${deviceOptions}
               </select>
-              <span class="computer-field-hint">
-                ${devices.length} perangkat tersedia dari inventaris.
-              </span>
-            </label>
-          </div>
+            </div>
 
-          <div id="maintenanceDeviceInfo" class="detail-grid">
-            <div class="empty-state">Identitas perangkat akan tampil setelah perangkat dipilih.</div>
+            <div class="computer-form-field">
+              <label class="computer-field-label">Jenis Aset</label>
+              <input id="maintenanceAssetType" type="text" readonly
+                placeholder="Otomatis dari inventaris">
+            </div>
+
+            <div class="computer-form-field">
+              <label class="computer-field-label">Nama Perangkat</label>
+              <input id="maintenanceAssetName" type="text" readonly
+                placeholder="Otomatis dari inventaris">
+            </div>
+
+            <div class="computer-form-field">
+              <label class="computer-field-label">Serial / Asset ID</label>
+              <input id="maintenanceSerial" type="text" readonly
+                placeholder="Otomatis dari inventaris">
+            </div>
+
+            <div class="computer-form-field">
+              <label class="computer-field-label">Unit / Pengguna</label>
+              <input id="maintenanceUnit" type="text" readonly
+                placeholder="Otomatis dari inventaris">
+            </div>
+
           </div>
         </section>
 
         <section class="computer-form-section">
           <div class="computer-section-heading">
-            <div class="computer-section-icon"><i data-lucide="clipboard-list"></i></div>
+            <span class="computer-section-icon">
+              <i data-lucide="clipboard-list"></i>
+            </span>
             <div>
-              <h3>Detail Pekerjaan</h3>
-              <p>Informasi pelaksanaan perawatan atau perbaikan perangkat.</p>
+              <span class="computer-section-number">02</span>
+              <h3>Detail Maintenance</h3>
             </div>
-            <span class="computer-section-number">02</span>
           </div>
 
           <div class="computer-form-grid">
-            <label class="computer-form-field">
-              <span class="computer-field-label">Tanggal <span>*</span></span>
-              <input id="maintenanceDate" type="date" value="${today()}" required>
-            </label>
 
-            <label class="computer-form-field">
-              <span class="computer-field-label">Kategori Kegiatan <span>*</span></span>
-              <select id="maintenanceCategory" required>
+            <div class="computer-form-field">
+              <label class="computer-field-label" for="maintenanceDate">
+                Tanggal <span class="computer-form-required">*</span>
+              </label>
+              <input id="maintenanceDate" type="date"
+                value="${dateValue}" required>
+            </div>
+
+            <div class="computer-form-field">
+              <label class="computer-field-label" for="maintenanceActivity">
+                Jenis Kegiatan <span class="computer-form-required">*</span>
+              </label>
+              <select id="maintenanceActivity" required>
+                <option value="">Pilih kegiatan</option>
                 <option value="Perawatan">Perawatan</option>
                 <option value="Perbaikan">Perbaikan</option>
               </select>
-            </label>
+            </div>
 
-            <label class="computer-form-field computer-field-wide">
-              <span class="computer-field-label">Uraian Kegiatan <span>*</span></span>
-              <textarea id="maintenanceAction" rows="3" required
-                placeholder="Jelaskan tindakan yang dilakukan..."></textarea>
-            </label>
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label" for="maintenanceDescription">
+                Uraian Kegiatan <span class="computer-form-required">*</span>
+              </label>
+              <textarea
+                id="maintenanceDescription"
+                rows="3"
+                placeholder="Tuliskan tindakan perawatan atau perbaikan yang dilakukan"
+                required
+              ></textarea>
+            </div>
 
-            <label class="computer-form-field">
-              <span class="computer-field-label">Kondisi Perangkat <span>*</span></span>
-              <select id="maintenanceCondition" required>
-                <option value="">-- Pilih kondisi --</option>
+            <div class="computer-form-field">
+              <label class="computer-field-label" for="maintenanceCondition">
+                Kondisi Perangkat
+              </label>
+              <select id="maintenanceCondition">
+                <option value="">Pilih kondisi</option>
                 <option value="Baik">Baik</option>
                 <option value="Perlu Perhatian">Perlu Perhatian</option>
                 <option value="Rusak">Rusak</option>
               </select>
-            </label>
+            </div>
 
-            <label class="computer-form-field">
-              <span class="computer-field-label">Refill</span>
+            <div class="computer-form-field">
+              <label class="computer-field-label" for="maintenanceRefill">
+                Refill
+              </label>
               <select id="maintenanceRefill">
-                <option value="T">T — Tidak</option>
-                <option value="Y">Y — Ya</option>
+                <option value="T">Tidak</option>
+                <option value="Y">Ya</option>
               </select>
-              <span class="computer-field-hint">Pilih Y jika dilakukan refill.</span>
-            </label>
+            </div>
 
-            <label class="computer-form-field">
-              <span class="computer-field-label">Penanganan oleh <span>*</span></span>
-              <select id="maintenanceTechnician" required>
-                <option value="">-- Pilih --</option>
-                <option value="Teknisi">Teknisi</option>
-                <option value="Vendor">Vendor</option>
-              </select>
-            </label>
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label" for="maintenanceNotes">
+                Keterangan Tambahan
+              </label>
+              <textarea
+                id="maintenanceNotes"
+                rows="3"
+                placeholder="Keterangan tambahan (opsional)"
+              ></textarea>
+            </div>
 
-            <label class="computer-form-field computer-field-wide">
-              <span class="computer-field-label">Keterangan</span>
-              <textarea id="maintenanceNotes" rows="3"
-                placeholder="Keterangan tambahan (opsional)"></textarea>
-            </label>
           </div>
         </section>
 
         <section class="computer-form-section">
           <div class="computer-section-heading">
-            <div class="computer-section-icon"><i data-lucide="calendar-clock"></i></div>
+            <span class="computer-section-icon">
+              <i data-lucide="user-cog"></i>
+            </span>
             <div>
-              <h3>Jadwal Maintenance Berikutnya</h3>
-              <p>Perkiraan jadwal dihitung otomatis berdasarkan jenis aset dan kegiatan.</p>
+              <span class="computer-section-number">03</span>
+              <h3>Teknisi dan Jadwal</h3>
             </div>
-            <span class="computer-section-number">03</span>
           </div>
-          <div id="maintenanceSchedulePreview" class="computer-field-hint">
-            Pilih perangkat dan kategori kegiatan untuk melihat jadwal.
+
+          <div class="computer-form-grid">
+
+            <div class="computer-form-field">
+              <label class="computer-field-label" for="maintenanceHandlerType">
+                Penanganan Oleh
+              </label>
+              <select id="maintenanceHandlerType">
+                <option value="Teknisi">Teknisi</option>
+                <option value="Vendor">Vendor</option>
+              </select>
+            </div>
+
+            <div class="computer-form-field">
+              <label class="computer-field-label" for="maintenanceTechnician">
+                Nama Teknisi / Vendor
+                <span class="computer-form-required">*</span>
+              </label>
+              <input
+                id="maintenanceTechnician"
+                type="text"
+                placeholder="Masukkan nama teknisi atau vendor"
+                required
+              >
+            </div>
+
+            <div class="computer-form-field computer-field-wide">
+              <label class="computer-field-label" for="maintenanceSchedule">
+                Jadwal Maintenance Berikutnya
+              </label>
+              <input
+                id="maintenanceSchedule"
+                type="date"
+                readonly
+                placeholder="Dihitung otomatis"
+              >
+              <small class="computer-field-hint">
+                Perawatan komputer: 6 bulan. Perawatan printer: 3 bulan.
+                Perbaikan tidak membuat jadwal otomatis.
+              </small>
+            </div>
+
           </div>
         </section>
 
-        <div class="computer-form-message notice warning">
-          Tampilan formulir belum terhubung ke backend. Data belum disimpan.
-        </div>
+        <div id="maintenanceFormMessage" class="computer-form-message"></div>
 
         <div class="computer-form-footer">
-          <button type="button" class="button button-secondary" id="cancelMaintenance">
-            Tutup
+          <button type="button" class="button button-secondary"
+            id="maintenanceCancel">
+            Batal
           </button>
-          <button type="button" class="button button-primary" disabled>
-            <i data-lucide="save"></i> Simpan
+          <button type="submit" class="button button-primary">
+            <i data-lucide="save"></i>
+            Simpan Maintenance
           </button>
         </div>
+
       </form>
-    `, "computer-modal");
+    `;
 
-    $("#cancelMaintenance", modalElement).addEventListener("click", closeModal);
-
-    $("#maintenanceDevice", modalElement).addEventListener("change", event => {
-      const index = event.target.value;
-      selectedDevice = index === "" ? null : devices[Number(index)] || null;
-      renderDeviceInfo();
-      updateSchedule();
-    });
-
-    $("#findMaintenanceQr", modalElement).addEventListener("click", () => {
-      findDeviceByCode(devices);
-    });
-
-    $("#maintenanceQr", modalElement).addEventListener("keydown", event => {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        findDeviceByCode(devices);
-      }
-    });
-
-    ["maintenanceDate", "maintenanceCategory"].forEach(id => {
-      $("#" + id, modalElement).addEventListener("change", updateSchedule);
-    });
-
-    if (window.lucide) window.lucide.createIcons();
+    showModal("Catat Maintenance", content, "computer-modal");
+    bindFormEvents();
   }
 
-  function findDeviceByCode(devices) {
-    const value = String($("#maintenanceQr", modalElement).value || "").trim().toLowerCase();
+  function showModal(title, content, variant) {
+    closeModal();
 
-    if (!value) {
-      ui().toast("Masukkan kode QR, barcode, atau serial terlebih dahulu.", "warning");
-      return;
-    }
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop";
+    backdrop.id = "maintenanceModal";
 
-    const found = devices.find(device => {
-      const raw = device.raw || {};
-      const identifiers = [
-        device.serial,
-        device.name,
-        getValue(raw, ["Asset/Serial ID", "asset_serial_id", "asset_id", "sn_asset"]),
-        getValue(raw, ["Computer Name", "computer_name", "computerName", "nama_aset", "nama"])
-      ];
+    backdrop.innerHTML = `
+      <section class="modal ${variant || ""}">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-title-eyebrow">
+              GOJAK TECHOPS · ASSET MANAGEMENT
+            </span>
+            <h2>${ui().escapeHTML(title)}</h2>
+          </div>
+          <button type="button" class="icon-button"
+            id="maintenanceModalClose" aria-label="Tutup">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          ${content}
+        </div>
+      </section>
+    `;
 
-      return identifiers.some(item =>
-        String(item || "").trim().toLowerCase() === value
-      );
+    document.body.appendChild(backdrop);
+
+    backdrop.addEventListener("click", event => {
+      if (event.target === backdrop) closeModal();
     });
 
-    if (!found) {
-      ui().toast("Perangkat tidak ditemukan pada inventaris.", "warning");
-      return;
-    }
+    backdrop.querySelector("#maintenanceModalClose")
+      .addEventListener("click", closeModal);
 
-    selectedDevice = found;
-    $("#maintenanceDevice", modalElement).value = String(devices.indexOf(found));
-    renderDeviceInfo();
-    updateSchedule();
-
-    ui().toast("Perangkat berhasil ditemukan.", "success");
-  }
-
-  function renderDeviceInfo() {
-    const host = $("#maintenanceDeviceInfo", modalElement);
-    if (!host) return;
-
-    if (!selectedDevice) {
-      host.innerHTML = `<div class="empty-state">Identitas perangkat akan tampil setelah perangkat dipilih.</div>`;
-      return;
-    }
-
-    host.innerHTML = `
-      <div class="detail-item">
-        <span>Jenis Aset</span>
-        <strong>${esc(selectedDevice.type)}</strong>
-      </div>
-      <div class="detail-item">
-        <span>Nama Perangkat</span>
-        <strong>${esc(selectedDevice.name)}</strong>
-      </div>
-      <div class="detail-item">
-        <span>Serial / Asset ID</span>
-        <strong>${esc(selectedDevice.serial || "-")}</strong>
-      </div>`;
-  }
-
-  function addMonths(value, months) {
-    const parts = String(value || "").split("-").map(Number);
-    if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
-
-    const [year, month, day] = parts;
-    const targetMonth = month - 1 + months;
-    const targetYear = year + Math.floor(targetMonth / 12);
-    const normalizedMonth = ((targetMonth % 12) + 12) % 12;
-    const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate();
-
-    return `${targetYear}-${String(normalizedMonth + 1).padStart(2, "0")}-${String(Math.min(day, lastDay)).padStart(2, "0")}`;
-  }
-
-  function updateSchedule() {
-    const host = $("#maintenanceSchedulePreview", modalElement);
-    if (!host) return;
-
-    const category = $("#maintenanceCategory", modalElement).value;
-    const date = $("#maintenanceDate", modalElement).value;
-
-    if (!selectedDevice || !category || !date) {
-      host.textContent = "Pilih perangkat, tanggal, dan kategori kegiatan.";
-      return;
-    }
-
-    if (category === "Perbaikan") {
-      host.innerHTML = `
-        <strong>Tidak ada jadwal rutin otomatis.</strong>
-        <p>Jadwal berikutnya ditentukan setelah kondisi perangkat dievaluasi.</p>`;
-      return;
-    }
-
-    const months = selectedDevice.type === "Printer" ? 3 : 6;
-    const nextDate = addMonths(date, months);
-
-    host.innerHTML = `
-      <strong>Jadwal berikutnya: ${esc(formatDate(nextDate))}</strong>
-      <p>${esc(selectedDevice.type)} — Perawatan setiap ${months} bulan.</p>`;
+    ui().iconRefresh();
   }
 
   function closeModal() {
-    if (modalElement) {
-      modalElement.remove();
-      modalElement = null;
+    const modal = document.getElementById("maintenanceModal");
+    if (modal) modal.remove();
+  }
+
+  function bindFormEvents() {
+    const form = document.getElementById("maintenanceForm");
+    const deviceSelect = document.getElementById("maintenanceDevice");
+    const qrInput = document.getElementById("maintenanceQr");
+    const activity = document.getElementById("maintenanceActivity");
+    const date = document.getElementById("maintenanceDate");
+
+    deviceSelect.addEventListener("change", () => {
+      selectedDevice =
+        currentDevices.find(item => item.key === deviceSelect.value) || null;
+      fillDeviceFields();
+      updateSchedule();
+    });
+
+    qrInput.addEventListener("input", () => {
+      const query = qrInput.value.trim().toLowerCase();
+      if (!query) return;
+
+      const found = currentDevices.find(device => {
+        return [device.name, device.serial]
+          .some(value => String(value || "").toLowerCase() === query);
+      });
+
+      if (found) {
+        deviceSelect.value = found.key;
+        selectedDevice = found;
+        fillDeviceFields();
+        updateSchedule();
+      }
+    });
+
+    activity.addEventListener("change", updateSchedule);
+    date.addEventListener("change", updateSchedule);
+
+    document.getElementById("maintenanceCancel")
+      .addEventListener("click", closeModal);
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+
+      const message =
+        document.getElementById("maintenanceFormMessage");
+
+      if (!selectedDevice) {
+        message.textContent = "Pilih perangkat dari inventaris terlebih dahulu.";
+        return;
+      }
+
+      if (!form.reportValidity()) return;
+
+      message.textContent =
+        "Formulir tampilan sudah siap. Penyimpanan backend belum diaktifkan pada tahap ini.";
+    });
+  }
+
+  function fillDeviceFields() {
+    document.getElementById("maintenanceAssetType").value =
+      selectedDevice?.type || "";
+
+    document.getElementById("maintenanceAssetName").value =
+      selectedDevice?.name || "";
+
+    document.getElementById("maintenanceSerial").value =
+      selectedDevice?.serial || "";
+
+    document.getElementById("maintenanceUnit").value =
+      selectedDevice?.unit || "";
+  }
+
+  function updateSchedule() {
+    const activity =
+      document.getElementById("maintenanceActivity").value;
+
+    const dateValue =
+      document.getElementById("maintenanceDate").value;
+
+    const output =
+      document.getElementById("maintenanceSchedule");
+
+    output.value = "";
+
+    if (!selectedDevice || activity !== "Perawatan" || !dateValue) {
+      return;
     }
-    selectedDevice = null;
+
+    const months = selectedDevice.type === "Komputer" ? 6 : 3;
+    output.value = addMonthsClamped(dateValue, months);
+  }
+
+  function addMonthsClamped(value, months) {
+    const parts = value.split("-").map(Number);
+    const year = parts[0];
+    const month = parts[1] - 1;
+    const day = parts[2];
+
+    const targetMonth = month + months;
+    const targetYear = year + Math.floor(targetMonth / 12);
+    const normalizedMonth = targetMonth % 12;
+
+    const lastDay = new Date(
+      targetYear,
+      normalizedMonth + 1,
+      0
+    ).getDate();
+
+    const result = new Date(
+      targetYear,
+      normalizedMonth,
+      Math.min(day, lastDay)
+    );
+
+    return toInputDate(result);
+  }
+
+  function toInputDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        });
   }
 
   window.MaintenancePage = { render };
