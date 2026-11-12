@@ -156,3 +156,355 @@ i[data-lucide] { width: 18px; height: 18px; stroke-width: 1.9; flex: 0 0 auto; }
   .quick-links { grid-template-columns: 1fr; }
   .qr-search { flex-direction: column; }
 }
+
+
+/* =========================================
+   COMPUTER FORM - GOJAK TECHOPS
+   Scoped khusus popup Tambah/Edit Komputer
+========================================= */
+
+.computer-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.computer-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.table-action.danger {
+  color: var(--red);
+}
+
+.modal-title-wrap {
+  display: grid;
+  gap: 5px;
+}
+
+.modal-title-eyebrow {
+  color: var(--blue);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+
+.modal.computer-modal {
+  width: min(760px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 25px;
+  border: 1px solid #e8edf5;
+  border-radius: 17px;
+  box-shadow: 0 25px 80px rgba(15, 23, 42, .24);
+}
+
+.computer-modal .modal-header {
+  position: sticky;
+  top: -25px;
+  z-index: 5;
+  margin: -25px -25px 20px;
+  padding: 21px 25px 17px;
+  background: rgba(255,255,255,.97);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.computer-modal .modal-header h2 {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.6px;
+  color: var(--navy);
+}
+
+.computer-form {
+  display: grid;
+  gap: 19px;
+}
+
+.computer-form-intro {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #eff6ff, #f8fbff);
+}
+
+.computer-form-intro-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 11px;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.computer-form-intro-icon i {
+  width: 21px;
+  height: 21px;
+}
+
+.computer-form-intro strong {
+  display: block;
+  color: #1e3a8a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.computer-form-intro p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.computer-form-section {
+  padding: 17px;
+  border: 1px solid #e8edf5;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.computer-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 17px;
+}
+
+.computer-section-icon {
+  width: 35px;
+  height: 35px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: var(--blue);
+}
+
+.computer-section-icon i {
+  width: 18px;
+  height: 18px;
+}
+
+.computer-section-heading h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.computer-section-heading p {
+  margin: 4px 0 0;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.computer-section-number {
+  margin-left: auto;
+  color: #cbd5e1;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.computer-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px 13px;
+}
+
+.computer-form-field {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+}
+
+.computer-field-wide {
+  grid-column: 1 / -1;
+}
+
+.computer-field-label {
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.computer-field-label em,
+.computer-form-required em {
+  color: var(--red);
+  font-style: normal;
+  margin-left: 2px;
+}
+
+.computer-form-field input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  padding: 0 11px;
+  color: #1e293b;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  outline: none;
+  font-size: 12px;
+  transition: .18s ease;
+}
+
+.computer-form-field input::placeholder {
+  color: #b0bac8;
+}
+
+.computer-form-field input:hover {
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+.computer-form-field input:focus {
+  background: #fff;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+}
+
+.computer-form-field input[readonly] {
+  color: #64748b;
+  background: #f1f5f9;
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.computer-field-hint {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.computer-form-required {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.computer-form-message {
+  display: none;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.computer-form-message:not(:empty) {
+  display: block;
+}
+
+.computer-form-message.error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.computer-form-footer {
+  position: sticky;
+  bottom: -25px;
+  z-index: 4;
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin: 0 -25px -25px;
+  padding: 15px 25px;
+  background: rgba(255,255,255,.97);
+  border-top: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+.computer-form-footer .button {
+  min-height: 39px;
+  justify-content: center;
+}
+
+.computer-form-footer .button-primary {
+  min-width: 155px;
+}
+
+.computer-form-footer .button-secondary {
+  min-width: 85px;
+}
+
+/* Modal detail tetap mengikuti desain umum */
+.modal:not(.computer-modal) .modal-title-eyebrow {
+  display: block;
+}
+
+/* Responsive */
+@media (max-width: 760px) {
+  .modal-backdrop {
+    padding: 10px;
+  }
+
+  .modal.computer-modal {
+    width: 100%;
+    max-height: 94vh;
+    padding: 17px;
+    border-radius: 14px;
+  }
+
+  .computer-modal .modal-header {
+    top: -17px;
+    margin: -17px -17px 16px;
+    padding: 16px 17px 14px;
+  }
+
+  .computer-modal .modal-header h2 {
+    font-size: 17px;
+  }
+
+  .computer-form {
+    gap: 14px;
+  }
+
+  .computer-form-section {
+    padding: 13px;
+  }
+
+  .computer-form-grid {
+    gap: 13px 10px;
+  }
+
+  .computer-form-footer {
+    bottom: -17px;
+    margin: 0 -17px -17px;
+    padding: 12px 17px;
+  }
+}
+
+@media (max-width: 480px) {
+  .computer-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .computer-field-wide {
+    grid-column: auto;
+  }
+
+  .computer-form-intro {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .computer-section-heading {
+    margin-bottom: 13px;
+  }
+
+  .computer-form-footer .button-primary {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
