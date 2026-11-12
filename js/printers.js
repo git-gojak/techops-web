@@ -5,53 +5,69 @@
   const ui = () => window.TechOpsUI;
   const state = () => window.TechOpsState;
 
-  let currentFilter = "Aktif";
-  let currentSearch = "";
-  let currentModal = null;
-
-  const fields = [
-    { key: "serial", label: "Serial Number", required: true },
-    { key: "unit", label: "Unit", required: true },
-    { key: "merek", label: "Merek", required: true },
-    { key: "model", label: "Model", required: true },
-    { key: "tinta", label: "Jenis Tinta" },
-    { key: "ftp", label: "Tanggal FTP", type: "date" },
-    { key: "mp", label: "MP" }
+  const FIELD_GROUPS = [
+    {
+      title: "Identitas Printer",
+      subtitle: "Informasi utama dan identitas printer",
+      icon: "printer",
+      fields: [
+        ["serial", "Serial Number", "text"],
+        ["unit", "Unit", "text"],
+        ["merek", "Merek", "text"],
+        ["model", "Model", "text"]
+      ]
+    },
+    {
+      title: "Informasi Operasional",
+      subtitle: "Informasi tinta dan pemeliharaan printer",
+      icon: "settings",
+      fields: [
+        ["tinta", "Jenis Tinta", "text"],
+        ["ftp", "Tanggal FTP", "text"],
+        ["mp", "MP", "text"]
+      ]
+    }
   ];
 
-function isAdmin() {
-  const s = state();
+  const FIELDS = FIELD_GROUPS.flatMap(group => group.fields);
 
-  return s.authenticated === true ||
-    String(s.user?.role || "").toLowerCase() === "admin";
-}
+  let currentQuery = "";
+  let modalElement = null;
+  let busy = false;
 
-  function esc(value) {
-    return ui().escapeHTML(String(value ?? ""));
+  function isAdmin() {
+    return !!state().authenticated;
   }
 
-  function printers() {
-    return Array.isArray(state().printers) ? state().printers : [];
+  function escape(value) {
+    return ui().escapeHTML(value == null ? "" : String(value));
   }
 
-  async function api(action, payload = {}) {
-    return window.TechOpsAPI.request(action, payload);
+  function request(action, payload) {
+    return window.TechOpsAPI.request(action, payload || {})
+      .then(result => {
+        if (!result || result.success !== true) {
+          throw new Error(
+            result?.message || "Permintaan gagal diproses."
+          );
+        }
+
+        return result.data;
+      });
   }
 
-  async function loadPrinters() {
-    const result = await api("printers.list", {
+  async function loadPrinterRows() {
+    const result = await request("printers.list", {
       includeArchived: isAdmin()
     });
 
-    state().printers = Array.isArray(result.data)
-      ? result.data
-      : [];
-
-    drawTable();
+    state().printers = Array.isArray(result) ? result : [];
+    drawTable(currentQuery);
   }
 
   function render() {
     const host = ui().$("#appContent");
+    const rows = state().printers || [];
 
     host.innerHTML =
       ui().pageHeading(
@@ -59,8 +75,7 @@ function isAdmin() {
         "Daftar printer yang tercatat dalam database.",
         "ASSET MANAGEMENT"
       ) +
-      `
-      <section class="panel">
+      `<section class="panel">
         <div class="table-toolbar">
           <div class="search-box">
             <i data-lucide="search"></i>
@@ -68,422 +83,477 @@ function isAdmin() {
               id="printerSearch"
               type="search"
               placeholder="Cari serial, unit, merek, model..."
-              autocomplete="off"
             >
           </div>
 
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <select id="printerFilter" class="form-control"
-              style="max-width:140px">
-              <option value="Aktif">Printer Aktif</option>
-              ${isAdmin()
-                ? '<option value="Arsip">Printer Arsip</option>'
-                : ""}
-            </select>
-
-            <span class="badge" id="printerCount">0 perangkat</span>
+          <div class="computer-toolbar-actions">
+            <span class="badge" id="printerCount">${rows.length} perangkat</span>
 
             ${isAdmin()
-              ? `<button class="btn primary" id="addPrinterBtn">
-                   <i data-lucide="plus"></i>
-                   Tambah Printer
+              ? `<button class="button button-primary" id="addPrinterBtn" type="button">
+                   <i data-lucide="plus"></i> Tambah Printer
                  </button>`
               : ""}
           </div>
         </div>
 
         <div id="printerTable"></div>
-      </section>
-      `;
+      </section>`;
 
-    ui().$("#printerSearch").addEventListener("input", e => {
-      currentSearch = e.target.value;
-      drawTable();
-    });
+    const input = ui().$("#printerSearch");
 
-    ui().$("#printerFilter").addEventListener("change", e => {
-      currentFilter = e.target.value;
-      drawTable();
+    input.addEventListener("input", () => {
+      currentQuery = input.value;
+      drawTable(currentQuery);
     });
 
     if (isAdmin()) {
       ui().$("#addPrinterBtn").addEventListener("click", () => {
-        showForm();
+        openForm();
       });
     }
+
+    drawTable("");
 
     ui().bindRefresh();
     ui().iconRefresh();
 
-    drawTable();
-
-    loadPrinters().catch(error => {
-      ui().toast(error.message || "Gagal memuat data printer.", "error");
+    loadPrinterRows().catch(error => {
+      console.error("Gagal memuat printer:", error);
     });
   }
 
-  function drawTable() {
-    const host = ui().$("#printerTable");
-    if (!host) return;
+  function drawTable(query) {
+    const all = state().printers || [];
+    const q = String(query || "").trim().toLowerCase();
 
-    const query = currentSearch.toLowerCase().trim();
+    const filtered = all.filter(row => {
+      if (!q) return true;
 
-    const rows = printers().filter(row => {
-      const status = String(row.status || "Aktif");
-      const matchStatus = status.toLowerCase() ===
-        currentFilter.toLowerCase();
-
-      const searchable = [
-        row.serial,
-        row.unit,
-        row.merek,
-        row.model,
-        row.tinta,
-        row.ftp,
-        row.mp,
-        row.status
-      ].join(" ").toLowerCase();
-
-      return matchStatus && searchable.includes(query);
+      return Object.keys(row).some(key =>
+        String(row[key] ?? "").toLowerCase().includes(q)
+      );
     });
 
+    const host = ui().$("#printerTable");
     const count = ui().$("#printerCount");
-    if (count) count.textContent = `${rows.length} perangkat`;
 
-    if (!rows.length) {
-      host.innerHTML = `
-        <div class="empty-state">
-          <i data-lucide="printer"></i>
-          <p>Tidak ada data printer.</p>
-        </div>
-      `;
-      ui().iconRefresh();
+    if (count) {
+      count.textContent = `${filtered.length} perangkat`;
+    }
+
+    if (!host) return;
+
+    if (!filtered.length) {
+      host.innerHTML =
+        `<div class="empty-state">Tidak ada data printer yang cocok.</div>`;
       return;
     }
 
-    host.innerHTML = `
-      <div class="table-wrap">
+    host.innerHTML =
+      `<div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Serial Number</th>
-              <th>Unit</th>
-              <th>Merek</th>
-              <th>Model</th>
-              <th>Tinta</th>
-              <th>FTP</th>
-              <th>Status</th>
-              <th>Aksi</th>
+              <th>NO</th>
+              <th>SERIAL NUMBER</th>
+              <th>UNIT</th>
+              <th>MEREK</th>
+              <th>MODEL</th>
+              <th>TINTA</th>
+              <th>STATUS</th>
+              <th>AKSI</th>
             </tr>
           </thead>
+
           <tbody>
-            ${rows.map(row => `
-              <tr>
+            ${filtered.map((row, index) => {
+              const serial = escape(row.serial);
+              const archived =
+                String(row.status || "").trim().toLowerCase() === "arsip";
+
+              return `<tr>
+                <td>${index + 1}</td>
+                <td class="primary-cell">${escape(row.serial)}</td>
+                <td>${escape(row.unit)}</td>
+                <td>${escape(row.merek)}</td>
+                <td>${escape(row.model)}</td>
+                <td>${escape(row.tinta)}</td>
                 <td>
-                  <div class="primary-cell">${esc(row.serial)}</div>
-                </td>
-                <td>${esc(row.unit)}</td>
-                <td>${esc(row.merek)}</td>
-                <td>${esc(row.model)}</td>
-                <td>${esc(row.tinta)}</td>
-                <td>${esc(row.ftp)}</td>
-                <td>
-                  <span class="badge">
-                    ${esc(row.status || "Aktif")}
+                  <span class="badge ${archived ? "gray" : "green"}">
+                    ${archived ? "Arsip" : escape(row.status || "Aktif")}
                   </span>
                 </td>
                 <td>
-                  <div style="display:flex;gap:8px;align-items:center">
-                    <button class="table-action"
+                  <div class="computer-table-actions">
+                    <button
+                      class="table-action"
+                      type="button"
                       data-action="detail"
-                      data-serial="${esc(row.serial)}">
-                      Detail
-                    </button>
+                      data-serial="${serial}"
+                    >Detail</button>
 
-                    ${isAdmin() && row.status !== "Arsip"
-                      ? `
-                        <button class="table-action"
+                    ${isAdmin() ? `
+                      ${!archived ? `
+                        <button
+                          class="table-action"
+                          type="button"
                           data-action="edit"
-                          data-serial="${esc(row.serial)}">
-                          Edit
-                        </button>
-                        <button class="table-action"
-                          data-action="archive"
-                          data-serial="${esc(row.serial)}">
-                          Arsipkan
-                        </button>
-                      `
-                      : ""}
+                          data-serial="${serial}"
+                        >Edit</button>
 
-                    ${isAdmin() && row.status === "Arsip"
-                      ? `
-                        <button class="table-action"
+                        <button
+                          class="table-action danger"
+                          type="button"
+                          data-action="archive"
+                          data-serial="${serial}"
+                        >Arsipkan</button>
+                      ` : `
+                        <button
+                          class="table-action"
+                          type="button"
                           data-action="unarchive"
-                          data-serial="${esc(row.serial)}">
-                          Aktifkan
-                        </button>
-                      `
-                      : ""}
+                          data-serial="${serial}"
+                        >Aktifkan</button>
+                      `}
+                    ` : ""}
                   </div>
                 </td>
-              </tr>
-            `).join("")}
+              </tr>`;
+            }).join("")}
           </tbody>
         </table>
       </div>
 
       <div class="table-footer">
-        Menampilkan ${rows.length} printer
-      </div>
-    `;
+        <span>Menampilkan ${filtered.length} dari ${all.length} printer</span>
+      </div>`;
 
     host.querySelectorAll("[data-action]").forEach(button => {
       button.addEventListener("click", () => {
-        handleAction(
-          button.dataset.action,
-          button.dataset.serial
-        );
+        const action = button.dataset.action;
+        const serial = button.dataset.serial;
+
+        if (action === "detail") showDetail(serial);
+        if (action === "edit") openForm(serial);
+        if (action === "archive") archivePrinter(serial);
+        if (action === "unarchive") unarchivePrinter(serial);
       });
     });
-
-    ui().iconRefresh();
   }
 
-  function findPrinter(serial) {
-    return printers().find(row =>
-      String(row.serial) === String(serial)
+  function showDetail(serial) {
+    const row = (state().printers || []).find(
+      item => String(item.serial) === String(serial)
+    );
+
+    if (!row) return;
+
+    const labels = {
+      serial: "Serial Number",
+      unit: "Unit",
+      merek: "Merek",
+      model: "Model",
+      tinta: "Jenis Tinta",
+      ftp: "Tanggal FTP",
+      mp: "MP",
+      status: "Status"
+    };
+
+    const body = Object.entries(labels).map(([key, label]) =>
+      `<div class="detail-item">
+        <small>${label}</small>
+        <strong>${escape(row[key] || "-")}</strong>
+      </div>`
+    ).join("");
+
+    modal(
+      "Detail Printer",
+      `<div class="detail-grid">${body}</div>`
     );
   }
 
-  async function handleAction(action, serial) {
-    const row = findPrinter(serial);
-    if (!row) return;
+  function renderFormField(field, row, editing) {
+    const [key, label, type] = field;
+    const required = key === "serial";
+    const readonly = editing && key === "serial";
+    const value = row[key] == null ? "" : row[key];
 
-    if (action === "detail") {
-      showDetail(row);
-      return;
-    }
+    return `
+      <label class="computer-form-field">
+        <span class="computer-field-label">
+          ${label}
+          ${required ? '<em>*</em>' : ""}
+        </span>
 
-    if (!isAdmin()) {
-      ui().toast("Login Admin diperlukan.", "error");
-      return;
-    }
+        <input
+          name="${key}"
+          type="${type}"
+          value="${escape(value)}"
+          placeholder="${escape("Masukkan " + label.toLowerCase())}"
+          ${readonly ? "readonly" : ""}
+          ${required ? "required" : ""}
+          autocomplete="off"
+        >
 
-    if (action === "edit") {
-      showForm(row);
-      return;
-    }
-
-    if (action === "archive") {
-      if (!confirm(`Arsipkan printer ${serial}?`)) return;
-
-      try {
-        await api("printers.archive", { serial });
-        ui().toast("Printer berhasil diarsipkan.", "success");
-        await loadPrinters();
-      } catch (error) {
-        ui().toast(error.message || "Gagal mengarsipkan printer.", "error");
-      }
-      return;
-    }
-
-    if (action === "unarchive") {
-      if (!confirm(`Aktifkan kembali printer ${serial}?`)) return;
-
-      try {
-        await api("printers.unarchive", { serial });
-        ui().toast("Printer berhasil diaktifkan kembali.", "success");
-        await loadPrinters();
-      } catch (error) {
-        ui().toast(error.message || "Gagal mengaktifkan printer.", "error");
-      }
-    }
+        ${readonly
+          ? '<small class="computer-field-hint">Serial Number tidak dapat diubah.</small>'
+          : ""}
+      </label>`;
   }
 
-  function showDetail(row) {
-    closeModal();
+  function openForm(serial) {
+    if (!isAdmin()) {
+      alert("Silakan login sebagai Admin.");
+      return;
+    }
 
-    const actions = isAdmin() && row.status !== "Arsip"
-      ? `
-        <button class="btn primary" id="detailEditBtn">
-          Edit Printer
-        </button>
-      `
-      : "";
+    const editing = !!serial;
 
-    openModal(`
-      <div class="modal-header">
-        <div>
-          <h3>Detail Printer</h3>
-          <p>${esc(row.serial)}</p>
-        </div>
-        <button class="icon-button" id="closePrinterModal">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
+    const row = editing
+      ? (state().printers || []).find(
+          item => String(item.serial) === String(serial)
+        )
+      : {};
 
-      <div class="detail-grid">
-        ${fields.map(field => `
-          <div class="detail-item">
-            <span>${esc(field.label)}</span>
-            <strong>${esc(row[field.key] || "-")}</strong>
+    if (editing && !row) {
+      alert("Data printer tidak ditemukan.");
+      return;
+    }
+
+    const sections = FIELD_GROUPS.map((group, index) => `
+      <section class="computer-form-section">
+        <div class="computer-section-heading">
+          <div class="computer-section-icon">
+            <i data-lucide="${group.icon}"></i>
           </div>
-        `).join("")}
 
-        <div class="detail-item">
-          <span>Status</span>
-          <strong>${esc(row.status || "Aktif")}</strong>
-        </div>
-      </div>
+          <div>
+            <h3>${group.title}</h3>
+            <p>${group.subtitle}</p>
+          </div>
 
-      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px">
-        ${actions}
-      </div>
-    `);
-
-    bindClose();
-
-    const editButton = document.getElementById("detailEditBtn");
-    if (editButton) {
-      editButton.addEventListener("click", () => showForm(row));
-    }
-  }
-
-  function showForm(row = null) {
-    if (!isAdmin()) {
-      ui().toast("Login Admin diperlukan.", "error");
-      return;
-    }
-
-    const editing = !!row;
-
-    openModal(`
-      <div class="modal-header">
-        <div>
-          <h3>${editing ? "Edit Printer" : "Tambah Printer"}</h3>
-          <p>${editing
-            ? "Perbarui informasi printer."
-            : "Masukkan informasi printer baru."}</p>
-        </div>
-        <button class="icon-button" id="closePrinterModal">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-
-      <form id="printerForm">
-        <div class="detail-grid">
-          ${fields.map(field => `
-            <label class="computer-form-field">
-              <span>${esc(field.label)}${field.required ? " *" : ""}</span>
-              <input
-                name="${field.key}"
-                type="${field.type || "text"}"
-                value="${esc(row ? row[field.key] : "")}"
-                ${field.required ? "required" : ""}
-                ${field.key === "serial" && editing ? "readonly" : ""}
-                placeholder="Masukkan ${esc(field.label.toLowerCase())}"
-              >
-            </label>
-          `).join("")}
+          <span class="computer-section-number">0${index + 1}</span>
         </div>
 
-        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:22px">
-          <button type="submit" class="btn primary" id="savePrinterBtn">
+        <div class="computer-form-grid">
+          ${group.fields.map(field =>
+            renderFormField(field, row, editing)
+          ).join("")}
+        </div>
+      </section>
+    `).join("");
+
+    modal(
+      editing ? "Edit Printer" : "Tambah Printer",
+      `<form id="printerForm" class="computer-form">
+
+        <div class="computer-form-intro">
+          <div class="computer-form-intro-icon">
+            <i data-lucide="printer"></i>
+          </div>
+
+          <div>
+            <strong>${editing
+              ? "Perbarui informasi printer"
+              : "Daftarkan printer baru"}</strong>
+
+            <p>${editing
+              ? "Pastikan informasi printer sudah sesuai."
+              : "Lengkapi informasi printer untuk menambahkannya ke inventaris."}</p>
+          </div>
+        </div>
+
+        ${sections}
+
+        <div class="computer-form-required">
+          <span><em>*</em> Wajib diisi</span>
+        </div>
+
+        <div class="computer-form-message" id="printerFormMessage"
+             role="status" aria-live="polite"></div>
+
+        <div class="computer-form-footer">
+          <button type="button" class="button button-secondary"
+                  id="cancelPrinterForm">
+            Batal
+          </button>
+
+          <button type="submit" class="button button-primary"
+                  id="savePrinterBtn">
+            <i data-lucide="save"></i>
             ${editing ? "Simpan Perubahan" : "Simpan Printer"}
           </button>
         </div>
-      </form>
-    `);
+      </form>`,
+      "computer-modal"
+    );
 
-    bindClose();
+    ui().$("#cancelPrinterForm").addEventListener("click", closeModal);
 
-    document.getElementById("printerForm")
-      .addEventListener("submit", async event => {
-        event.preventDefault();
+    ui().$("#printerForm").addEventListener("submit", async event => {
+      event.preventDefault();
 
-        if (!isAdmin()) {
-          ui().toast("Sesi Admin tidak tersedia.", "error");
-          return;
-        }
+      if (busy) return;
 
-        const form = event.currentTarget;
-        const data = {};
+      const form = event.currentTarget;
+      const data = {};
 
-        fields.forEach(field => {
-          data[field.key] = form.elements[field.key].value.trim();
-        });
-
-        data.status = row?.status || "Aktif";
-
-        const button = document.getElementById("savePrinterBtn");
-        button.disabled = true;
-        button.textContent = "Menyimpan...";
-
-        try {
-          await api(
-            editing ? "printers.update" : "printers.create",
-            { data }
-          );
-
-          closeModal();
-          ui().toast(
-            editing
-              ? "Data printer berhasil diperbarui."
-              : "Printer berhasil ditambahkan.",
-            "success"
-          );
-
-          await loadPrinters();
-        } catch (error) {
-          button.disabled = false;
-          button.textContent = editing
-            ? "Simpan Perubahan"
-            : "Simpan Printer";
-
-          ui().toast(
-            error.message || "Gagal menyimpan data printer.",
-            "error"
-          );
-        }
+      FIELDS.forEach(([key]) => {
+        const input = form.elements.namedItem(key);
+        data[key] = String(input.value || "").trim();
       });
-  }
 
-  function openModal(content) {
-    closeModal();
+      if (!data.serial) {
+        showFormMessage("Serial Number wajib diisi.", "error");
+        return;
+      }
 
-    const backdrop = document.createElement("div");
-    backdrop.className = "modal-backdrop";
-    backdrop.innerHTML = `
-      <div class="modal" role="dialog" aria-modal="true">
-        ${content}
-      </div>
-    `;
+      if (editing) {
+        data.serial = String(serial);
+        data.status = row.status || "Aktif";
+      } else {
+        data.status = "Aktif";
+      }
 
-    backdrop.addEventListener("click", event => {
-      if (event.target === backdrop) closeModal();
+      await savePrinter(
+        editing ? "printers.update" : "printers.create",
+        data
+      );
     });
-
-    document.body.appendChild(backdrop);
-    currentModal = backdrop;
 
     ui().iconRefresh();
   }
 
-  function bindClose() {
-    const button = document.getElementById("closePrinterModal");
-    if (button) button.addEventListener("click", closeModal);
+  async function savePrinter(action, data) {
+    setBusy(true);
+
+    try {
+      await request(action, { data });
+
+      closeModal();
+      await loadPrinterRows();
+
+      alert(
+        action === "printers.create"
+          ? "Printer berhasil ditambahkan."
+          : "Data printer berhasil diperbarui."
+      );
+    } catch (error) {
+      showFormMessage(
+        error.message || "Gagal menyimpan data printer.",
+        "error"
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function archivePrinter(serial) {
+    if (!isAdmin()) return;
+
+    if (!confirm(
+      `Arsipkan printer dengan serial ${serial}?\n\nData tidak akan dihapus.`
+    )) return;
+
+    setBusy(true);
+
+    try {
+      await request("printers.archive", { serial });
+      await loadPrinterRows();
+      alert("Printer berhasil diarsipkan.");
+    } catch (error) {
+      alert(error.message || "Gagal mengarsipkan printer.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unarchivePrinter(serial) {
+    if (!isAdmin()) return;
+
+    if (!confirm(`Aktifkan kembali printer ${serial}?`)) return;
+
+    setBusy(true);
+
+    try {
+      await request("printers.unarchive", { serial });
+      await loadPrinterRows();
+      alert("Printer berhasil diaktifkan kembali.");
+    } catch (error) {
+      alert(error.message || "Gagal mengaktifkan printer.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function showFormMessage(message, type) {
+    const el = ui().$("#printerFormMessage");
+    if (!el) return;
+
+    el.textContent = message;
+    el.className = `computer-form-message ${type || ""}`;
+  }
+
+  function setBusy(value) {
+    busy = value;
+
+    const button = ui().$("#savePrinterBtn");
+
+    if (button) {
+      button.disabled = value;
+      button.innerHTML = value
+        ? '<span class="spinner"></span> Menyimpan...'
+        : '<i data-lucide="save"></i> Simpan Printer';
+
+      ui().iconRefresh();
+    }
+  }
+
+  function modal(title, content, variant) {
+    closeModal();
+
+    const wrap = document.createElement("div");
+    wrap.className = "modal-backdrop";
+
+    wrap.innerHTML =
+      `<section class="modal ${variant || ""}">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-title-eyebrow">GOJAK TECHOPS · ASSET MANAGEMENT</span>
+            <h2>${escape(title)}</h2>
+          </div>
+
+          <button class="icon-button" type="button" aria-label="Tutup">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        ${content}
+      </section>`;
+
+    document.body.appendChild(wrap);
+    modalElement = wrap;
+
+    wrap.querySelector(".icon-button").addEventListener("click", closeModal);
+
+    wrap.addEventListener("click", event => {
+      if (event.target === wrap) closeModal();
+    });
+
+    ui().iconRefresh();
   }
 
   function closeModal() {
-    if (currentModal) {
-      currentModal.remove();
-      currentModal = null;
+    if (modalElement) {
+      modalElement.remove();
+      modalElement = null;
     }
   }
 
   window.PrintersPage = {
     render,
-    refresh: loadPrinters
+    refresh: loadPrinterRows
   };
 
 })();
