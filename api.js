@@ -270,7 +270,28 @@ let requestCounter = 0;
       throw new Error("PIN harus terdiri dari 6 digit angka.");
     }
 
-    const result = await send("LOGIN", { pin: pin });
+    const loginStartedAt = performance.now();
+
+let result;
+
+try {
+  result = await send("LOGIN", { pin: pin });
+
+  console.info(
+    "WAKTU RESPONS LOGIN:",
+    ((performance.now() - loginStartedAt) / 1000).toFixed(2),
+    "detik"
+  );
+
+} catch (error) {
+  console.info(
+    "WAKTU LOGIN GAGAL:",
+    ((performance.now() - loginStartedAt) / 1000).toFixed(2),
+    "detik"
+  );
+
+  throw error;
+}
 
     if (!result || !result.success || !result.sessionId) {
       throw new Error(
