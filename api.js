@@ -18,9 +18,18 @@
   let bridgeWindow = null;
   let bridgeOrigin = "";
 
-  let sessionId = "";
-  let user = null;
-  let requestCounter = 0;
+const SESSION_STORAGE_KEY = "GOJAK_TECHOPS_SESSION";
+
+let sessionId = "";
+
+try {
+  sessionId = sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
+} catch (error) {
+  console.warn("Tidak dapat membaca sesi Admin:", error);
+}
+
+let user = null;
+let requestCounter = 0;
 
   const pendingRequests = new Map();
   const authListeners = [];
@@ -44,10 +53,17 @@
   }
 
   function clearSession() {
-    sessionId = "";
-    user = null;
-    notifyAuthChange();
+  sessionId = "";
+  user = null;
+
+  try {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch (error) {
+    console.warn("Tidak dapat menghapus sesi Admin:", error);
   }
+
+  notifyAuthChange();
+}
 
   function isTrustedBridgeOrigin(origin) {
     try {
@@ -262,11 +278,18 @@
       );
     }
 
-    sessionId = result.sessionId;
-    user = result.user || {
-      nama: "Admin",
-      role: "Admin"
-    };
+sessionId = result.sessionId;
+
+try {
+  sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+} catch (error) {
+  console.warn("Tidak dapat menyimpan sesi Admin:", error);
+}
+
+user = result.user || {
+  nama: "Admin",
+  role: "Admin"
+};
 
     notifyAuthChange();
 
