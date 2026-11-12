@@ -475,5 +475,31 @@ user = result.user || {
     getUser: getUser,
     onAuthChange: onAuthChange
   };
+  
+  /* PERSIAPAN KONEKSI AUTHBRIDGE */
+
+  function warmupBridge() {
+    const start = function () {
+      initializeBridge().catch(function (error) {
+        console.warn(
+          "Persiapan koneksi AuthBridge:",
+          error
+        );
+      });
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener(
+        "DOMContentLoaded",
+        start,
+        { once: true }
+      );
+    } else {
+      start();
+    }
+  }
+
+  warmupBridge();
+
 
 })();
