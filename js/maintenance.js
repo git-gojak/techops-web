@@ -1172,29 +1172,23 @@
     submitButton.disabled = true;
     submitButton.textContent = "Menyimpan...";
 
-    const payload = {
-      jenis_aset: selectedDevice.type,
+const payload = {
+  jenis_aset: selectedDevice.type,
+  serial: selectedDevice.serial,
+  Tanggal: document.getElementById("maintenanceDate").value,
+  jenis_kegiatan: activity,
+  kegiatan: activity,
+  kondisi: condition,
+  keterangan: finalNotes,
+  refill: refill,
+  teknisi: handler,
 
-      serial: selectedDevice.serial,
-
-      Tanggal: document.getElementById(
-        "maintenanceDate"
-      ).value,
-
-      jenis_kegiatan: activity,
-
-      // Kolom kegiatan hanya Perawatan / Perbaikan
-      kegiatan: activity,
-
-      kondisi: condition,
-
-      // Jenis kerusakan digabung ke keterangan
-      keterangan: finalNotes,
-
-      refill: refill,
-
-      teknisi: handler
-    };
+  // Jadwal dikirim untuk Perawatan.
+  // Untuk Perbaikan nilainya kosong.
+  jadwal: activity === "Perawatan"
+    ? document.getElementById("maintenanceSchedule").value
+    : ""
+};
 
     try {
       await api().request("maintenance.create", {
