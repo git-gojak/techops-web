@@ -319,6 +319,9 @@ user = result.user || {
 
   /* VALIDASI SESSION */
 
+  
+  /* VALIDASI SESSION */
+
   async function validateSession() {
     if (!sessionId) return false;
 
@@ -327,20 +330,34 @@ user = result.user || {
         sessionId: sessionId
       });
 
+      // Backend memastikan sesi masih berlaku.
       if (result && result.success === true) {
         user = result.user || user;
         notifyAuthChange();
         return true;
       }
 
-      clearSession();
-      return false;
+      // Hapus hanya jika backend secara eksplisit
+      // menyatakan sesi tidak valid atau kedaluwarsa.
+      if (result && result.success === false) {
+        clearSession();
+        return false;
+      }
+
+      // Respons tidak jelas: pertahankan session ID.
+      return null;
 
     } catch (error) {
-      clearSession();
-      return false;
+      // Gangguan koneksi bukan berarti sesi kedaluwarsa.
+      console.warn(
+        "Validasi sesi gagal sementara. Session ID dipertahankan:",
+        error
+      );
+
+      return null;
     }
   }
+
 
   /* LOGOUT ADMIN */
 
