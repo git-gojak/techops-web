@@ -508,3 +508,68 @@ i[data-lucide] { width: 18px; height: 18px; stroke-width: 1.9; flex: 0 0 auto; }
   }
 }
 
+
+/* =====================================================
+   DASHBOARD GOJAK TECHOPS — panel tambahan, scoped
+   Mengikuti tema, kartu, warna, dan radius aplikasi.
+===================================================== */
+.dash-content-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; align-items:stretch; }
+.dash-panel { padding:18px; min-height:210px; }
+.dash-panel .panel-header { margin-bottom:14px; }
+.dash-panel-icon { width:32px; height:32px; display:grid; place-items:center; flex:0 0 auto; border-radius:9px; color:#2563eb; background:#eff6ff; }
+.dash-panel-icon i { width:16px; height:16px; }
+.dash-empty { padding:20px 8px; text-align:center; color:#94a3b8; font-size:11px; }
+.dash-unit-list { display:grid; gap:8px; max-height:270px; overflow:auto; padding-right:3px; }
+.dash-unit-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:9px 10px; background:#f8fafc; border:1px solid #edf1f6; border-radius:8px; }
+.dash-unit-name { min-width:0; overflow-wrap:anywhere; color:#334155; font-size:11px; font-weight:700; }
+.dash-unit-counts { display:flex; gap:6px; flex:0 0 auto; }
+.dash-count { display:inline-flex; align-items:center; gap:4px; padding:4px 7px; border-radius:20px; font-size:10px; font-weight:700; }
+.dash-count i { width:12px; height:12px; }
+.dash-count.computer { color:#1d4ed8; background:#dbeafe; }
+.dash-count.printer { color:#0f766e; background:#ccfbf1; }
+.dash-acquisition { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.dash-acquisition > div { display:flex; flex-direction:column; align-items:center; gap:8px; padding:18px 8px; border:1px solid #edf1f6; border-radius:10px; background:#fbfdff; }
+.dash-acquisition .stat-icon { width:36px; height:36px; }
+.dash-acquisition strong { font-size:27px; line-height:1; color:#172033; }
+.dash-acquisition small { color:#718096; font-size:11px; }
+.dash-schedule-summary { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.schedule-number { display:flex; flex-direction:column; gap:5px; padding:14px; border-radius:9px; }
+.schedule-number strong { font-size:25px; line-height:1; }
+.schedule-number span { font-size:10px; font-weight:600; }
+.schedule-number.overdue { background:#fff1f2; color:#be123c; }
+.schedule-number.upcoming { background:#fffbeb; color:#b45309; }
+.dash-schedule-next { display:grid; gap:5px; margin-top:14px; padding-top:12px; border-top:1px solid #edf1f6; }
+.dash-schedule-next small { color:#94a3b8; font-size:10px; }
+.dash-schedule-next strong { color:#334155; font-size:11px; }
+.dash-schedule-next span { color:#64748b; font-size:10px; }
+.dash-condition-list { display:grid; gap:13px; padding:5px 0; }
+.dash-condition-list > div { display:grid; grid-template-columns:10px 1fr auto; align-items:center; gap:9px; color:#64748b; font-size:11px; }
+.dash-condition-list strong { color:#172033; font-size:13px; }
+.condition-dot { width:9px; height:9px; border-radius:50%; }
+.condition-dot.good { background:#22c55e; }
+.condition-dot.attention { background:#f59e0b; }
+.condition-dot.bad { background:#ef4444; }
+.dash-condition-list > small { margin-top:2px; color:#94a3b8; font-size:9px; line-height:1.5; }
+.dash-activity-list { display:grid; gap:0; }
+.dash-activity-row { display:flex; align-items:center; gap:9px; padding:9px 0; border-bottom:1px solid #edf1f6; min-width:0; }
+.dash-activity-row:last-child { border-bottom:0; }
+.dash-activity-mark { width:29px; height:29px; display:grid; place-items:center; border-radius:8px; color:#d97706; background:#fffbeb; flex:0 0 auto; }
+.dash-activity-mark i { width:14px; height:14px; }
+.dash-activity-copy { display:grid; gap:4px; min-width:0; flex:1; }
+.dash-activity-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#334155; font-size:10px; }
+.dash-activity-copy small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#94a3b8; font-size:9px; }
+.dash-activity-row time { flex:0 0 auto; color:#94a3b8; font-size:9px; }
+.dash-online { color:#16a34a; }
+.dash-footer-note { margin-top:14px; color:#94a3b8; font-size:10px; text-align:right; }
+@media (max-width:1100px) {
+  .dash-content-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+  .dash-content-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .dash-panel { padding:15px; }
+}
+@media (max-width:520px) {
+  .dash-content-grid { grid-template-columns:1fr; }
+  .stats-grid { grid-template-columns:1fr; }
+  .dash-footer-note { text-align:left; line-height:1.5; }
+}

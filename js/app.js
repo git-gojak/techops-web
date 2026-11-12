@@ -690,124 +690,13 @@
 
   function renderDashboard() {
     const host = $("#appContent");
-
-    host.innerHTML =
-      pageHeading(
-        "Dashboard",
-        "Ringkasan inventaris dan operasional perangkat IT.",
-        "OVERVIEW"
-      ) +
-      `
-      <section class="stats-grid">
-        ${statCard("Total Komputer", state.computers.length,
-          "monitor", "blue", "Data inventaris komputer")}
-
-        ${statCard("Total Printer", state.printers.length,
-          "printer", "teal", "Data inventaris printer")}
-
-        ${statCard("Riwayat Maintenance", state.maintenance.length,
-          "wrench", "amber", "Catatan perawatan/perbaikan")}
-
-        ${statCard("Koneksi Backend", "Online",
-          "activity", "green", "Apps Script dapat diakses")}
-      </section>
-
-      <section class="dashboard-grid">
-        <article class="panel">
-          <div class="panel-header">
-            <div>
-              <h2>Akses Cepat</h2>
-              <div class="panel-subtitle">
-                Pilih modul yang ingin dibuka
-              </div>
-            </div>
-          </div>
-
-          <div class="quick-links">
-            <a class="quick-link" href="#computers">
-              <span class="stat-icon blue">
-                <i data-lucide="monitor"></i>
-              </span>
-              <span>
-                <strong>Inventaris Komputer</strong>
-                <small>Lihat daftar dan spesifikasi</small>
-              </span>
-            </a>
-
-            <a class="quick-link" href="#printers">
-              <span class="stat-icon teal">
-                <i data-lucide="printer"></i>
-              </span>
-              <span>
-                <strong>Inventaris Printer</strong>
-                <small>Lihat data perangkat printer</small>
-              </span>
-            </a>
-
-            <a class="quick-link" href="#maintenance">
-              <span class="stat-icon amber">
-                <i data-lucide="wrench"></i>
-              </span>
-              <span>
-                <strong>Maintenance</strong>
-                <small>Lihat riwayat perawatan</small>
-              </span>
-            </a>
-
-            <a class="quick-link" href="#qr-info">
-              <span class="stat-icon green">
-                <i data-lucide="qr-code"></i>
-              </span>
-              <span>
-                <strong>QR Info</strong>
-                <small>Cari perangkat dari serial/QR</small>
-              </span>
-            </a>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-header">
-            <div>
-              <h2>Status Sistem</h2>
-              <div class="panel-subtitle">
-                Ringkasan koneksi saat ini
-              </div>
-            </div>
-
-            <span class="badge green">Terhubung</span>
-          </div>
-
-          <div class="detail-item">
-            <small>Backend</small>
-            <strong>Google Apps Script</strong>
-          </div>
-
-          <div class="detail-item">
-            <small>Database</small>
-            <strong>Google Sheets — techops-db</strong>
-          </div>
-
-          <div class="detail-item">
-            <small>Frontend</small>
-            <strong>GitHub Pages — techops-web</strong>
-          </div>
-
-          <div class="detail-item">
-            <small>Pengguna</small>
-            <strong>${escapeHTML(state.user?.nama || "Pengunjung")}</strong>
-          </div>
-
-          <div class="detail-item">
-            <small>Akses</small>
-            <strong>${state.authenticated ? "Admin" : "Publik (Lihat saja)"}</strong>
-          </div>
-        </article>
-      </section>
-    `;
-
+    if (window.DashboardPage && typeof window.DashboardPage.render === "function") {
+      window.DashboardPage.render(host, state);
+    } else {
+      host.innerHTML = pageHeading("Dashboard", "Ringkasan inventaris dan operasional perangkat IT.", "OVERVIEW") +
+        '<div class="panel error-state">Modul Dashboard belum termuat. Silakan muat ulang halaman.</div>';
+    }
     bindRefresh();
-    iconRefresh();
   }
 
   /* =====================================================
