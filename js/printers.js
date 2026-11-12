@@ -19,9 +19,12 @@
     { key: "mp", label: "MP" }
   ];
 
-  function isAdmin() {
-    return !!state().authenticated;
-  }
+function isAdmin() {
+  const s = state();
+
+  return s.authenticated === true ||
+    String(s.user?.role || "").toLowerCase() === "admin";
+}
 
   function esc(value) {
     return ui().escapeHTML(String(value ?? ""));
