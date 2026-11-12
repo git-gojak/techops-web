@@ -1169,35 +1169,58 @@
       "maintenanceSubmit"
     );
 
+    if (!api() || typeof api().request !== "function") {
+      showFormMessage(
+        "Layanan API belum siap. Muat ulang halaman lalu coba kembali.",
+        true
+      );
+      return;
+    }
+
     submitButton.disabled = true;
     submitButton.textContent = "Menyimpan...";
 
 const payload = {
-  jenis_aset: selectedDevice.type,
-  serial: selectedDevice.serial,
-  Tanggal: document.getElementById("maintenanceDate").value,
-  jenis_kegiatan: activity,
-  kegiatan: activity,
-  kondisi: condition,
-  keterangan: finalNotes,
-  refill: refill,
-  teknisi: handler,
+      jenis_aset: selectedDevice.type,
+      serial: selectedDevice.serial,
+      Tanggal: document.getElementById("maintenanceDate").value,
 
-  // Jadwal dikirim untuk Perawatan.
-  // Untuk Perbaikan nilainya kosong.
-  jadwal: activity === "Perawatan"
-    ? document.getElementById("maintenanceSchedule").value
-    : ""
-};
+      // Jenis kegiatan disimpan terpisah dari uraian kegiatan.
+      jenis_kegiatan: activity,
+      kegiatan: activity,
+      deskripsi_kegiatan: finalNotes,
+
+      kondisi: condition,
+      keterangan: finalNotes,
+      refill: refill,
+      teknisi: handler
+
+      // Jadwal tidak dikirim dari frontend.
+      // Backend menjadi sumber perhitungan jadwal yang berwenang.
+    };
 
     try {
-      await api().request("maintenance.create", {
+      const response = await api().request("maintenance.create", {
         data: payload
       });
 
+      // Sebagian lapisan API mengembalikan objek success:false
+      // alih-alih melempar error. Pastikan tetap ditangani.
+      if (response && response.success === false) {
+        throw new Error(
+          response.message ||
+          response.error ||
+          "Backend menolak penyimpanan maintenance."
+        );
+      }
+
     } catch (error) {
+      console.error("Maintenance create gagal:", error);
+
       showFormMessage(
-        error?.message || "Gagal menyimpan maintenance.",
+        error && error.message
+          ? error.message
+          : "Gagal menyimpan maintenance. Periksa log server Apps Script.",
         true
       );
 
