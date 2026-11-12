@@ -845,6 +845,7 @@
     submitButton.textContent = "Menyimpan...";
 
     const payload = {
+      jenis_aset: selectedDevice.type,
       serial: selectedDevice.serial,
 
       Tanggal: document.getElementById("maintenanceDate").value,
