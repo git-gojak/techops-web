@@ -93,8 +93,8 @@
     const overdue = schedules.filter(row => row._schedule < today).length;
     const upcoming = schedules.filter(row => row._schedule >= today && row._schedule <= new Date(today.getFullYear(), today.getMonth(), today.getDate() + 30)).length;
 
-    const unitHtml = unitRows.length ? `<div class="dash-unit-list">${unitRows.map(unit => `
-      <div class="dash-unit-row"><div class="dash-unit-name">${esc(unit.label)}</div><div class="dash-unit-counts"><span class="dash-count computer"><i data-lucide="monitor"></i>${unit.computers}</span><span class="dash-count printer"><i data-lucide="printer"></i>${unit.printers}</span></div></div>`).join("")}</div>` : empty("Belum ada data unit.");
+    const unitHtml = unitRows.length ? `<div class="dash-unit-grid">${unitRows.map(unit => `
+      <div class="dash-unit-card"><strong class="dash-unit-name">${esc(unit.label)}</strong><div class="dash-unit-counts"><span class="dash-count computer" title="Komputer"><i data-lucide="monitor"></i><b>${unit.computers}</b></span><span class="dash-count printer" title="Printer"><i data-lucide="printer"></i><b>${unit.printers}</b></span></div></div>`).join("")}</div>` : empty("Belum ada data unit.");
 
     const recentHtml = datedMaintenance.length ? `<div class="dash-activity-list">${datedMaintenance.slice(0,6).map(row => `
       <div class="dash-activity-row"><span class="dash-activity-mark"><i data-lucide="wrench"></i></span><div class="dash-activity-copy"><strong>${esc(row.nama_aset || row.serial || "Perangkat")}</strong><small>${esc(row.kegiatan || "Maintenance")} · ${esc(row.kondisi || "Kondisi belum diisi")}</small></div><time>${esc(fmtDate(row.Tanggal))}</time></div>`).join("")}</div>` : empty("Belum ada aktivitas maintenance.");
@@ -119,14 +119,13 @@
     host.innerHTML = `
       <section class="page-heading"><div><p class="eyebrow">OVERVIEW</p><h1>Dashboard</h1><p class="muted">Ringkasan inventaris dan operasional perangkat IT.</p></div><button class="button button-secondary" id="refreshButton"><i data-lucide="refresh-cw"></i> Perbarui data</button></section>
       <section class="stats-grid">
-        <article class="stat-card"><div><div class="stat-label">Total Komputer</div><div class="stat-value">${activeComputers.length}</div><div class="stat-note">Perangkat terdaftar aktif</div></div><span class="stat-icon blue"><i data-lucide="monitor"></i></span></article>
-        <article class="stat-card"><div><div class="stat-label">Total Printer</div><div class="stat-value">${activePrinters.length}</div><div class="stat-note">Perangkat terdaftar aktif</div></div><span class="stat-icon teal"><i data-lucide="printer"></i></span></article>
+        <article class="stat-card stat-card-acquisition"><div class="stat-main"><div class="stat-label">Total Komputer</div><div class="stat-value">${activeComputers.length}</div><div class="stat-note">Perangkat terdaftar aktif</div></div><div class="stat-acquisition"><strong>${acquiredComputers}</strong><span>Perolehan ${year}</span></div><span class="stat-icon blue"><i data-lucide="monitor"></i></span></article>
+        <article class="stat-card stat-card-acquisition"><div class="stat-main"><div class="stat-label">Total Printer</div><div class="stat-value">${activePrinters.length}</div><div class="stat-note">Perangkat terdaftar aktif</div></div><div class="stat-acquisition"><strong>${acquiredPrinters}</strong><span>Perolehan ${year}</span></div><span class="stat-icon teal"><i data-lucide="printer"></i></span></article>
         <article class="stat-card"><div><div class="stat-label">Riwayat Maintenance</div><div class="stat-value">${maintenance.length}</div><div class="stat-note">Catatan perawatan/perbaikan</div></div><span class="stat-icon amber"><i data-lucide="wrench"></i></span></article>
         <article class="stat-card"><div><div class="stat-label">Koneksi Backend</div><div class="stat-value dash-online">Online</div><div class="stat-note">Apps Script dapat diakses</div></div><span class="stat-icon green"><i data-lucide="activity"></i></span></article>
       </section>
       <section class="dash-content-grid">
         ${panel("Monitoring Perangkat per Unit", "Jumlah komputer dan printer pada setiap unit", "building-2", unitHtml, "unit-panel")}
-        ${panel(`Perolehan Perangkat ${year}`, "Berdasarkan tahun perolehan komputer dan tanggal FTP printer", "calendar-days", `<div class="dash-acquisition"><div><span class="stat-icon blue"><i data-lucide="monitor"></i></span><strong>${acquiredComputers}</strong><small>Komputer</small></div><div><span class="stat-icon teal"><i data-lucide="printer"></i></span><strong>${acquiredPrinters}</strong><small>Printer</small></div></div>`, "acquisition-panel")}
         ${panel("Monitoring Jadwal Maintenance", "Jadwal dari catatan maintenance", "calendar-clock", scheduleHtml, "schedule-panel")}
         ${panel("Ringkasan Kondisi Perangkat", "Kondisi terbaru berdasarkan riwayat tiap perangkat", "heart-pulse", conditionHtml, "condition-panel")}
         ${panel("Aktivitas Maintenance Terbaru", "Enam catatan maintenance terakhir", "history", recentHtml, "activity-panel")}
