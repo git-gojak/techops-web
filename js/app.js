@@ -927,53 +927,61 @@
 
     window.addEventListener("hashchange", renderCurrentPage);
 
+    // Tampilkan Dashboard langsung.
     updateUserDisplay();
-
-    // Tampilkan halaman terlebih dahulu agar tidak terus
-    // berhenti pada tulisan Memuat GoJak TechOps.
     renderCurrentPage();
 
-    try {
-      setConnection(false, "Memeriksa sesi...");
+    // Validasi Admin berjalan di belakang layar.
+    // Tidak menghambat tampilan Dashboard dan pemuatan data.
+    (async function restoreAdminSession() {
+      try {
+        if (!window.TechOpsAPI ||
+            typeof TechOpsAPI.validateSession !== "function") {
+          throw new Error("TechOpsAPI belum tersedia.");
+        }
 
-      if (!window.TechOpsAPI ||
-          typeof TechOpsAPI.validateSession !== "function") {
-        throw new Error("TechOpsAPI belum tersedia.");
-      }
+        const sessionValid = await TechOpsAPI.validateSession();
 
-      const sessionValid = await Promise.race([
-        TechOpsAPI.validateSession(),
-        new Promise((_, reject) => {
-          setTimeout(
-            () => reject(new Error("Pemeriksaan sesi melewati batas waktu.")),
-            15000
-          );
-        })
-      ]);
+        if (sessionValid === true) {
+          state.user = TechOpsAPI.getUser() || {
+            nama: "Admin",
+            role: "Admin"
+          };
 
-      if (sessionValid === true) {
-        state.user = TechOpsAPI.getUser() || {
-          nama: "Admin",
-          role: "Admin"
-        };
+          state.authenticated = true;
 
-        state.authenticated = true;
-      } else {
+          console.log("Sesi Admin berhasil dipulihkan.");
+
+        } else {
+          state.user = null;
+          state.authenticated = false;
+
+          if (sessionValid === false) {
+            console.log("Sesi Admin tidak valid atau telah berakhir.");
+          } else {
+            console.warn(
+              "Validasi sesi belum berhasil. Session ID tetap dipertahankan."
+            );
+          }
+        }
+
+      } catch (error) {
+        console.warn("Pemeriksaan sesi Admin:", error);
+
         state.user = null;
         state.authenticated = false;
       }
 
-    } catch (error) {
-      console.warn("Pemeriksaan sesi Admin:", error);
-      state.user = null;
-      state.authenticated = false;
-    }
+      // Perbarui tampilan tanpa reload halaman.
+      updateUserDisplay();
+      renderCurrentPage();
+    })();
 
-    updateUserDisplay();
-
+    // Data publik dimuat tanpa menunggu validasi Admin.
     try {
       await loadAll();
       renderCurrentPage();
+
     } catch (error) {
       console.error("Gagal memuat data GoJak TechOps:", error);
       renderError(error);
@@ -985,6 +993,7 @@
         .catch(err => console.warn("PWA service worker:", err));
     }
   }
+
   /* =====================================================
      13. PUBLIC STATE DAN UI
   ===================================================== */
