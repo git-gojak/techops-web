@@ -5,21 +5,44 @@
   const ui = () => window.TechOpsUI;
   const state = () => window.TechOpsState;
 
-  const FIELDS = [
-    ["tahun", "Tahun Perolehan", "number"],
-    ["komputer", "Computer Name", "text"],
-    ["merek", "Manufacturer", "text"],
-    ["model", "Model", "text"],
-    ["serial", "Asset / Serial ID", "text"],
-    ["cpu", "CPU", "text"],
-    ["core", "Core", "number"],
-    ["thread", "Thread", "number"],
-    ["ram", "RAM", "text"],
-    ["storage", "Storage", "text"],
-    ["gpu", "GPU", "text"],
-    ["os", "Operating System", "text"],
-    ["pengguna", "Pengguna", "text"]
+  const FIELD_GROUPS = [
+    {
+      title: "Identitas Perangkat",
+      subtitle: "Informasi utama dan identitas komputer",
+      icon: "monitor",
+      fields: [
+        ["tahun", "Tahun Perolehan", "number"],
+        ["komputer", "Computer Name", "text"],
+        ["merek", "Manufacturer", "text"],
+        ["model", "Model", "text"],
+        ["serial", "Asset / Serial ID", "text"]
+      ]
+    },
+    {
+      title: "Spesifikasi Hardware",
+      subtitle: "Detail komponen perangkat",
+      icon: "cpu",
+      fields: [
+        ["cpu", "CPU", "text"],
+        ["core", "Core", "number"],
+        ["thread", "Thread", "number"],
+        ["ram", "RAM", "text"],
+        ["storage", "Storage", "text"],
+        ["gpu", "GPU", "text"],
+        ["os", "Operating System", "text"]
+      ]
+    },
+    {
+      title: "Informasi Penggunaan",
+      subtitle: "Penanggung jawab perangkat",
+      icon: "users",
+      fields: [
+        ["pengguna", "Pengguna", "text"]
+      ]
+    }
   ];
+
+  const FIELDS = FIELD_GROUPS.flatMap(group => group.fields);
 
   let currentQuery = "";
   let modalElement = null;
@@ -74,10 +97,10 @@
               placeholder="Cari nama, merek, model, serial, pengguna..."
             >
           </div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="computer-toolbar-actions">
             <span class="badge" id="computerCount">${rows.length} perangkat</span>
             ${isAdmin()
-              ? `<button class="btn primary" id="addComputerBtn" type="button">
+              ? `<button class="button button-primary" id="addComputerBtn" type="button">
                    <i data-lucide="plus"></i> Tambah Komputer
                  </button>`
               : ""}
@@ -103,7 +126,6 @@
     ui().bindRefresh();
     ui().iconRefresh();
 
-    // Muat ulang daftar dengan arsip untuk Admin.
     loadComputerRows().catch(error => {
       console.error("Gagal memuat komputer:", error);
     });
@@ -165,12 +187,12 @@
                 <td>${escape(row.pengguna)}</td>
                 <td>${escape(row.tahun)}</td>
                 <td>
-                  <span class="badge">
+                  <span class="badge ${archived ? "gray" : "green"}">
                     ${archived ? "Arsip" : escape(row.status || "Aktif")}
                   </span>
                 </td>
                 <td>
-                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <div class="computer-table-actions">
                     <button
                       class="table-action"
                       type="button"
@@ -187,7 +209,7 @@
                           data-serial="${serial}"
                         >Edit</button>
                         <button
-                          class="table-action"
+                          class="table-action danger"
                           type="button"
                           data-action="archive"
                           data-serial="${serial}"
@@ -264,6 +286,34 @@
     );
   }
 
+  function renderFormField(field, row, editing) {
+    const [key, label, type] = field;
+    const required = ["komputer", "serial"].includes(key);
+    const readonly = editing && key === "serial";
+    const value = row[key] == null ? "" : row[key];
+
+    return `
+      <label class="computer-form-field ${key === "komputer" ? "computer-field-wide" : ""}">
+        <span class="computer-field-label">
+          ${label}
+          ${required ? '<em>*</em>' : ""}
+        </span>
+        <input
+          name="${key}"
+          type="${type}"
+          value="${escape(value)}"
+          placeholder="${escape("Masukkan " + label.toLowerCase())}"
+          ${readonly ? "readonly" : ""}
+          ${required ? "required" : ""}
+          ${type === "number" ? 'min="0" step="1"' : ""}
+          autocomplete="off"
+        >
+        ${readonly
+          ? '<small class="computer-field-hint">Serial ID tidak dapat diubah.</small>'
+          : ""}
+      </label>`;
+  }
+
   function openForm(serial) {
     if (!isAdmin()) {
       alert("Silakan login sebagai Admin.");
@@ -282,36 +332,61 @@
       return;
     }
 
-    const fields = FIELDS.map(([key, label, type]) => {
-      const readonly = editing && key === "serial";
-
-      return `<label class="computer-form-field">
-        <span>${label}${["komputer", "serial"].includes(key) ? " *" : ""}</span>
-        <input
-          name="${key}"
-          type="${type}"
-          value="${escape(row[key] || "")}"
-          ${readonly ? "readonly" : ""}
-          ${["komputer", "serial"].includes(key) ? "required" : ""}
-          ${type === "number" ? 'min="0"' : ""}
-        >
-      </label>`;
-    }).join("");
+    const sections = FIELD_GROUPS.map((group, index) => `
+      <section class="computer-form-section">
+        <div class="computer-section-heading">
+          <div class="computer-section-icon">
+            <i data-lucide="${group.icon}"></i>
+          </div>
+          <div>
+            <h3>${group.title}</h3>
+            <p>${group.subtitle}</p>
+          </div>
+          <span class="computer-section-number">0${index + 1}</span>
+        </div>
+        <div class="computer-form-grid">
+          ${group.fields.map(field =>
+            renderFormField(field, row, editing)
+          ).join("")}
+        </div>
+      </section>
+    `).join("");
 
     modal(
       editing ? "Edit Komputer" : "Tambah Komputer",
-      `<form id="computerForm">
-        <div class="detail-grid">${fields}</div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px">
-          <button type="button" class="btn" id="cancelComputerForm">
+      `<form id="computerForm" class="computer-form">
+        <div class="computer-form-intro">
+          <div class="computer-form-intro-icon">
+            <i data-lucide="monitor"></i>
+          </div>
+          <div>
+            <strong>${editing ? "Perbarui informasi perangkat" : "Daftarkan perangkat baru"}</strong>
+            <p>${editing
+              ? "Pastikan informasi komputer sudah sesuai."
+              : "Lengkapi informasi komputer untuk menambahkannya ke inventaris."}</p>
+          </div>
+        </div>
+
+        ${sections}
+
+        <div class="computer-form-required">
+          <span><em>*</em> Wajib diisi</span>
+        </div>
+
+        <div class="computer-form-message" id="computerFormMessage"
+             role="status" aria-live="polite"></div>
+
+        <div class="computer-form-footer">
+          <button type="button" class="button button-secondary" id="cancelComputerForm">
             Batal
           </button>
-          <button type="submit" class="btn primary" id="saveComputerBtn">
-            Simpan
+          <button type="submit" class="button button-primary" id="saveComputerBtn">
+            <i data-lucide="save"></i>
+            ${editing ? "Simpan Perubahan" : "Simpan Komputer"}
           </button>
         </div>
-        <p id="computerFormMessage" role="status"></p>
-      </form>`
+      </form>`,
+      "computer-modal"
     );
 
     ui().$("#cancelComputerForm").addEventListener("click", closeModal);
@@ -330,11 +405,10 @@
       });
 
       if (!data.komputer || !data.serial) {
-        showFormMessage("Computer Name dan Serial wajib diisi.");
+        showFormMessage("Computer Name dan Serial wajib diisi.", "error");
         return;
       }
 
-      // Field administratif ini tidak diubah melalui form.
       if (editing) {
         data.serial = String(serial);
         data.scan_terakhir = row.scan_terakhir || "";
@@ -360,13 +434,14 @@
       await request(action, { data });
       closeModal();
       await loadComputerRows();
+
       alert(
         action === "computers.create"
           ? "Komputer berhasil ditambahkan."
           : "Data komputer berhasil diperbarui."
       );
     } catch (error) {
-      showFormMessage(error.message || "Gagal menyimpan data.");
+      showFormMessage(error.message || "Gagal menyimpan data.", "error");
     } finally {
       setBusy(false);
     }
@@ -410,9 +485,12 @@
     }
   }
 
-  function showFormMessage(message) {
+  function showFormMessage(message, type) {
     const el = ui().$("#computerFormMessage");
-    if (el) el.textContent = message;
+    if (!el) return;
+
+    el.textContent = message;
+    el.className = `computer-form-message ${type || ""}`;
   }
 
   function setBusy(value) {
@@ -421,20 +499,27 @@
     const button = ui().$("#saveComputerBtn");
     if (button) {
       button.disabled = value;
-      button.textContent = value ? "Menyimpan..." : "Simpan";
+      button.innerHTML = value
+        ? '<span class="spinner"></span> Menyimpan...'
+        : '<i data-lucide="save"></i> Simpan Komputer';
+
+      ui().iconRefresh();
     }
   }
 
-  function modal(title, content) {
+  function modal(title, content, variant) {
     closeModal();
 
     const wrap = document.createElement("div");
     wrap.className = "modal-backdrop";
 
     wrap.innerHTML =
-      `<section class="modal">
+      `<section class="modal ${variant || ""}">
         <div class="modal-header">
-          <h2>${escape(title)}</h2>
+          <div class="modal-title-wrap">
+            <span class="modal-title-eyebrow">GOJAK TECHOPS · ASSET MANAGEMENT</span>
+            <h2>${escape(title)}</h2>
+          </div>
           <button class="icon-button" type="button" aria-label="Tutup">
             <i data-lucide="x"></i>
           </button>
