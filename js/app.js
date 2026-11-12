@@ -612,10 +612,29 @@
   async function loadAll() {
     setConnection(false, "Mengambil data...");
 
+    if (!window.TechOpsAPI ||
+        typeof TechOpsAPI.get !== "function") {
+      throw new Error(
+        "Penghubung TechOpsAPI belum tersedia. Periksa pemuatan file API."
+      );
+    }
+
+    const timeout = (promise, label, ms = 20000) => {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          setTimeout(
+            () => reject(new Error(label + " tidak merespons dalam 20 detik.")),
+            ms
+          );
+        })
+      ]);
+    };
+
     const [computers, printers, maintenance] = await Promise.all([
-      TechOpsAPI.get("computers.list"),
-      TechOpsAPI.get("printers.list"),
-      TechOpsAPI.get("maintenance.list")
+      timeout(TechOpsAPI.get("computers.list"), "Inventaris komputer"),
+      timeout(TechOpsAPI.get("printers.list"), "Inventaris printer"),
+      timeout(TechOpsAPI.get("maintenance.list"), "Data maintenance")
     ]);
 
     state.computers = normalizeArray(computers);
@@ -910,10 +929,27 @@
 
     updateUserDisplay();
 
+    // Tampilkan halaman terlebih dahulu agar tidak terus
+    // berhenti pada tulisan Memuat GoJak TechOps.
+    renderCurrentPage();
+
     try {
       setConnection(false, "Memeriksa sesi...");
 
-      const sessionValid = await TechOpsAPI.validateSession();
+      if (!window.TechOpsAPI ||
+          typeof TechOpsAPI.validateSession !== "function") {
+        throw new Error("TechOpsAPI belum tersedia.");
+      }
+
+      const sessionValid = await Promise.race([
+        TechOpsAPI.validateSession(),
+        new Promise((_, reject) => {
+          setTimeout(
+            () => reject(new Error("Pemeriksaan sesi melewati batas waktu.")),
+            15000
+          );
+        })
+      ]);
 
       if (sessionValid === true) {
         state.user = TechOpsAPI.getUser() || {
@@ -922,7 +958,6 @@
         };
 
         state.authenticated = true;
-
       } else {
         state.user = null;
         state.authenticated = false;
@@ -940,15 +975,16 @@
       await loadAll();
       renderCurrentPage();
     } catch (error) {
+      console.error("Gagal memuat data GoJak TechOps:", error);
       renderError(error);
     }
 
-    if ("serviceWorker" in navigator && location.protocol === "https:") {
+    if ("serviceWorker" in navigator &&
+        location.protocol === "https:") {
       navigator.serviceWorker.register("./service-worker.js")
         .catch(err => console.warn("PWA service worker:", err));
     }
   }
-
   /* =====================================================
      13. PUBLIC STATE DAN UI
   ===================================================== */
