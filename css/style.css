@@ -36,10 +36,18 @@ i[data-lucide] { width: 18px; height: 18px; stroke-width: 1.9; flex: 0 0 auto; }
 .breadcrumb { display: flex; align-items: center; gap: 10px; color: #94a3b8; font-size: 12px; }
 .breadcrumb i { width: 14px; height: 14px; }
 .breadcrumb strong { color: #334155; font-weight: 600; }
-.topbar-actions { display: flex; align-items: center; gap: 18px; }
+.topbar-actions { display: flex; align-items: center; gap: 18px; position: relative; }
 .environment-label { display: flex; align-items: center; gap: 8px; color: #64748b; font-size: 12px; }
 .environment-label .status-dot { background: #22c55e; }
-.avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: #dbeafe; color: #1d4ed8; font-weight: 700; font-size: 11px; }
+.avatar { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; background: #dbeafe; color: #1d4ed8; font-weight: 700; font-size: 11px; cursor: pointer; }
+.avatar:hover, .avatar:focus-visible { outline: 3px solid #bfdbfe; outline-offset: 2px; }
+.profile-menu { position: absolute; top: calc(100% + 10px); right: 0; z-index: 80; width: 178px; padding: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 30px rgba(15,23,42,.15); }
+.profile-menu button { display: block; width: 100%; padding: 10px 11px; border: 0; border-radius: 7px; background: transparent; color: #334155; text-align: left; font-size: 12px; }
+.profile-menu button:hover { background: #f1f5f9; }
+.profile-menu .profile-menu-logout { color: #dc2626; }
+.profile-menu-divider { height: 1px; margin: 5px 3px; background: var(--line); }
+.techops-profile-modal { max-width: 460px; }
+.techops-profile-avatar { width: 54px; height: 54px; margin: 0 auto 20px; display: grid; place-items: center; border-radius: 50%; background: #dbeafe; color: #1d4ed8; font-weight: 800; font-size: 17px; }
 .content { width: 100%; max-width: 1500px; margin: 0 auto; padding: 32px 34px 40px; flex: 1; }
 .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 25px; }
 .page-heading h1 { margin: 3px 0 7px; font-size: 25px; letter-spacing: -.8px; }
