@@ -91,84 +91,250 @@
     box.style.display = message ? "block" : "none";
   }
 
+  
   /* =====================================================
-     1. INFORMASI ADMIN DAN TOMBOL LOGIN
+     1. AKSES LOGIN DAN PROFIL ADMIN MELALUI AVATAR GT
   ===================================================== */
 
-  function updateUserDisplay() {
-    const actions = $(".topbar-actions");
-    if (!actions) return;
+  function getAdminInitials(user) {
+    const name = String(
+      user?.nama || user?.name || user?.username || "Admin"
+    ).trim();
 
-    let userInfo = $("#techOpsUserInfo");
-    let loginButton = $("#techOpsLoginButton");
-    let logoutButton = $("#techOpsLogout");
-    let changePinButton = $("#techOpsChangePin");
+    const parts = name.split(/\s+/).filter(Boolean);
 
-    if (!state.authenticated || !state.user) {
-      userInfo?.remove();
-      logoutButton?.remove();
-      changePinButton?.remove();
+    if (parts.length > 1) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
 
-      if (!loginButton) {
-        loginButton = document.createElement("button");
-        loginButton.id = "techOpsLoginButton";
-        loginButton.type = "button";
-        loginButton.className = "button button-primary";
-        loginButton.textContent = "Login Admin";
-        loginButton.style.cssText =
-          "margin-left:8px;padding:8px 12px;font-size:12px;";
+    return name.slice(0, 2).toUpperCase() || "AD";
+  }
 
-        actions.appendChild(loginButton);
-        loginButton.addEventListener("click", () => renderLogin());
-      }
+  function closeProfileMenu() {
+    $("#techOpsProfileMenu")?.remove();
+  }
 
+  function renderAdminProfile() {
+    closeProfileMenu();
+
+    const user = state.user || {};
+
+    const details = [
+      ["Nama", user.nama || user.name],
+      ["Username", user.username || user.userName],
+      ["Email", user.email],
+      ["Role", user.role || "Admin"]
+    ].filter(([, value]) =>
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ""
+    );
+
+    const modal = document.createElement("div");
+    modal.id = "techOpsProfileModal";
+
+    modal.style.cssText = `
+      position:fixed;
+      inset:0;
+      z-index:10001;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:rgba(15,23,42,.55);
+    `;
+
+    modal.innerHTML = `
+      <section class="panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="techOpsProfileTitle"
+        style="width:100%;max-width:420px;padding:26px;border-radius:16px;position:relative">
+
+        <button type="button"
+          id="closeTechOpsProfile"
+          aria-label="Tutup"
+          style="position:absolute;right:14px;top:10px;border:0;background:transparent;font-size:24px;cursor:pointer;color:#64748b">
+          &times;
+        </button>
+
+        <div style="width:54px;height:54px;margin:0 auto 14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eff6ff;color:#2563eb;font-weight:700;font-size:18px">
+          ${escapeHTML(getAdminInitials(user))}
+        </div>
+
+        <h2 id="techOpsProfileTitle"
+          style="text-align:center;font-size:21px;margin-bottom:5px">
+          Profil Admin
+        </h2>
+
+        <p class="muted"
+          style="text-align:center;margin-bottom:20px">
+          Informasi akun yang sedang digunakan
+        </p>
+
+        <div style="display:grid;gap:12px">
+          ${details.map(([label, value]) => `
+            <div style="padding:11px 12px;border:1px solid #e2e8f0;border-radius:9px">
+              <div style="font-size:11px;color:#64748b;margin-bottom:4px">
+                ${escapeHTML(label)}
+              </div>
+              <div style="font-size:14px;font-weight:600;overflow-wrap:anywhere">
+                ${escapeHTML(value)}
+              </div>
+            </div>
+          `).join("")}
+        </div>
+      </section>
+    `;
+
+    document.body.appendChild(modal);
+
+    $("#closeTechOpsProfile")?.addEventListener("click", () => {
+      modal.remove();
+    });
+
+    modal.addEventListener("click", event => {
+      if (event.target === modal) modal.remove();
+    });
+  }
+
+  function toggleProfileMenu() {
+    if ($("#techOpsProfileMenu")) {
+      closeProfileMenu();
       return;
     }
 
-    loginButton?.remove();
+    const avatar = $(".avatar");
+    if (!avatar) return;
 
-    if (!userInfo) {
-      userInfo = document.createElement("div");
-      userInfo.id = "techOpsUserInfo";
-      userInfo.style.cssText =
-        "display:flex;flex-direction:column;align-items:flex-end;margin:0 10px;";
+    const rect = avatar.getBoundingClientRect();
 
-      actions.insertBefore(userInfo, $(".avatar"));
-    }
+    const menu = document.createElement("div");
+    menu.id = "techOpsProfileMenu";
+    menu.setAttribute("role", "menu");
 
-    userInfo.innerHTML = `
-      <strong style="font-size:12px">
-        ${escapeHTML(state.user.nama || "Admin")}
-      </strong>
-      <small style="font-size:10px;color:#64748b">
-        Admin
-      </small>
+    menu.style.cssText = `
+      position:fixed;
+      z-index:10002;
+      top:${Math.min(rect.bottom + 9, window.innerHeight - 170)}px;
+      right:${Math.max(12, window.innerWidth - rect.right)}px;
+      width:205px;
+      padding:6px;
+      background:var(--panel,#fff);
+      border:1px solid #e2e8f0;
+      border-radius:12px;
+      box-shadow:0 12px 32px rgba(15,23,42,.16);
     `;
 
-    if (!changePinButton) {
-      changePinButton = document.createElement("button");
-      changePinButton.id = "techOpsChangePin";
-      changePinButton.type = "button";
-      changePinButton.className = "button button-secondary";
-      changePinButton.textContent = "Ganti PIN";
-      changePinButton.style.cssText =
-        "margin-left:8px;padding:8px 12px;font-size:12px;";
+    const buttonStyle = `
+      display:flex;
+      width:100%;
+      align-items:center;
+      gap:10px;
+      padding:11px 12px;
+      border:0;
+      border-radius:8px;
+      background:transparent;
+      text-align:left;
+      font:inherit;
+      font-size:13px;
+      color:inherit;
+      cursor:pointer;
+    `;
 
-      actions.appendChild(changePinButton);
-      changePinButton.addEventListener("click", renderChangePin);
-    }
+    menu.innerHTML = `
+      <button type="button"
+        role="menuitem"
+        data-profile-action="profile"
+        style="${buttonStyle}">
+        <i data-lucide="user-round" style="width:16px;height:16px"></i>
+        Profil Admin
+      </button>
 
-    if (!logoutButton) {
-      logoutButton = document.createElement("button");
-      logoutButton.id = "techOpsLogout";
-      logoutButton.type = "button";
-      logoutButton.className = "button button-secondary";
-      logoutButton.textContent = "Keluar";
-      logoutButton.style.cssText =
-        "margin-left:8px;padding:8px 12px;font-size:12px;";
+      <button type="button"
+        role="menuitem"
+        data-profile-action="pin"
+        style="${buttonStyle}">
+        <i data-lucide="key-round" style="width:16px;height:16px"></i>
+        Ganti PIN
+      </button>
 
-      actions.appendChild(logoutButton);
-      logoutButton.addEventListener("click", handleLogout);
+      <div style="height:1px;background:#e2e8f0;margin:5px 3px"></div>
+
+      <button type="button"
+        role="menuitem"
+        data-profile-action="logout"
+        style="${buttonStyle}color:#dc2626">
+        <i data-lucide="log-out" style="width:16px;height:16px"></i>
+        Keluar
+      </button>
+    `;
+
+    document.body.appendChild(menu);
+    iconRefresh();
+
+    menu.addEventListener("click", event => {
+      const button = event.target.closest("[data-profile-action]");
+      if (!button) return;
+
+      const action = button.dataset.profileAction;
+
+      closeProfileMenu();
+
+      if (action === "profile") renderAdminProfile();
+      if (action === "pin") renderChangePin();
+      if (action === "logout") handleLogout();
+    });
+  }
+
+  function updateUserDisplay() {
+    const avatar = $(".avatar");
+
+    // Hapus tombol akun terpisah dari versi sebelumnya.
+    $("#techOpsLoginButton")?.remove();
+    $("#techOpsUserInfo")?.remove();
+    $("#techOpsLogout")?.remove();
+    $("#techOpsChangePin")?.remove();
+
+    if (!avatar) return;
+
+    closeProfileMenu();
+
+    const isAdmin = !!(state.authenticated && state.user);
+
+    avatar.textContent = isAdmin
+      ? getAdminInitials(state.user)
+      : "GT";
+
+    avatar.setAttribute("role", "button");
+    avatar.setAttribute("tabindex", "0");
+    avatar.setAttribute("aria-haspopup", isAdmin ? "menu" : "dialog");
+    avatar.setAttribute(
+      "aria-label",
+      isAdmin ? "Menu profil Admin" : "Login Admin"
+    );
+
+    avatar.title = isAdmin ? "Profil Admin" : "Login Admin";
+    avatar.style.cursor = "pointer";
+
+    if (avatar.dataset.techopsBound !== "true") {
+
+      avatar.addEventListener("click", () => {
+        if (state.authenticated && state.user) {
+          toggleProfileMenu();
+        } else {
+          renderLogin();
+        }
+      });
+
+      avatar.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          avatar.click();
+        }
+      });
+
+      avatar.dataset.techopsBound = "true";
     }
   }
 
@@ -570,17 +736,13 @@
      6. LOGOUT ADMIN
   ===================================================== */
 
+  
   async function handleLogout() {
     if (!confirm("Apakah Anda yakin ingin keluar dari GoJak TechOps?")) {
       return;
     }
 
-    const button = $("#techOpsLogout");
-
-    if (button) {
-      button.disabled = true;
-      button.textContent = "Keluar...";
-    }
+    closeProfileMenu();
 
     try {
       await TechOpsAPI.logout();
@@ -597,13 +759,9 @@
 
     } catch (error) {
       toast("Logout gagal: " + error.message);
-
-      if (button) {
-        button.disabled = false;
-        button.textContent = "Keluar";
-      }
     }
   }
+
 
   /* =====================================================
      7. MEMUAT DATA PUBLIK
@@ -742,12 +900,13 @@
      SIDEBAR MOBILE
   ===================================================== */
 
+
   function openSidebar() {
     const sidebar = $("#sidebar");
     const overlay = $("#sidebarOverlay");
 
-    sidebar?.classList.add("active");
-    overlay?.classList.add("active");
+    sidebar?.classList.add("open");
+    overlay?.classList.add("show");
 
     document.body.classList.add("sidebar-open");
   }
@@ -756,11 +915,22 @@
     const sidebar = $("#sidebar");
     const overlay = $("#sidebarOverlay");
 
-    sidebar?.classList.remove("active");
-    overlay?.classList.remove("active");
+    sidebar?.classList.remove("open");
+    overlay?.classList.remove("show");
 
     document.body.classList.remove("sidebar-open");
   }
+
+  function toggleSidebar() {
+    const sidebar = $("#sidebar");
+
+    if (sidebar?.classList.contains("open")) {
+      closeSidebar();
+    } else {
+      openSidebar();
+    }
+  }
+
   /* =====================================================
      11. NAVIGASI
   ===================================================== */
@@ -811,10 +981,39 @@
     const year = $("#currentYear");
     if (year) year.textContent = new Date().getFullYear();
 
-    $("#menuToggle")?.addEventListener("click", openSidebar);
-    $("#sidebarOverlay")?.addEventListener("click", closeSidebar);
+    
+  $("#menuToggle")?.addEventListener("click", toggleSidebar);
+  $("#sidebarOverlay")?.addEventListener("click", closeSidebar);
 
-    window.addEventListener("hashchange", renderCurrentPage);
+  // Tutup dropdown ketika klik di luar avatar dan menu.
+  document.addEventListener("click", event => {
+    const menu = $("#techOpsProfileMenu");
+    const avatar = $(".avatar");
+
+    if (
+      menu &&
+      !menu.contains(event.target) &&
+      !avatar?.contains(event.target)
+    ) {
+      closeProfileMenu();
+    }
+  });
+
+  // Tombol Escape menutup menu, popup, dan sidebar.
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+
+    closeProfileMenu();
+
+    $("#techOpsProfileModal")?.remove();
+    $("#techOpsLoginModal")?.remove();
+    $("#techOpsChangePinModal")?.remove();
+
+    closeSidebar();
+  });
+
+  window.addEventListener("hashchange", renderCurrentPage);
+
 
     // Tampilkan Dashboard langsung.
     updateUserDisplay();
