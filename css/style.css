@@ -595,3 +595,51 @@ i[data-lucide] { width: 18px; height: 18px; stroke-width: 1.9; flex: 0 0 auto; }
   .dash-unit-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .dash-footer-note { text-align:left; line-height:1.5; }
 }
+
+/* FIX KHUSUS BARIS KARTU STATISTIK DASHBOARD MOBILE */
+@media (max-width: 520px) {
+  .stats-grid {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .stats-grid .stat-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 12px;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .stats-grid .stat-card > div {
+    min-width: 0;
+  }
+
+  .stats-grid .stat-card-acquisition {
+    gap: 5px;
+  }
+
+  .stats-grid .stat-main {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .stats-grid .stat-acquisition {
+    min-width: 0;
+    flex: 0 1 auto;
+    padding-left: 5px;
+  }
+
+  .stats-grid .stat-icon {
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+  }
+
+  .stats-grid .stat-value {
+    overflow-wrap: anywhere;
+  }
+}
