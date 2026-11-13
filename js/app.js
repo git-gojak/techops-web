@@ -13,6 +13,7 @@
     page: "dashboard",
     user: null,
     authenticated: false,
+    authChecking: true,
     loading: false
   };
 
@@ -319,20 +320,18 @@
 
     if (avatar.dataset.techopsBound !== "true") {
 
-      avatar.addEventListener("click", () => {
-        if (state.authenticated && state.user) {
-          toggleProfileMenu();
-        } else {
-          renderLogin();
-        }
-      });
+    avatar.addEventListener("click", () => {
+      if (state.authChecking) {
+        toast("Sedang memeriksa sesi Admin. Silakan tunggu sebentar.");
+        return;
+      }
 
-      avatar.addEventListener("keydown", event => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          avatar.click();
-        }
-      });
+      if (state.authenticated && state.user) {
+        toggleProfileMenu();
+      } else {
+        renderLogin();
+      }
+    });
 
       avatar.dataset.techopsBound = "true";
     }
@@ -1060,9 +1059,11 @@
         state.authenticated = false;
       }
 
-      // Perbarui tampilan tanpa reload halaman.
-      updateUserDisplay();
-      renderCurrentPage();
+        state.authChecking = false;
+
+        // Perbarui tampilan setelah validasi sesi selesai.
+        updateUserDisplay();
+        renderCurrentPage();
     })();
 
     // Data publik dimuat tanpa menunggu validasi Admin.
