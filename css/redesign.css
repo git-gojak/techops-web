@@ -216,3 +216,139 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+
+/* ==========================================================
+   MOBILE QA PATCH — frontend only
+   Targets verified from current dashboard and screenshots.
+   No API, data, authentication or permission behavior changed.
+========================================================== */
+
+/* Horizontal inventory tables: keep every column reachable on touch screens. */
+.table-wrap {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #9aabc1 #edf2f7;
+}
+.table-wrap::-webkit-scrollbar { height: 7px; }
+.table-wrap::-webkit-scrollbar-track { background: #edf2f7; border-radius: 99px; }
+.table-wrap::-webkit-scrollbar-thumb { background: #9aabc1; border-radius: 99px; }
+.data-table { min-width: max-content; }
+.data-table th, .data-table td { white-space: nowrap; }
+
+/* Unit monitoring: improve legibility and tap/read spacing on narrow screens. */
+.dash-unit-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.dash-unit-card {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 9px;
+  gap: 7px;
+}
+.dash-unit-name {
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.dash-unit-counts { gap: 5px; }
+.dash-count {
+  min-width: 35px;
+  min-height: 28px;
+  padding: 4px 6px;
+  gap: 4px;
+}
+.dash-count i { width: 13px; height: 13px; }
+.dash-count b { font-size: 11px; }
+
+/* Search controls and action buttons should remain comfortable to tap. */
+.search-box input, .qr-search input, .field input, .field select,
+.computer-form input, .computer-form select, .computer-form textarea {
+  min-height: 44px;
+}
+.button, .table-action, .pagination button, .icon-button {
+  min-height: 42px;
+}
+.table-action { padding: 7px 9px; }
+
+/* Dialogs remain scrollable when the mobile keyboard reduces the viewport. */
+.modal-backdrop {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-items: center;
+  -webkit-overflow-scrolling: touch;
+}
+.modal {
+  width: min(680px, 100%);
+  max-height: min(88vh, 760px);
+  max-height: min(88dvh, 760px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.modal input, .modal select, .modal textarea,
+.computer-modal input, .computer-modal select, .computer-modal textarea {
+  font-size: 16px; /* prevents automatic zoom on iOS browsers */
+}
+
+/* Keep long maintenance/device labels from forcing the page wider. */
+.content, .panel, .dash-content-grid, .dash-panel { min-width: 0; }
+.dash-activity-row { min-width: 0; }
+.dash-activity-copy { min-width: 0; }
+.dash-activity-copy strong, .dash-activity-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qr-search { min-width: 0; }
+.qr-search > * { min-width: 0; }
+
+@media (max-width: 760px) {
+  .dash-unit-grid { gap: 7px; }
+  .dash-unit-card { padding: 8px; }
+  .dash-unit-name { font-size: 10px; }
+  .dash-count { min-width: 32px; padding: 4px 5px; }
+  .dash-count b { font-size: 10px; }
+  .table-toolbar { gap: 10px; }
+  .table-toolbar > .button,
+  .table-toolbar > button { min-height: 44px; }
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+  }
+  .modal {
+    width: 100%;
+    max-height: 88dvh;
+    border-radius: 16px 16px 12px 12px;
+  }
+  .computer-modal .modal-header {
+    top: -17px;
+  }
+  .computer-form-footer {
+    position: sticky;
+    bottom: -17px;
+    z-index: 4;
+    padding: 12px 0 max(12px, env(safe-area-inset-bottom));
+    background: rgba(255,255,255,.97);
+    border-top: 1px solid #edf1f6;
+  }
+}
+
+@media (max-width: 380px) {
+  .dash-unit-grid { grid-template-columns: 1fr; }
+  .dash-unit-card { min-height: 42px; }
+  .dash-unit-name { font-size: 11px; }
+  .dash-count b { font-size: 11px; }
+  .panel { padding: 13px; }
+}
+
+/* Respect reduced-motion preferences for drawer and hover transitions. */
+@media (prefers-reduced-motion: reduce) {
+  .table-wrap { scroll-behavior: auto; }
+}
