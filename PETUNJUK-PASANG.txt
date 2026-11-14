@@ -1,0 +1,37 @@
+GOJAK TECHOPS — PAKET UI REFRESH
+
+Isi ZIP ini adalah overlay untuk repository:
+https://github.com/git-gojak/techops-web
+
+CARA PASANG
+1. Unduh dan ekstrak ZIP.
+2. Buka repository GitHub, branch main.
+3. Timpa index.html.
+4. Di folder css, tambahkan redesign.css (jangan hapus style.css).
+5. Timpa service-worker.js dan manifest.json.
+6. Pastikan struktur akhirnya:
+   index.html
+   manifest.json
+   service-worker.js
+   css/style.css
+   css/redesign.css
+   js/ (seluruh file lama tetap ada)
+   api.js (tetap ada)
+   assets/ (tetap ada)
+7. Commit perubahan.
+8. Setelah GitHub Pages selesai deploy, buka ulang situs. Jika tampilan lama masih muncul,
+   tutup tab dan bersihkan cache situs / data browser untuk domain GitHub Pages.
+
+PENTING
+- Jangan menghapus atau mengganti api.js dan folder js/.
+- Tidak ada perubahan Google Apps Script, database, endpoint, payload API, autentikasi,
+  hak akses, atau aturan penyimpanan.
+- CSS redesign dimuat setelah style.css sebagai lapisan tambahan.
+- Menu navigasi tetap memakai data-page dan hash route yang sudah digunakan aplikasi.
+- Service worker memakai nama cache baru agar aset UI terbaru tidak tertahan cache lama.
+
+CATATAN QA
+Paket ini adalah tahap penyegaran shell global (sidebar, header, navigasi, responsivitas,
+token visual, dan cache PWA). Modul Dashboard, Inventaris Komputer, Inventaris Printer,
+Maintenance, dan QR Info tetap memakai renderer dan logika yang ada. Periksa seluruh
+alur pada situs setelah deploy sebelum digunakan operasional.

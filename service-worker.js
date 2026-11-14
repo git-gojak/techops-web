@@ -1,9 +1,10 @@
-const CACHE_NAME = "gojak-techops-v1";
+const CACHE_NAME = "gojak-techops-v2-ui-refresh";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./api.js",
   "./css/style.css",
+  "./css/redesign.css",
   "./js/app.js",
   "./js/dashboard.js",
   "./js/computers.js",
@@ -16,13 +17,19 @@ const APP_SHELL = [
 ];
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(APP_SHELL))
+      .catch(error => console.warn("App shell cache:", error))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
+    )
   );
   self.clients.claim();
 });
@@ -39,6 +46,8 @@ self.addEventListener("fetch", event => {
         caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
       }
       return response;
-    }).catch(() => caches.match(request).then(cached => cached || caches.match("./index.html")))
+    }).catch(() =>
+      caches.match(request).then(cached => cached || caches.match("./index.html"))
+    )
   );
 });
