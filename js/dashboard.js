@@ -193,7 +193,6 @@
       `
       : empty("Belum ada data unit.");
 
-  
     // ==========================================
     // 4. MONITORING KONDISI KOMPUTER & PRINTER
     // ==========================================
@@ -427,7 +426,8 @@
 
     maintenanceCare.forEach(row => {
       const type = String(row.jenis_aset || "")
-        .trim().toLowerCase();
+        .trim()
+        .toLowerCase();
 
       const serial = String(
         row.serial || row.nama_aset || ""
@@ -743,7 +743,14 @@
           "schedule-panel"
         )}
 
-        
+        ${panel(
+          "Aktivitas Maintenance Terbaru",
+          "Catatan perawatan dan perbaikan perangkat terbaru",
+          "history",
+          recentHtml,
+          "activity-panel"
+        )}
+
         ${panel(
           "Kondisi Komputer",
           "Monitoring kondisi dan riwayat Maintenance komputer",
@@ -759,7 +766,6 @@
           printerConditionHtml,
           "condition-panel printer-condition-panel"
         )}
-
       </section>
     `;
 
