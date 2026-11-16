@@ -1354,8 +1354,8 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
   }
 
 .stats-grid .stat-card.dash-inventory-card {
-  height: 150px;
-  min-height: 150px;
+  height: auto;
+  min-height: 0;
   justify-content: flex-start;
   row-gap: 2px;
 }
