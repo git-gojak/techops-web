@@ -266,18 +266,58 @@
       </div>
     `;
 
+    
     // ==========================================
     // 5. JADWAL MAINTENANCE
     // ==========================================
 
-    const schedules = maintenance
-      .filter(row => String(row.jadwal || "").trim())
+    // Hanya catatan Perawatan yang menjadi sumber jadwal.
+    const maintenanceCare = maintenance
+      .filter(row => {
+        const activity = String(
+          row.jenis_kegiatan || row.kegiatan || ""
+        ).trim().toLowerCase();
+
+        return activity === "perawatan";
+      })
       .map(row => ({
         ...row,
+        _date: parseDate(row.Tanggal),
         _schedule: parseDate(row.jadwal)
       }))
+      .filter(row => row._date)
+      .sort((a, b) =>
+        b._date.getTime() - a._date.getTime()
+      );
+
+    // Ambil satu catatan Perawatan terbaru
+    // untuk setiap perangkat.
+    const latestCareByDevice = new Map();
+
+    maintenanceCare.forEach(row => {
+      const type = String(row.jenis_aset || "")
+        .trim().toLowerCase();
+
+      const serial = String(
+        row.serial || row.nama_aset || ""
+      ).trim().toUpperCase();
+
+      if (!serial) return;
+
+      const key = `${type}|${serial}`;
+
+      if (!latestCareByDevice.has(key)) {
+        latestCareByDevice.set(key, row);
+      }
+    });
+
+    // Jadwal aktif hanya berasal dari Perawatan
+    // terbaru masing-masing perangkat.
+    const schedules = [...latestCareByDevice.values()]
       .filter(row => row._schedule)
-      .sort((a, b) => a._schedule - b._schedule);
+      .sort((a, b) =>
+        a._schedule.getTime() - b._schedule.getTime()
+      );
 
     const today = new Date(
       now.getFullYear(),
@@ -291,47 +331,70 @@
       today.getDate() + 30
     );
 
-    const overdue = schedules.filter(
+    const overdueSchedules = schedules.filter(
       row => row._schedule < today
-    ).length;
+    );
 
-    const upcoming = schedules.filter(
+    const upcomingSchedules = schedules.filter(
       row =>
         row._schedule >= today &&
         row._schedule <= next30Days
-    ).length;
+    );
+
+    const futureSchedules = schedules.filter(
+      row => row._schedule > next30Days
+    );
+
+    // Jadwal mendatang yang paling dekat.
+    const nearestSchedule = schedules.find(
+      row => row._schedule >= today
+    );
 
     const scheduleHtml = `
       <div class="dash-schedule-summary">
         <div class="schedule-number overdue">
-          <strong>${overdue}</strong>
+          <strong>${overdueSchedules.length}</strong>
           <span>Terlambat</span>
         </div>
 
         <div class="schedule-number upcoming">
-          <strong>${upcoming}</strong>
-          <span>30 hari ke depan</span>
+          <strong>${upcomingSchedules.length}</strong>
+          <span>Segera (30 hari)</span>
+        </div>
+
+        <div class="schedule-number">
+          <strong>${futureSchedules.length}</strong>
+          <span>Terjadwal</span>
         </div>
       </div>
 
       ${
-        schedules.length
+        nearestSchedule
           ? `
             <div class="dash-schedule-next">
-              <small>Jadwal terdekat</small>
+              <small>Jadwal Perawatan Berikutnya</small>
+
               <strong>
                 ${esc(
-                  schedules[0].nama_aset ||
-                  schedules[0].serial ||
+                  nearestSchedule.nama_aset ||
+                  nearestSchedule.serial ||
                   "Perangkat"
                 )}
               </strong>
-              <span>${esc(fmtDate(schedules[0].jadwal))}</span>
+
+              <span>
+                ${esc(fmtDate(nearestSchedule.jadwal))}
+              </span>
             </div>
           `
-          : empty("Belum ada jadwal maintenance.")
+          : empty(
+              schedules.length
+                ? "Belum ada jadwal Perawatan mendatang."
+                : "Belum ada jadwal Perawatan aktif."
+            )
       }
     `;
+
 
     // ==========================================
     // 6. AKTIVITAS MAINTENANCE TERBARU
