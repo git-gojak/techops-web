@@ -786,11 +786,21 @@
       ]);
     };
 
-    const [computers, printers, maintenance] = await Promise.all([
-      timeout(TechOpsAPI.get("computers.list"), "Inventaris komputer"),
-      timeout(TechOpsAPI.get("printers.list"), "Inventaris printer"),
-      timeout(TechOpsAPI.get("maintenance.list"), "Data maintenance")
-    ]);
+const [computers, printers, maintenance] = await Promise.all([
+  timeout(
+    TechOpsAPI.get("computers.list", {
+      includeArchived: TechOpsAPI.isAuthenticated()
+    }),
+    "Inventaris komputer"
+  ),
+  timeout(
+    TechOpsAPI.get("printers.list", {
+      includeArchived: TechOpsAPI.isAuthenticated()
+    }),
+    "Inventaris printer"
+  ),
+  timeout(TechOpsAPI.get("maintenance.list"), "Data maintenance")
+]);
 
     state.computers = normalizeArray(computers);
     state.printers = normalizeArray(printers);
