@@ -119,7 +119,24 @@
     });
 
     state().printers = Array.isArray(result) ? result : [];
+    state().lastUpdated = new Date();
+
     drawTable(currentQuery);
+    updatePrinterLastUpdated();
+  }
+
+  function updatePrinterLastUpdated() {
+    const element = ui().$("#printerLastUpdated");
+    if (!element) return;
+
+    const value = state().lastUpdated;
+
+    element.textContent = value
+      ? new Intl.DateTimeFormat("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short"
+        }).format(new Date(value))
+      : "Belum tersedia";
   }
 
   function render() {
@@ -127,11 +144,28 @@
     const rows = state().printers || [];
 
     host.innerHTML =
-      ui().pageHeading(
-        "Inventaris Printer",
-        "Daftar printer yang tercatat dalam database.",
-        "ASSET MANAGEMENT"
-      ) +
+      `<section class="dash-last-updated">
+        <button
+          type="button"
+          id="refreshButton"
+          class="dash-updated-icon"
+          aria-label="Perbarui data"
+          title="Perbarui data">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+
+        <div>
+          <strong>Data Terakhir Diperbarui</strong>
+          <small id="printerLastUpdated">${
+            state().lastUpdated
+              ? new Intl.DateTimeFormat("id-ID", {
+                  dateStyle: "medium",
+                  timeStyle: "short"
+                }).format(new Date(state().lastUpdated))
+              : "Belum tersedia"
+          }</small>
+        </div>
+      </section>` +
       `<section class="panel">
         <div class="table-toolbar">
           <div class="search-box">
