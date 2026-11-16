@@ -68,59 +68,59 @@
       });
   }
 
-async function loadComputerRows() {
-  const result = await request("computers.list", {
-    includeArchived: isAdmin()
-  });
+  async function loadComputerRows() {
+    const result = await request("computers.list", {
+      includeArchived: isAdmin()
+    });
 
-  state().computers = Array.isArray(result) ? result : [];
-  state().lastUpdated = new Date();
+    state().computers = Array.isArray(result) ? result : [];
+    state().lastUpdated = new Date();
 
-  drawTable(currentQuery);
-  updateComputerLastUpdated();
-}
+    drawTable(currentQuery);
+    updateComputerLastUpdated();
+  }
+
   function updateComputerLastUpdated() {
-  const element = ui().$("#computerLastUpdated");
-  if (!element) return;
+    const element = ui().$("#computerLastUpdated");
+    if (!element) return;
 
-  const value = state().lastUpdated;
+    const value = state().lastUpdated;
 
-  element.textContent = value
-    ? new Intl.DateTimeFormat("id-ID", {
-        dateStyle: "medium",
-        timeStyle: "short"
-      }).format(new Date(value))
-    : "Belum tersedia";
-}
+    element.textContent = value
+      ? new Intl.DateTimeFormat("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short"
+        }).format(new Date(value))
+      : "Belum tersedia";
+  }
 
   function render() {
     const host = ui().$("#appContent");
     const rows = state().computers || [];
 
-host.innerHTML =
-  `<section class="dash-last-updated">
-    <button
-      type="button"
-      id="refreshButton"
-      class="dash-updated-icon"
-      aria-label="Perbarui data"
-      title="Perbarui data">
-      <i data-lucide="refresh-cw"></i>
-    </button>
+    host.innerHTML =
+      `<section class="dash-last-updated">
+        <button
+          type="button"
+          id="refreshButton"
+          class="dash-updated-icon"
+          aria-label="Perbarui data"
+          title="Perbarui data">
+          <i data-lucide="refresh-cw"></i>
+        </button>
 
-    <div>
-      <strong>Data Terakhir Diperbarui</strong>
-      <small id="computerLastUpdated">${
-        state().lastUpdated
-          ? new Intl.DateTimeFormat("id-ID", {
-              dateStyle: "medium",
-              timeStyle: "short"
-            }).format(new Date(state().lastUpdated))
-          : "Belum tersedia"
-      }</small>
-    </div>
-  </section>` +
-  `<section class="panel">
+        <div>
+          <strong>Data Terakhir Diperbarui</strong>
+          <small id="computerLastUpdated">${
+            state().lastUpdated
+              ? new Intl.DateTimeFormat("id-ID", {
+                  dateStyle: "medium",
+                  timeStyle: "short"
+                }).format(new Date(state().lastUpdated))
+              : "Belum tersedia"
+          }</small>
+        </div>
+      </section>` +
       `<section class="panel">
         <div class="table-toolbar">
           <div class="search-box">
@@ -581,7 +581,7 @@ host.innerHTML =
   }
 
   window.ComputersPage = {
-  render,
-  refresh: loadComputerRows
-};
+    render,
+    refresh: loadComputerRows
+  };
 })();
