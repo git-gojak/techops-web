@@ -111,12 +111,10 @@
     const activePrinters = printers.filter(row => !isArchived(row));
     const archivedPrinters = printers.filter(isArchived);
 
-    // Tahun perolehan komputer menggunakan kolom tahun.
     const acquiredComputers = activeComputers.filter(
       row => yearOf(row.tahun) === year
     ).length;
 
-    // Tahun perolehan printer menggunakan kolom FTP.
     const acquiredPrinters = activePrinters.filter(
       row => yearOf(row.ftp) === year
     ).length;
@@ -429,8 +427,11 @@
 
           <div class="dash-card-main">
             <div class="stat-label">Total Komputer</div>
-            <div class="stat-value">${activeComputers.length}</div>
-            <span class="dash-active-label">Aktif</span>
+
+            <div class="dash-total-line">
+              <div class="stat-value">${activeComputers.length}</div>
+              <span class="dash-active-label">Aktif</span>
+            </div>
           </div>
 
           <i class="dash-card-arrow" data-lucide="chevron-right"></i>
@@ -461,8 +462,11 @@
 
           <div class="dash-card-main">
             <div class="stat-label">Total Printer</div>
-            <div class="stat-value">${activePrinters.length}</div>
-            <span class="dash-active-label">Aktif</span>
+
+            <div class="dash-total-line">
+              <div class="stat-value">${activePrinters.length}</div>
+              <span class="dash-active-label">Aktif</span>
+            </div>
           </div>
 
           <i class="dash-card-arrow" data-lucide="chevron-right"></i>
@@ -526,9 +530,14 @@
 
     host.innerHTML = `
       <section class="dash-last-updated">
-        <span class="dash-updated-icon">
+        <button
+          type="button"
+          id="refreshButton"
+          class="dash-updated-icon"
+          aria-label="Perbarui data"
+          title="Perbarui data">
           <i data-lucide="refresh-cw"></i>
-        </span>
+        </button>
 
         <div>
           <strong>Data Terakhir Diperbarui</strong>
@@ -586,39 +595,14 @@
       </section>
     `;
 
-    // Tombol refresh ditempatkan di header atas.
-    ensureHeaderRefreshButton();
+    // Tidak membuat tombol refresh tambahan di header.
+    // Tombol di kartu Data Terakhir Diperbarui menggunakan
+    // bindRefresh() yang sudah tersedia di app.js.
 
     if (window.lucide) {
       window.lucide.createIcons();
     }
   }
-
-  // ==========================================
-  // 10. TOMBOL REFRESH DI HEADER
-  // ==========================================
-
- function ensureHeaderRefreshButton() {
-  const breadcrumb = document.querySelector(".breadcrumb");
-  const pageCrumb = document.getElementById("pageCrumb");
-
-  if (!breadcrumb || !pageCrumb) return;
-
-  let button = document.getElementById("refreshButton");
-
-  if (!button) {
-    button = document.createElement("button");
-    button.id = "refreshButton";
-  }
-
-  button.type = "button";
-  button.className = "icon-button dashboard-header-refresh";
-  button.setAttribute("aria-label", "Perbarui data");
-  button.title = "Perbarui data";
-  button.innerHTML = '<i data-lucide="refresh-cw"></i>';
-
-  pageCrumb.insertAdjacentElement("afterend", button);
-}
 
   window.DashboardPage = { render };
 })();
