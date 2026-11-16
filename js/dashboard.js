@@ -1,3 +1,4 @@
+
 /* GoJak TechOps — Dashboard
    Frontend only. Menggunakan data dari app.js.
    Data arsip dihitung melalui API inventory.archiveCounts.
@@ -490,23 +491,51 @@
       </a>
     `;
 
+    // ==========================================
+    // KARTU TOTAL MAINTENANCE
+    // ==========================================
+
+    const totalPerawatan = maintenance.filter(row =>
+      String(row.jenis_kegiatan || row.kegiatan || "")
+        .trim().toLowerCase() === "perawatan"
+    ).length;
+
+    const totalPerbaikan = maintenance.filter(row =>
+      String(row.jenis_kegiatan || row.kegiatan || "")
+        .trim().toLowerCase() === "perbaikan"
+    ).length;
+
     const maintenanceCard = `
-      <a class="stat-card dash-stat-link dash-operation-card maintenance-summary-card"
+      <a class="stat-card dash-stat-link dash-inventory-card maintenance-inventory-card"
          href="#maintenance">
 
-        <span class="stat-icon amber dash-large-icon">
-          <i data-lucide="wrench"></i>
-        </span>
+        <div class="dash-card-top">
+          <span class="stat-icon amber dash-large-icon">
+            <i data-lucide="clipboard-list"></i>
+          </span>
 
-        <div class="dash-operation-copy">
-          <div class="stat-label">Riwayat Maintenance</div>
-          <div class="stat-value">${maintenance.length}</div>
-          <div class="stat-note">
-            Catatan perawatan/perbaikan
+          <div class="dash-card-main">
+            <div class="stat-label">Total Maintenance</div>
+
+            <div class="dash-total-line">
+              <div class="stat-value">${maintenance.length}</div>
+            </div>
           </div>
+
+          <i class="dash-card-arrow" data-lucide="chevron-right"></i>
         </div>
 
-        <i class="dash-card-arrow" data-lucide="chevron-right"></i>
+        <div class="dash-card-bottom">
+          <span>
+            <i data-lucide="shield-check"></i>
+            <b>${totalPerawatan}</b> Perawatan
+          </span>
+
+          <span>
+            <i data-lucide="wrench"></i>
+            <b>${totalPerbaikan}</b> Perbaikan
+          </span>
+        </div>
       </a>
     `;
 
