@@ -46,6 +46,24 @@
   }
 
   // =====================================================
+  // WAKTU PEMBARUAN DATA
+  // =====================================================
+
+  function updateMaintenanceLastUpdated() {
+    const element = ui().$("#maintenanceLastUpdated");
+    if (!element) return;
+
+    const value = state().lastUpdated;
+
+    element.textContent = value
+      ? new Intl.DateTimeFormat("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short"
+        }).format(new Date(value))
+      : "Belum tersedia";
+  }
+
+  // =====================================================
   // HALAMAN UTAMA
   // =====================================================
 
@@ -57,11 +75,28 @@
       : [];
 
     host.innerHTML =
-      ui().pageHeading(
-        "Maintenance",
-        "Riwayat perawatan dan perbaikan komputer maupun printer.",
-        "IT SERVICE"
-      ) +
+      `<section class="dash-last-updated">
+        <button
+          type="button"
+          id="refreshButton"
+          class="dash-updated-icon"
+          aria-label="Perbarui data"
+          title="Perbarui data">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+
+        <div>
+          <strong>Data Terakhir Diperbarui</strong>
+          <small id="maintenanceLastUpdated">${
+            state().lastUpdated
+              ? new Intl.DateTimeFormat("id-ID", {
+                  dateStyle: "medium",
+                  timeStyle: "short"
+                }).format(new Date(state().lastUpdated))
+              : "Belum tersedia"
+          }</small>
+        </div>
+      </section>` +
       `<section class="panel">
         <div class="table-toolbar">
 
@@ -101,7 +136,8 @@
       ui().$("#scanMaintenanceQR").addEventListener("click", openScanner);
     }
 
-    drawTable("");
+    drawTable(currentQuery);
+    updateMaintenanceLastUpdated();
 
     ui().bindRefresh();
     ui().iconRefresh();
@@ -1182,7 +1218,7 @@
     submitButton.disabled = true;
     submitButton.textContent = "Menyimpan...";
 
-const payload = {
+    const payload = {
       jenis_aset: selectedDevice.type,
       serial: selectedDevice.serial,
       Tanggal: document.getElementById("maintenanceDate").value,
@@ -1245,6 +1281,7 @@ const payload = {
 
       if (Array.isArray(latest)) {
         state().maintenance = latest;
+        state().lastUpdated = new Date();
       }
 
     } catch (error) {
@@ -1373,18 +1410,19 @@ const payload = {
   // EXPORT HALAMAN
   // =====================================================
 
-  
-async function refresh() {
-  const result = await api().get("maintenance.list");
+  async function refresh() {
+    const result = await api().get("maintenance.list");
 
-  state().maintenance = ui().normalizeArray(result);
+    state().maintenance = ui().normalizeArray(result);
+    state().lastUpdated = new Date();
 
-  drawTable(currentQuery);
-}
+    drawTable(currentQuery);
+    updateMaintenanceLastUpdated();
+  }
 
-window.MaintenancePage = {
-  render,
-  refresh
-};
+  window.MaintenancePage = {
+    render,
+    refresh
+  };
 
 })();
