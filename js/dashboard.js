@@ -207,26 +207,99 @@
         (a._date?.getTime() || 0)
       );
 
+    
+    // Normalisasi jenis aset agar kunci perangkat konsisten.
+    function normalizeAssetType(value) {
+      const type = String(value || "").trim().toLowerCase();
+
+      if (["komputer", "computer", "pc"].includes(type)) {
+        return "komputer";
+      }
+
+      if (type === "printer") {
+        return "printer";
+      }
+
+      return "";
+    }
+
+    // Kunci perangkat: jenis aset + serial.
+    // Nama aset menjadi cadangan jika serial kosong.
+    function deviceKey(type, serial, name) {
+      const normalizedType = normalizeAssetType(type);
+      const identity = String(serial || name || "")
+        .trim()
+        .toUpperCase();
+
+      if (!normalizedType || !identity) return "";
+
+      return `${normalizedType}|${identity}`;
+    }
+
+    // Ambil catatan maintenance terbaru setiap perangkat.
     const latestByDevice = new Map();
 
-    datedMaintenance.forEach(row => {
-      const key =
-        `${String(row.jenis_aset || "").toLowerCase()}|` +
-        `${String(row.serial || row.nama_aset || "").toUpperCase()}`;
+    datedMaintenance
+      .filter(row => row._date)
+      .forEach(row => {
+        const key = deviceKey(
+          row.jenis_aset,
+          row.serial,
+          row.nama_aset
+        );
 
-      if (!latestByDevice.has(key)) {
+        if (!key || latestByDevice.has(key)) return;
+
         latestByDevice.set(key, row);
+      });
+
+    // Inventaris aktif menjadi dasar penghitungan kondisi.
+    const inventoryDevices = [
+      ...activeComputers.map(row => ({
+        type: "komputer",
+        serial: row.serial,
+        name: row.komputer
+      })),
+
+      ...activePrinters.map(row => ({
+        type: "printer",
+        serial: row.serial,
+        name: row.serial
+      }))
+    ];
+
+    // Hindari perangkat yang sama dihitung dua kali.
+    const uniqueInventory = new Map();
+
+    inventoryDevices.forEach(device => {
+      const key = deviceKey(
+        device.type,
+        device.serial,
+        device.name
+      );
+
+      if (key && !uniqueInventory.has(key)) {
+        uniqueInventory.set(key, device);
       }
     });
 
     const conditionCounts = {
       "Baik": 0,
       "Perlu Perhatian": 0,
-      "Rusak": 0
+      "Rusak": 0,
+      "Belum Ada Data Kondisi": 0
     };
 
-    latestByDevice.forEach(row => {
-      const condition = String(row.kondisi || "")
+    // Hitung kondisi terbaru hanya untuk perangkat inventaris aktif.
+    uniqueInventory.forEach((device, key) => {
+      const latest = latestByDevice.get(key);
+
+      if (!latest) {
+        conditionCounts["Belum Ada Data Kondisi"]++;
+        return;
+      }
+
+      const condition = String(latest.kondisi || "")
         .trim()
         .toLowerCase();
 
@@ -236,8 +309,44 @@
         conditionCounts["Perlu Perhatian"]++;
       } else if (condition === "rusak") {
         conditionCounts.Rusak++;
+      } else {
+        conditionCounts["Belum Ada Data Kondisi"]++;
       }
     });
+
+    const conditionHtml = `
+      <div class="dash-condition-list">
+        <div>
+          <span class="condition-dot good"></span>
+          <span>Baik</span>
+          <strong>${conditionCounts.Baik}</strong>
+        </div>
+
+        <div>
+          <span class="condition-dot attention"></span>
+          <span>Perlu Perhatian</span>
+          <strong>${conditionCounts["Perlu Perhatian"]}</strong>
+        </div>
+
+        <div>
+          <span class="condition-dot bad"></span>
+          <span>Rusak</span>
+          <strong>${conditionCounts.Rusak}</strong>
+        </div>
+
+        <div>
+          <span class="condition-dot"></span>
+          <span>Belum Ada Data Kondisi</span>
+          <strong>${conditionCounts["Belum Ada Data Kondisi"]}</strong>
+        </div>
+
+        <small>
+          Berdasarkan kondisi maintenance terakhir dari
+          ${uniqueInventory.size} perangkat inventaris aktif.
+        </small>
+      </div>
+    `;
+
 
     const conditionHtml = `
       <div class="dash-condition-list">
