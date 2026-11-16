@@ -7,34 +7,60 @@
   let scanner = null;
   let scanHandled = false;
   let lastLookup = "";
+  let lastLookupUpdated = null;
 
   function render() {
-  stopScanner();
-  lastLookup = "";
+    stopScanner();
+    lastLookup = "";
+    lastLookupUpdated = null;
 
     const host = ui().$("#appContent");
+
     host.innerHTML =
-      ui().pageHeading(
-        "QR Info",
-        "Cari informasi perangkat dengan scan QR atau input serial number.",
-        "DEVICE LOOKUP"
-      ) +
-      `<section class="panel">
+      `<section class="dash-last-updated">
+        <button
+          type="button"
+          id="refreshButton"
+          class="dash-updated-icon"
+          aria-label="Perbarui data"
+          title="Perbarui data">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+
+        <div>
+          <strong>Data Terakhir Diperbarui</strong>
+          <small id="qrInfoLastUpdated">Belum ada pencarian</small>
+        </div>
+      </section>
+
+      <section class="panel">
         <div class="panel-header">
           <div>
             <h2>Pencarian Perangkat</h2>
-            <div class="panel-subtitle">Scan QR menggunakan kamera HP atau masukkan serial number secara manual.</div>
+            <div class="panel-subtitle">
+              Scan QR menggunakan kamera HP atau masukkan serial number secara manual.
+            </div>
           </div>
-          <span class="stat-icon green"><i data-lucide="qr-code"></i></span>
+          <span class="stat-icon green">
+            <i data-lucide="qr-code"></i>
+          </span>
         </div>
 
         <form class="qr-search" id="qrForm">
-          <input id="qrValue" autocomplete="off"
-            placeholder="Contoh: FCGBZR3 atau RAEK029524" required>
+          <input
+            id="qrValue"
+            autocomplete="off"
+            placeholder="Contoh: FCGBZR3 atau RAEK029524"
+            required>
+
           <button class="button button-primary" type="submit">
             <i data-lucide="search"></i> Cari perangkat
           </button>
-          <button class="button button-secondary" type="button" id="scanQrButton">
+
+          <button
+            class="button button-secondary"
+            type="button"
+            id="scanQrButton">
             <i data-lucide="scan-qr-code"></i> Scan QR
           </button>
         </form>
@@ -44,13 +70,24 @@
             <div class="panel-header">
               <div>
                 <h2>Arahkan kamera ke QR Code</h2>
-                <div class="panel-subtitle" id="qrScannerStatus">Menyiapkan kamera...</div>
+                <div class="panel-subtitle" id="qrScannerStatus">
+                  Menyiapkan kamera...
+                </div>
               </div>
-              <button class="icon-button" type="button" id="stopQrButton" aria-label="Tutup kamera">
+
+              <button
+                class="icon-button"
+                type="button"
+                id="stopQrButton"
+                aria-label="Tutup kamera">
                 <i data-lucide="x"></i>
               </button>
             </div>
-            <div id="qrReader" style="width:100%;max-width:500px;margin:auto;overflow:hidden;border-radius:10px"></div>
+
+            <div
+              id="qrReader"
+              style="width:100%;max-width:500px;margin:auto;overflow:hidden;border-radius:10px">
+            </div>
           </div>
         </div>
 
@@ -65,6 +102,19 @@
     ui().iconRefresh();
   }
 
+  function updateLastUpdated() {
+    const element = ui().$("#qrInfoLastUpdated");
+
+    if (!element) return;
+
+    element.textContent = lastLookupUpdated
+      ? new Intl.DateTimeFormat("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short"
+        }).format(lastLookupUpdated)
+      : "Belum ada pencarian";
+  }
+
   async function startScanner() {
     const panel = ui().$("#qrScannerPanel");
     const status = ui().$("#qrScannerStatus");
@@ -72,7 +122,10 @@
 
     if (!window.Html5Qrcode) {
       ui().$("#qrResult").innerHTML =
-        `<div class="notice warning">Pustaka pemindai QR belum berhasil dimuat. Periksa koneksi internet lalu muat ulang aplikasi.</div>`;
+        `<div class="notice warning">
+          Pustaka pemindai QR belum berhasil dimuat.
+          Periksa koneksi internet lalu muat ulang aplikasi.
+        </div>`;
       return;
     }
 
@@ -93,6 +146,7 @@
         },
         async (decodedText) => {
           if (scanHandled) return;
+
           scanHandled = true;
 
           const input = ui().$("#qrValue");
@@ -104,12 +158,17 @@
         () => {}
       );
 
-      status.textContent = "Kamera aktif. Arahkan ke QR Code perangkat.";
+      status.textContent =
+        "Kamera aktif. Arahkan ke QR Code perangkat.";
     } catch (error) {
       await stopScanner();
 
       ui().$("#qrResult").innerHTML =
-        `<div class="notice warning">Kamera tidak dapat dibuka. Pastikan izin kamera diberikan kepada browser dan aplikasi dibuka melalui HTTPS. Detail: ${ui().escapeHTML(error.message || error)}</div>`;
+        `<div class="notice warning">
+          Kamera tidak dapat dibuka. Pastikan izin kamera diberikan
+          kepada browser dan aplikasi dibuka melalui HTTPS.
+          Detail: ${ui().escapeHTML(error.message || error)}
+        </div>`;
     } finally {
       button.disabled = false;
     }
@@ -130,40 +189,78 @@
     }
 
     const panel = document.getElementById("qrScannerPanel");
-    if (panel) panel.style.display = "none";
+
+    if (panel) {
+      panel.style.display = "none";
+    }
 
     const button = document.getElementById("scanQrButton");
-    if (button) button.disabled = false;
+
+    if (button) {
+      button.disabled = false;
+    }
   }
 
   async function lookup(event) {
-    event.preventDefault();
+    event?.preventDefault?.();
 
     const form = ui().$("#qrForm");
     const input = ui().$("#qrValue");
-    const button = event.submitter || form.querySelector('button[type="submit"]');
     const result = ui().$("#qrResult");
+
+    if (!form || !input || !result) {
+      return false;
+    }
+
+    const button =
+      event?.submitter ||
+      form.querySelector('button[type="submit"]');
+
     const qr = input.value.trim();
 
-    if (!qr) return false;
-    lastLookup = qr;
+    if (!qr) {
+      return false;
+    }
 
-    button.disabled = true;
+    if (button) {
+      button.disabled = true;
+    }
+
     result.innerHTML =
-      `<div class="loading-panel"><span class="spinner"></span> Mencari perangkat...</div>`;
+      `<div class="loading-panel">
+        <span class="spinner"></span>
+        Mencari perangkat...
+      </div>`;
 
     try {
       const response = await TechOpsAPI.get("qr.info", { qr });
 
       if (!response || response.success === false) {
         result.innerHTML =
-          `<div class="notice warning">${ui().escapeHTML(response?.message || "Perangkat tidak ditemukan.")}<br>Serial: ${ui().escapeHTML(response?.serial || qr)}</div>`;
-        return;
+          `<div class="notice warning">
+            ${ui().escapeHTML(
+              response?.message || "Perangkat tidak ditemukan."
+            )}
+            <br>
+            Serial: ${ui().escapeHTML(response?.serial || qr)}
+          </div>`;
+
+        return false;
       }
 
-      const device = response.perangkat || response.device || response.data || {};
-      const history = Array.isArray(response.riwayat) ? response.riwayat : [];
-      const isPrinter = String(response.jenis_aset || "").toLowerCase().includes("printer");
+      const device =
+        response.perangkat ||
+        response.device ||
+        response.data ||
+        {};
+
+      const history = Array.isArray(response.riwayat)
+        ? response.riwayat
+        : [];
+
+      const isPrinter = String(response.jenis_aset || "")
+        .toLowerCase()
+        .includes("printer");
 
       const fields = isPrinter
         ? {
@@ -194,42 +291,77 @@
           };
 
       const detail = Object.entries(fields)
-        .filter(([key]) => device[key] !== undefined && device[key] !== "")
+        .filter(([key]) =>
+          device[key] !== undefined && device[key] !== ""
+        )
         .map(([key, label]) =>
-          `<div class="detail-item"><small>${label}</small><strong>${ui().escapeHTML(device[key])}</strong></div>`
-        ).join("");
+          `<div class="detail-item">
+            <small>${label}</small>
+            <strong>${ui().escapeHTML(device[key])}</strong>
+          </div>`
+        )
+        .join("");
 
       result.innerHTML =
         `<div class="panel" style="padding:16px;margin-top:12px">
           <div class="panel-header">
             <div>
-              <h2>${isPrinter ? "Informasi Printer" : "Informasi Komputer"}</h2>
-              <div class="panel-subtitle">Serial: ${ui().escapeHTML(device.serial || qr)}</div>
+              <h2>
+                ${isPrinter ? "Informasi Printer" : "Informasi Komputer"}
+              </h2>
+              <div class="panel-subtitle">
+                Serial: ${ui().escapeHTML(device.serial || qr)}
+              </div>
             </div>
             <span class="badge green">Ditemukan</span>
           </div>
-          <div class="detail-grid">${detail || "<div>Detail perangkat tidak tersedia.</div>"}</div>
+
+          <div class="detail-grid">
+            ${detail || "<div>Detail perangkat tidak tersedia.</div>"}
+          </div>
         </div>
+
         <div class="panel" style="padding:16px;margin-top:14px">
           <div class="panel-header">
             <div>
               <h2>Riwayat Maintenance</h2>
-              <div class="panel-subtitle">${history.length} catatan ditemukan</div>
+              <div class="panel-subtitle">
+                ${history.length} catatan ditemukan
+              </div>
             </div>
           </div>
+
           ${renderHistory(history)}
         </div>`;
+
+      // Simpan pencarian terakhir hanya jika berhasil.
+      lastLookup = qr;
+      lastLookupUpdated = new Date();
+
+      updateLastUpdated();
+
+      return true;
+
     } catch (error) {
       result.innerHTML =
-        `<div class="notice warning">${ui().escapeHTML(error.message || error)}</div>`;
+        `<div class="notice warning">
+          ${ui().escapeHTML(error.message || error)}
+        </div>`;
+
+      return false;
+
     } finally {
-      button.disabled = false;
+      if (button) {
+        button.disabled = false;
+      }
     }
   }
 
   function renderHistory(rows) {
     if (!rows.length) {
-      return `<div class="empty-state">Belum ada riwayat maintenance untuk perangkat ini.</div>`;
+      return `<div class="empty-state">
+        Belum ada riwayat maintenance untuk perangkat ini.
+      </div>`;
     }
 
     return `<div class="table-wrap">
@@ -243,6 +375,7 @@
             <th>TEKNISI</th>
           </tr>
         </thead>
+
         <tbody>
           ${rows.map(r => `
             <tr>
@@ -258,31 +391,33 @@
     </div>`;
   }
 
-  
-async function refresh() {
-  if (!lastLookup) {
-    ui().toast(
-      "Belum ada perangkat yang dicari. Silakan cari atau scan QR terlebih dahulu."
-    );
-    return false;
+  async function refresh() {
+    if (!lastLookup) {
+      ui().toast(
+        "Belum ada perangkat yang dicari. Silakan cari atau scan QR terlebih dahulu."
+      );
+
+      return false;
+    }
+
+    const input = ui().$("#qrValue");
+    const form = ui().$("#qrForm");
+
+    if (!input || !form) {
+      return false;
+    }
+
+    input.value = lastLookup;
+
+    return await lookup({
+      preventDefault() {},
+      submitter: form.querySelector('button[type="submit"]')
+    });
   }
 
-  const input = ui().$("#qrValue");
-  const form = ui().$("#qrForm");
-
-  if (!input || !form) return false;
-
-  input.value = lastLookup;
-
-  return await lookup({
-    preventDefault() {},
-    submitter: form.querySelector('button[type="submit"]')
-  });
-}
-
-window.QRInfoPage = {
-  render,
-  refresh
-};
+  window.QRInfoPage = {
+    render,
+    refresh
+  };
 
 })();
