@@ -1,4 +1,3 @@
-
 (function () {
   "use strict";
 
@@ -9,7 +8,16 @@
     computers: [],
     printers: [],
     maintenance: [],
+
+    // Jumlah arsip dari API khusus.
+    // Tidak berisi data detail perangkat arsip.
+    archiveCounts: {
+      computers: 0,
+      printers: 0
+    },
+
     loaded: false,
+    lastUpdated: null,
     page: "dashboard",
     user: null,
     authenticated: false,
@@ -92,7 +100,6 @@
     box.style.display = message ? "block" : "none";
   }
 
-  
   /* =====================================================
      1. AKSES LOGIN DAN PROFIL ADMIN MELALUI AVATAR GT
   ===================================================== */
@@ -319,19 +326,18 @@
     avatar.style.cursor = "pointer";
 
     if (avatar.dataset.techopsBound !== "true") {
+      avatar.addEventListener("click", () => {
+        if (state.authChecking) {
+          toast("Sedang memeriksa sesi Admin. Silakan tunggu sebentar.");
+          return;
+        }
 
-    avatar.addEventListener("click", () => {
-      if (state.authChecking) {
-        toast("Sedang memeriksa sesi Admin. Silakan tunggu sebentar.");
-        return;
-      }
-
-      if (state.authenticated && state.user) {
-        toggleProfileMenu();
-      } else {
-        renderLogin();
-      }
-    });
+        if (state.authenticated && state.user) {
+          toggleProfileMenu();
+        } else {
+          renderLogin();
+        }
+      });
 
       avatar.dataset.techopsBound = "true";
     }
@@ -340,6 +346,7 @@
   /* =====================================================
      2. POPUP LOGIN ADMIN - PIN 6 DIGIT
   ===================================================== */
+
   function renderLogin(message = "") {
     let modal = $("#techOpsLoginModal");
 
@@ -456,6 +463,7 @@
   /* =====================================================
      3. PROSES LOGIN ADMIN
   ===================================================== */
+
   async function handleLogin(event) {
     event.preventDefault();
 
@@ -733,7 +741,6 @@
      6. LOGOUT ADMIN
   ===================================================== */
 
-  
   async function handleLogout() {
     if (!confirm("Apakah Anda yakin ingin keluar dari GoJak TechOps?")) {
       return;
@@ -759,9 +766,8 @@
     }
   }
 
-
   /* =====================================================
-     7. MEMUAT DATA PUBLIK
+     7. MEMUAT DATA PUBLIK DAN ADMIN
   ===================================================== */
 
   async function loadAll() {
@@ -786,28 +792,45 @@
       ]);
     };
 
-const [computers, printers, maintenance] = await Promise.all([
-  timeout(
-    TechOpsAPI.get("computers.list", {
-      includeArchived: TechOpsAPI.isAuthenticated()
-    }),
-    "Inventaris komputer"
-  ),
-  timeout(
-    TechOpsAPI.get("printers.list", {
-      includeArchived: TechOpsAPI.isAuthenticated()
-    }),
-    "Inventaris printer"
-  ),
-  timeout(TechOpsAPI.get("maintenance.list"), "Data maintenance")
-]);
+    const [computers, printers, maintenance, archiveCounts] =
+      await Promise.all([
+        timeout(
+          TechOpsAPI.get("computers.list", {
+            includeArchived: TechOpsAPI.isAuthenticated()
+          }),
+          "Inventaris komputer"
+        ),
+
+        timeout(
+          TechOpsAPI.get("printers.list", {
+            includeArchived: TechOpsAPI.isAuthenticated()
+          }),
+          "Inventaris printer"
+        ),
+
+        timeout(
+          TechOpsAPI.get("maintenance.list"),
+          "Data maintenance"
+        ),
+
+        timeout(
+          TechOpsAPI.get("inventory.archiveCounts"),
+          "Jumlah perangkat arsip"
+        )
+      ]);
 
     state.computers = normalizeArray(computers);
     state.printers = normalizeArray(printers);
     state.maintenance = normalizeArray(maintenance);
 
+    state.archiveCounts = {
+      computers: Number(archiveCounts?.computers || 0),
+      printers: Number(archiveCounts?.printers || 0)
+    };
+
     state.loaded = true;
     state.lastUpdated = new Date();
+
     setConnection(true, "Backend terhubung");
 
     return state;
@@ -855,12 +878,21 @@ const [computers, printers, maintenance] = await Promise.all([
 
   function renderDashboard() {
     const host = $("#appContent");
-    if (window.DashboardPage && typeof window.DashboardPage.render === "function") {
+
+    if (window.DashboardPage &&
+        typeof window.DashboardPage.render === "function") {
       window.DashboardPage.render(host, state);
+
     } else {
-      host.innerHTML = pageHeading("Dashboard", "Ringkasan inventaris dan operasional perangkat IT.", "OVERVIEW") +
+      host.innerHTML =
+        pageHeading(
+          "Dashboard",
+          "Ringkasan inventaris dan operasional perangkat IT.",
+          "OVERVIEW"
+        ) +
         '<div class="panel error-state">Modul Dashboard belum termuat. Silakan muat ulang halaman.</div>';
     }
+
     bindRefresh();
   }
 
@@ -886,69 +918,75 @@ const [computers, printers, maintenance] = await Promise.all([
     setConnection(false, "Koneksi bermasalah");
   }
 
-  function bindRefresh() {
-  const button = $("#refreshButton");
-  if (!button || button.dataset.refreshBound === "true") return;
+  /* =====================================================
+     11. REFRESH DATA
+  ===================================================== */
 
-  button.addEventListener("click", refreshAndRender);
-  button.dataset.refreshBound = "true";
+  function bindRefresh() {
+    const button = $("#refreshButton");
+
+    if (!button || button.dataset.refreshBound === "true") return;
+
+    button.addEventListener("click", refreshAndRender);
+    button.dataset.refreshBound = "true";
   }
 
   async function refreshAndRender() {
-  const button = $("#refreshButton");
-  const page = state.page;
-  let refreshed = true;
+    const button = $("#refreshButton");
+    const page = state.page;
+    let refreshed = true;
 
-  if (button) button.disabled = true;
+    if (button) button.disabled = true;
 
-  try {
-    if (page === "computers") {
-      await window.ComputersPage.refresh();
+    try {
+      if (page === "computers") {
+        await window.ComputersPage.refresh();
 
-    } else if (page === "printers") {
-      await window.PrintersPage.refresh();
+      } else if (page === "printers") {
+        await window.PrintersPage.refresh();
 
-    } else if (page === "maintenance") {
-      await window.MaintenancePage.refresh();
+      } else if (page === "maintenance") {
+        await window.MaintenancePage.refresh();
 
-    } else if (page === "qr-info") {
-      refreshed = await window.QRInfoPage.refresh();
+      } else if (page === "qr-info") {
+        refreshed = await window.QRInfoPage.refresh();
 
-    } else {
-      // Dashboard: mengambil seluruh data.
-      await loadAll();
+      } else {
+        // Dashboard: mengambil seluruh data,
+        // termasuk jumlah arsip komputer dan printer.
+        await loadAll();
 
-      if (state.page === page) {
-        renderCurrentPage();
+        if (state.page === page) {
+          renderCurrentPage();
+        }
       }
+
+      if (refreshed !== false) {
+        setConnection(true, "Backend terhubung");
+        toast("Data berhasil diperbarui.");
+      }
+
+    } catch (error) {
+      setConnection(false, "Koneksi bermasalah");
+
+      toast(
+        "Gagal memperbarui data: " +
+        (error.message || error)
+      );
+
+      console.error("Gagal memperbarui data:", error);
+
+    } finally {
+      const currentButton = $("#refreshButton");
+
+      if (currentButton) currentButton.disabled = false;
+      if (button) button.disabled = false;
     }
-
-    if (refreshed !== false) {
-      setConnection(true, "Backend terhubung");
-      toast("Data berhasil diperbarui.");
-    }
-
-  } catch (error) {
-    setConnection(false, "Koneksi bermasalah");
-
-    toast(
-      "Gagal memperbarui data: " +
-      (error.message || error)
-    );
-
-    console.error("Gagal memperbarui data:", error);
-
-  } finally {
-    const currentButton = $("#refreshButton");
-
-    if (currentButton) currentButton.disabled = false;
-    if (button) button.disabled = false;
   }
-}
-  /* =====================================================
-     SIDEBAR MOBILE
-  ===================================================== */
 
+  /* =====================================================
+     12. SIDEBAR MOBILE
+  ===================================================== */
 
   function openSidebar() {
     const sidebar = $("#sidebar");
@@ -981,88 +1019,90 @@ const [computers, printers, maintenance] = await Promise.all([
   }
 
   /* =====================================================
-     11. NAVIGASI
+     13. NAVIGASI
   ===================================================== */
 
   function renderCurrentPage() {
-  const page = location.hash.replace("#", "") || "dashboard";
+    const page = location.hash.replace("#", "") || "dashboard";
 
-  // Simpan kode halaman, bukan nama tampilannya.
-  state.page = pageNames[page] ? page : "dashboard";
+    // Simpan kode halaman, bukan nama tampilannya.
+    state.page = pageNames[page] ? page : "dashboard";
 
-  $$(".nav-link").forEach(link => {
-    link.classList.toggle(
-      "active",
-      link.dataset.page === state.page
-    );
-  });
+    $$(".nav-link").forEach(link => {
+      link.classList.toggle(
+        "active",
+        link.dataset.page === state.page
+      );
+    });
 
-  const breadcrumb = $("#pageCrumb");
-  if (breadcrumb) {
-    breadcrumb.textContent =
-      pageNames[state.page] || "Dashboard";
+    const breadcrumb = $("#pageCrumb");
+
+    if (breadcrumb) {
+      breadcrumb.textContent =
+        pageNames[state.page] || "Dashboard";
+    }
+
+    if (state.page === "computers") {
+      window.ComputersPage.render();
+
+    } else if (state.page === "printers") {
+      window.PrintersPage.render();
+
+    } else if (state.page === "maintenance") {
+      window.MaintenancePage.render();
+
+    } else if (state.page === "qr-info") {
+      window.QRInfoPage.render();
+
+    } else {
+      renderDashboard();
+    }
+
+    closeSidebar();
   }
-
-  if (state.page === "computers") {
-    window.ComputersPage.render();
-
-  } else if (state.page === "printers") {
-    window.PrintersPage.render();
-
-  } else if (state.page === "maintenance") {
-    window.MaintenancePage.render();
-
-  } else if (state.page === "qr-info") {
-    window.QRInfoPage.render();
-
-  } else {
-    renderDashboard();
-  }
-
-  closeSidebar();
-}
 
   /* =====================================================
-     12. INISIALISASI
+     14. INISIALISASI
   ===================================================== */
 
   async function init() {
     const year = $("#currentYear");
-    if (year) year.textContent = new Date().getFullYear();
 
-    
-  $("#menuToggle")?.addEventListener("click", toggleSidebar);
-  $("#sidebarOverlay")?.addEventListener("click", closeSidebar);
-
-  // Tutup dropdown ketika klik di luar avatar dan menu.
-  document.addEventListener("click", event => {
-    const menu = $("#techOpsProfileMenu");
-    const avatar = $(".avatar");
-
-    if (
-      menu &&
-      !menu.contains(event.target) &&
-      !avatar?.contains(event.target)
-    ) {
-      closeProfileMenu();
+    if (year) {
+      year.textContent = new Date().getFullYear();
     }
-  });
 
-  // Tombol Escape menutup menu, popup, dan sidebar.
-  document.addEventListener("keydown", event => {
-    if (event.key !== "Escape") return;
+    $("#menuToggle")?.addEventListener("click", toggleSidebar);
+    $("#sidebarOverlay")?.addEventListener("click", closeSidebar);
 
-    closeProfileMenu();
+    // Tutup dropdown ketika klik di luar avatar dan menu.
+    document.addEventListener("click", event => {
+      const menu = $("#techOpsProfileMenu");
+      const avatar = $(".avatar");
 
-    $("#techOpsProfileModal")?.remove();
-    $("#techOpsLoginModal")?.remove();
-    $("#techOpsChangePinModal")?.remove();
+      if (
+        menu &&
+        !menu.contains(event.target) &&
+        !avatar?.contains(event.target)
+      ) {
+        closeProfileMenu();
+      }
+    });
 
-    closeSidebar();
-  });
+    // Tombol Escape menutup menu, popup, dan sidebar.
+    document.addEventListener("keydown", event => {
+      if (event.key !== "Escape") return;
 
-  window.addEventListener("hashchange", renderCurrentPage);
+      closeProfileMenu();
 
+      $("#techOpsProfileModal")?.remove();
+      $("#techOpsLoginModal")?.remove();
+      $("#techOpsChangePinModal")?.remove();
+
+      closeSidebar();
+    });
+
+    window.addEventListener("hashchange", renderCurrentPage);
 
     // Tampilkan Dashboard langsung.
     updateUserDisplay();
@@ -1109,14 +1149,14 @@ const [computers, printers, maintenance] = await Promise.all([
         state.authenticated = false;
       }
 
-        state.authChecking = false;
+      state.authChecking = false;
 
-        // Perbarui tampilan setelah validasi sesi selesai.
-        updateUserDisplay();
-        renderCurrentPage();
+      // Perbarui tampilan setelah validasi sesi selesai.
+      updateUserDisplay();
+      renderCurrentPage();
     })();
 
-    // Data publik dimuat tanpa menunggu validasi Admin.
+    // Data dimuat tanpa menunggu validasi Admin.
     try {
       await loadAll();
       renderCurrentPage();
@@ -1134,7 +1174,7 @@ const [computers, printers, maintenance] = await Promise.all([
   }
 
   /* =====================================================
-     13. PUBLIC STATE DAN UI
+     15. PUBLIC STATE DAN UI
   ===================================================== */
 
   window.TechOpsState = state;
