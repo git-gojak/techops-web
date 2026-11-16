@@ -193,8 +193,9 @@
       `
       : empty("Belum ada data unit.");
 
+  
     // ==========================================
-    // 4. RIWAYAT MAINTENANCE
+    // 4. MONITORING KONDISI KOMPUTER & PRINTER
     // ==========================================
 
     const datedMaintenance = maintenance
@@ -207,7 +208,6 @@
         (a._date?.getTime() || 0)
       );
 
-    // Normalisasi jenis aset agar kunci perangkat konsisten.
     function normalizeAssetType(value) {
       const type = String(value || "").trim().toLowerCase();
 
@@ -222,8 +222,6 @@
       return "";
     }
 
-    // Kunci perangkat: jenis aset + serial.
-    // Nama aset menjadi cadangan jika serial kosong.
     function deviceKey(type, serial, name) {
       const normalizedType = normalizeAssetType(type);
       const identity = String(serial || name || "")
@@ -235,7 +233,7 @@
       return `${normalizedType}|${identity}`;
     }
 
-    // Ambil catatan maintenance terbaru setiap perangkat.
+    // Catatan terbaru untuk setiap perangkat.
     const latestByDevice = new Map();
 
     datedMaintenance
@@ -252,99 +250,153 @@
         latestByDevice.set(key, row);
       });
 
-    // Inventaris aktif menjadi dasar penghitungan kondisi.
-    const inventoryDevices = [
-      ...activeComputers.map(row => ({
+    // Inventaris aktif dipisahkan berdasarkan jenis perangkat.
+    const inventoryByType = {
+      komputer: activeComputers.map(row => ({
         type: "komputer",
-        serial: row.serial,
-        name: row.komputer
+        name: row.komputer || "Komputer tanpa nama",
+        serial: row.serial || ""
       })),
 
-      ...activePrinters.map(row => ({
+      printer: activePrinters.map(row => ({
         type: "printer",
-        serial: row.serial,
-        name: row.serial
+        name: row.unit || "Printer tanpa nama",
+        serial: row.serial || ""
       }))
-    ];
-
-    // Hindari perangkat yang sama dihitung dua kali.
-    const uniqueInventory = new Map();
-
-    inventoryDevices.forEach(device => {
-      const key = deviceKey(
-        device.type,
-        device.serial,
-        device.name
-      );
-
-      if (key && !uniqueInventory.has(key)) {
-        uniqueInventory.set(key, device);
-      }
-    });
-
-    const conditionCounts = {
-      "Baik": 0,
-      "Perlu Perhatian": 0,
-      "Rusak": 0,
-      "Belum Ada Data Kondisi": 0
     };
 
-    // Hitung kondisi terbaru hanya untuk perangkat inventaris aktif.
-    uniqueInventory.forEach((device, key) => {
-      const latest = latestByDevice.get(key);
+    // Menghindari perangkat ganda berdasarkan jenis + serial.
+    Object.keys(inventoryByType).forEach(type => {
+      const unique = new Map();
 
-      if (!latest) {
-        conditionCounts["Belum Ada Data Kondisi"]++;
-        return;
-      }
+      inventoryByType[type].forEach(device => {
+        const key = deviceKey(
+          device.type,
+          device.serial,
+          device.name
+        );
 
-      const condition = String(latest.kondisi || "")
-        .trim()
-        .toLowerCase();
+        if (key && !unique.has(key)) {
+          unique.set(key, device);
+        }
+      });
 
-      if (condition === "baik") {
-        conditionCounts.Baik++;
-      } else if (condition === "perlu perhatian") {
-        conditionCounts["Perlu Perhatian"]++;
-      } else if (condition === "rusak") {
-        conditionCounts.Rusak++;
-      } else {
-        conditionCounts["Belum Ada Data Kondisi"]++;
-      }
+      inventoryByType[type] = [...unique.values()];
     });
 
-    const conditionHtml = `
-      <div class="dash-condition-list">
-        <div>
-          <span class="condition-dot good"></span>
-          <span>Baik</span>
-          <strong>${conditionCounts.Baik}</strong>
+    function buildConditionPanel(devices, typeLabel) {
+      const counts = {
+        Baik: 0,
+        "Perlu Perhatian": 0,
+        Rusak: 0,
+        "Belum Ada Data Kondisi": 0
+      };
+
+      const missingHistory = [];
+
+      devices.forEach(device => {
+        const key = deviceKey(
+          device.type,
+          device.serial,
+          device.name
+        );
+
+        const latest = latestByDevice.get(key);
+
+        if (!latest) {
+          counts["Belum Ada Data Kondisi"]++;
+          missingHistory.push(device);
+          return;
+        }
+
+        const condition = String(latest.kondisi || "")
+          .trim()
+          .toLowerCase();
+
+        if (condition === "baik") {
+          counts.Baik++;
+        } else if (condition === "perlu perhatian") {
+          counts["Perlu Perhatian"]++;
+        } else if (condition === "rusak") {
+          counts.Rusak++;
+        } else {
+          counts["Belum Ada Data Kondisi"]++;
+        }
+      });
+
+      const missingHtml = missingHistory.length
+        ? `
+          <details class="dash-missing-details">
+            <summary>
+              <span>Belum ada riwayat Maintenance</span>
+              <strong>${missingHistory.length}</strong>
+            </summary>
+
+            <div class="dash-missing-list">
+              ${missingHistory.map(device => `
+                <div class="dash-missing-row">
+                  <div>
+                    <strong>${esc(device.name)}</strong>
+                    <small>Serial: ${esc(device.serial || "-")}</small>
+                  </div>
+                  <span>Belum tercatat</span>
+                </div>
+              `).join("")}
+            </div>
+          </details>
+        `
+        : `
+          <div class="dash-no-missing">
+            <i data-lucide="check-circle-2"></i>
+            Semua perangkat sudah memiliki riwayat Maintenance.
+          </div>
+        `;
+
+      return `
+        <div class="dash-condition-list">
+          <div>
+            <span class="condition-dot good"></span>
+            <span>Baik</span>
+            <strong>${counts.Baik}</strong>
+          </div>
+
+          <div>
+            <span class="condition-dot attention"></span>
+            <span>Perlu Perhatian</span>
+            <strong>${counts["Perlu Perhatian"]}</strong>
+          </div>
+
+          <div>
+            <span class="condition-dot bad"></span>
+            <span>Rusak</span>
+            <strong>${counts.Rusak}</strong>
+          </div>
+
+          <div>
+            <span class="condition-dot"></span>
+            <span>Belum Ada Data Kondisi</span>
+            <strong>${counts["Belum Ada Data Kondisi"]}</strong>
+          </div>
+
+          <small>
+            ${typeLabel}: ${devices.length} perangkat aktif.
+            Kondisi berdasarkan catatan Maintenance terbaru.
+          </small>
         </div>
 
-        <div>
-          <span class="condition-dot attention"></span>
-          <span>Perlu Perhatian</span>
-          <strong>${conditionCounts["Perlu Perhatian"]}</strong>
-        </div>
+        ${missingHtml}
+      `;
+    }
 
-        <div>
-          <span class="condition-dot bad"></span>
-          <span>Rusak</span>
-          <strong>${conditionCounts.Rusak}</strong>
-        </div>
+    const computerConditionHtml = buildConditionPanel(
+      inventoryByType.komputer,
+      "Komputer"
+    );
 
-        <div>
-          <span class="condition-dot"></span>
-          <span>Belum Ada Data Kondisi</span>
-          <strong>${conditionCounts["Belum Ada Data Kondisi"]}</strong>
-        </div>
-
-        <small>
-          Berdasarkan kondisi maintenance terakhir dari
-          ${uniqueInventory.size} perangkat inventaris aktif.
-        </small>
-      </div>
-    `;
+    const printerConditionHtml = buildConditionPanel(
+      inventoryByType.printer,
+      "Printer"
+    );
 
     // ==========================================
     // 5. JADWAL MAINTENANCE
@@ -691,21 +743,23 @@
           "schedule-panel"
         )}
 
+        
         ${panel(
-          "Ringkasan Kondisi Perangkat",
-          "Kondisi terbaru berdasarkan riwayat tiap perangkat",
-          "heart-pulse",
-          conditionHtml,
-          "condition-panel"
+          "Kondisi Komputer",
+          "Monitoring kondisi dan riwayat Maintenance komputer",
+          "monitor",
+          computerConditionHtml,
+          "condition-panel computer-condition-panel"
         )}
 
         ${panel(
-          "Aktivitas Maintenance Terbaru",
-          "Enam catatan maintenance terakhir",
-          "history",
-          recentHtml,
-          "activity-panel"
+          "Kondisi Printer",
+          "Monitoring kondisi dan riwayat Maintenance printer",
+          "printer",
+          printerConditionHtml,
+          "condition-panel printer-condition-panel"
         )}
+
       </section>
     `;
 
