@@ -879,22 +879,64 @@
   }
 
   function bindRefresh() {
-    $("#refreshButton")?.addEventListener("click", refreshAndRender);
+  const button = $("#refreshButton");
+  if (!button || button.dataset.refreshBound === "true") return;
+
+  button.addEventListener("click", refreshAndRender);
+  button.dataset.refreshBound = "true";
   }
 
   async function refreshAndRender() {
-    const button = $("#refreshButton");
+  const button = $("#refreshButton");
+  const page = state.page;
+  let refreshed = true;
 
-    if (button) button.disabled = true;
+  if (button) button.disabled = true;
 
-    try {
+  try {
+    if (page === "computers") {
+      await window.ComputersPage.refresh();
+
+    } else if (page === "printers") {
+      await window.PrintersPage.refresh();
+
+    } else if (page === "maintenance") {
+      await window.MaintenancePage.refresh();
+
+    } else if (page === "qr-info") {
+      refreshed = await window.QRInfoPage.refresh();
+
+    } else {
+      // Dashboard: mengambil seluruh data.
       await loadAll();
-      renderCurrentPage();
-      toast("Data berhasil diperbarui.");
-    } catch (error) {
-      renderError(error);
+
+      if (state.page === page) {
+        renderCurrentPage();
+      }
     }
+
+    if (refreshed !== false) {
+      setConnection(true, "Backend terhubung");
+      toast("Data berhasil diperbarui.");
+    }
+
+  } catch (error) {
+    setConnection(false, "Koneksi bermasalah");
+
+    toast(
+      "Gagal memperbarui data: " +
+      (error.message || error)
+    );
+
+    console.error("Gagal memperbarui data:", error);
+
+  } finally {
+    const currentButton = $("#refreshButton");
+
+    if (currentButton) currentButton.disabled = false;
+    if (button) button.disabled = false;
   }
+}
   /* =====================================================
      SIDEBAR MOBILE
   ===================================================== */
