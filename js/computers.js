@@ -546,5 +546,8 @@
     }
   }
 
-  window.ComputersPage = { render };
+  window.ComputersPage = {
+  render,
+  refresh: loadComputerRows
+};
 })();
