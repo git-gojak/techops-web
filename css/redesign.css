@@ -192,3 +192,293 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; }
 }
+
+
+/* =====================================================
+   DASHBOARD UPDATE — GOJAK TECHOPS
+   ===================================================== */
+
+/* Tombol refresh di samping breadcrumb Dashboard */
+.dashboard-header-refresh {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  margin-left: 8px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.dashboard-header-refresh i {
+  width: 17px;
+  height: 17px;
+}
+
+.dashboard-header-refresh:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.dashboard-header-refresh:disabled i {
+  animation: dashboard-refresh-spin 1s linear infinite;
+}
+
+@keyframes dashboard-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Bagian data terakhir diperbarui */
+.dash-last-updated {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 17px;
+  padding: 14px 16px;
+  background: #ffffff;
+  border: 1px solid #e5ebf3;
+  border-radius: 13px;
+  box-shadow: 0 5px 16px rgba(15,23,42,.04);
+}
+
+.dash-updated-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: #2563eb;
+  background: #eff6ff;
+  border-radius: 10px;
+}
+
+.dash-updated-icon i {
+  width: 18px;
+  height: 18px;
+}
+
+.dash-last-updated > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dash-last-updated strong {
+  color: #172b55;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.dash-last-updated small {
+  color: #718096;
+  font-size: 11px;
+}
+
+/* Kartu statistik komputer dan printer */
+.dash-stats-grid {
+  margin-bottom: 18px;
+}
+
+.dash-stat-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.dash-stat-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15,23,42,.09);
+}
+
+.dash-stat-link:focus-visible {
+  outline: 3px solid rgba(37,99,235,.3);
+  outline-offset: 3px;
+}
+
+.dash-stat-link .stat-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.dash-stat-link .stat-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.dash-active-label {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.dash-card-arrow {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  color: #94a3b8;
+}
+
+.dash-stat-link:hover .dash-card-arrow {
+  color: #2563eb;
+}
+
+/* Kartu akses cepat */
+.quick-panel {
+  margin-bottom: 18px;
+}
+
+.quick-panel .quick-links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quick-panel .quick-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 68px;
+  padding: 12px;
+  color: inherit;
+  text-decoration: none;
+  background: #f8fafc;
+  border: 1px solid #e7edf6;
+  border-radius: 11px;
+  transition: background .18s ease, border-color .18s ease;
+}
+
+.quick-panel .quick-link:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.quick-panel .quick-link > span:nth-child(2) {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.quick-panel .quick-link strong {
+  color: #172b55;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.quick-panel .quick-link small {
+  color: #8491a5;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.quick-panel .quick-link .stat-icon {
+  width: 35px;
+  height: 35px;
+  flex: 0 0 35px;
+}
+
+.quick-link-arrow {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: #94a3b8;
+}
+
+/* Monitoring unit tetap menjadi panel utama */
+.unit-panel {
+  grid-column: span 2;
+}
+
+/* Responsif tablet */
+@media (max-width: 1100px) {
+  .quick-panel .quick-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Responsif HP */
+@media (max-width: 760px) {
+  .dash-last-updated {
+    margin-bottom: 12px;
+    padding: 12px;
+  }
+
+  .dash-stats-grid {
+    margin-bottom: 13px;
+  }
+
+  .quick-panel {
+    margin-bottom: 13px;
+  }
+
+  .quick-panel .quick-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .quick-panel .quick-link {
+    min-height: 66px;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .quick-panel .quick-link .stat-icon {
+    width: 31px;
+    height: 31px;
+    flex-basis: 31px;
+  }
+
+  .quick-panel .quick-link strong {
+    font-size: 10px;
+  }
+
+  .quick-panel .quick-link small {
+    font-size: 9px;
+  }
+
+  .dash-stat-link {
+    gap: 6px;
+  }
+
+  .dash-card-arrow {
+    width: 12px;
+    height: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .quick-panel .quick-link {
+    padding: 9px 8px;
+    gap: 6px;
+  }
+
+  .quick-panel .quick-link .stat-icon {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+  }
+
+  .quick-panel .quick-link-arrow {
+    width: 11px;
+    height: 11px;
+  }
+
+  .dash-stat-link .stat-acquisition {
+    padding-left: 5px;
+  }
+}
+
