@@ -797,7 +797,7 @@
     state.maintenance = normalizeArray(maintenance);
 
     state.loaded = true;
-
+    state.lastUpdated = new Date();
     setConnection(true, "Backend terhubung");
 
     return state;
