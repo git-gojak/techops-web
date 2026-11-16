@@ -1,7 +1,6 @@
-
 /* GoJak TechOps — Dashboard
    Frontend only. Menggunakan data dari app.js.
-   Tidak mengubah API, backend, atau Google Sheets.
+   Data arsip dihitung melalui API inventory.archiveCounts.
 */
 (function () {
   "use strict";
@@ -95,6 +94,14 @@
     const maintenance = Array.isArray(state.maintenance)
       ? state.maintenance : [];
 
+    const archiveCounts = state.archiveCounts || {};
+
+    const archivedComputerCount =
+      Number(archiveCounts.computers || 0);
+
+    const archivedPrinterCount =
+      Number(archiveCounts.printers || 0);
+
     const now = new Date();
     const year = now.getFullYear();
 
@@ -106,10 +113,7 @@
       String(row.status || "").trim().toLowerCase() === "arsip";
 
     const activeComputers = computers.filter(row => !isArchived(row));
-    const archivedComputers = computers.filter(isArchived);
-
     const activePrinters = printers.filter(row => !isArchived(row));
-    const archivedPrinters = printers.filter(isArchived);
 
     const acquiredComputers = activeComputers.filter(
       row => yearOf(row.tahun) === year
@@ -445,7 +449,7 @@
 
           <span>
             <i data-lucide="archive"></i>
-            <b>${archivedComputers.length}</b> Arsip
+            <b>${archivedComputerCount}</b> Arsip
           </span>
         </div>
       </a>
@@ -480,7 +484,7 @@
 
           <span>
             <i data-lucide="archive"></i>
-            <b>${archivedPrinters.length}</b> Arsip
+            <b>${archivedPrinterCount}</b> Arsip
           </span>
         </div>
       </a>
@@ -596,8 +600,7 @@
     `;
 
     // Tidak membuat tombol refresh tambahan di header.
-    // Tombol di kartu Data Terakhir Diperbarui menggunakan
-    // bindRefresh() yang sudah tersedia di app.js.
+    // Tombol Data Terakhir Diperbarui diikat oleh app.js.
 
     if (window.lucide) {
       window.lucide.createIcons();
