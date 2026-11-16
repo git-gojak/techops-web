@@ -366,58 +366,6 @@
       : empty("Belum ada aktivitas maintenance.");
 
     // ==========================================
-    // 7. AKSES CEPAT
-    // ==========================================
-
-    const quickHtml = `
-      <div class="quick-links">
-        <a class="quick-link" href="#computers">
-          <span class="stat-icon blue">
-            <i data-lucide="monitor"></i>
-          </span>
-          <span>
-            <strong>Inventaris Komputer</strong>
-            <small>Lihat data komputer</small>
-          </span>
-          <i class="quick-link-arrow" data-lucide="chevron-right"></i>
-        </a>
-
-        <a class="quick-link" href="#printers">
-          <span class="stat-icon teal">
-            <i data-lucide="printer"></i>
-          </span>
-          <span>
-            <strong>Inventaris Printer</strong>
-            <small>Lihat data printer</small>
-          </span>
-          <i class="quick-link-arrow" data-lucide="chevron-right"></i>
-        </a>
-
-        <a class="quick-link" href="#maintenance">
-          <span class="stat-icon amber">
-            <i data-lucide="wrench"></i>
-          </span>
-          <span>
-            <strong>Maintenance</strong>
-            <small>Riwayat dan jadwal</small>
-          </span>
-          <i class="quick-link-arrow" data-lucide="chevron-right"></i>
-        </a>
-
-        <a class="quick-link" href="#qr-info">
-          <span class="stat-icon green">
-            <i data-lucide="qr-code"></i>
-          </span>
-          <span>
-            <strong>QR Info</strong>
-            <small>Cari perangkat via QR</small>
-          </span>
-          <i class="quick-link-arrow" data-lucide="chevron-right"></i>
-        </a>
-      </div>
-    `;
-
-    // ==========================================
     // 8. KARTU DASHBOARD
     // ==========================================
 
@@ -584,14 +532,6 @@
         ${maintenanceCard}
         ${backendCard}
       </section>
-
-      ${panel(
-        "Akses Cepat",
-        "Pintasan menuju modul GoJak TechOps",
-        "grid-2x2",
-        quickHtml,
-        "quick-panel"
-      )}
 
       <section class="dash-content-grid">
         ${panel(
