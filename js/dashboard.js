@@ -586,43 +586,27 @@
   // 10. TOMBOL REFRESH DI HEADER
   // ==========================================
 
-  function ensureHeaderRefreshButton() {
-    const actions = document.querySelector(".topbar-actions");
-    if (!actions) return;
+ function ensureHeaderRefreshButton() {
+  const breadcrumb = document.querySelector(".breadcrumb");
+  const pageCrumb = document.getElementById("pageCrumb");
 
-    let button = document.getElementById("refreshButton");
+  if (!breadcrumb || !pageCrumb) return;
 
-    if (!button) {
-      button = document.createElement("button");
-      button.id = "refreshButton";
-      button.type = "button";
-      button.className = "icon-button dashboard-header-refresh";
-      button.setAttribute("aria-label", "Perbarui data");
-      button.title = "Perbarui data";
-      button.innerHTML = '<i data-lucide="refresh-cw"></i>';
+  let button = document.getElementById("refreshButton");
 
-      const environment = actions.querySelector(".environment-label");
-
-      if (environment) {
-        actions.insertBefore(button, environment);
-      } else {
-        actions.prepend(button);
-      }
-    } else if (button.parentElement !== actions) {
-      const environment = actions.querySelector(".environment-label");
-
-      button.className = "icon-button dashboard-header-refresh";
-      button.innerHTML = '<i data-lucide="refresh-cw"></i>';
-      button.setAttribute("aria-label", "Perbarui data");
-      button.title = "Perbarui data";
-
-      if (environment) {
-        actions.insertBefore(button, environment);
-      } else {
-        actions.prepend(button);
-      }
-    }
+  if (!button) {
+    button = document.createElement("button");
+    button.id = "refreshButton";
   }
+
+  button.type = "button";
+  button.className = "icon-button dashboard-header-refresh";
+  button.setAttribute("aria-label", "Perbarui data");
+  button.title = "Perbarui data";
+  button.innerHTML = '<i data-lucide="refresh-cw"></i>';
+
+  pageCrumb.insertAdjacentElement("afterend", button);
+}
 
   window.DashboardPage = { render };
 })();
