@@ -863,3 +863,74 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
     height: 15px;
   }
 }
+
+
+
+/* =====================================================
+   FIX DASHBOARD REFRESH DAN LABEL AKTIF
+===================================================== */
+
+/* Refresh hanya berada di kartu Data Terakhir Diperbarui */
+.dash-last-updated .dash-updated-icon {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.dash-last-updated .dash-updated-icon:hover {
+  background: #dbeafe;
+}
+
+.dash-last-updated .dash-updated-icon:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+
+.dash-last-updated .dash-updated-icon:disabled i {
+  animation: dashboard-refresh-spin 1s linear infinite;
+}
+
+/* Angka total dan label Aktif sejajar */
+.dash-total-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.dash-total-line .stat-value {
+  margin-top: 0 !important;
+}
+
+.dash-total-line .dash-active-label {
+  margin-top: 0 !important;
+  flex: 0 0 auto;
+}
+
+/* Tampilan HP */
+@media (max-width: 760px) {
+  .dash-total-line {
+    gap: 7px;
+  }
+
+  .dash-total-line .dash-active-label {
+    padding: 4px 9px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 390px) {
+  .dash-total-line {
+    gap: 5px;
+  }
+
+  .dash-total-line .dash-active-label {
+    padding: 3px 7px;
+    font-size: 9px;
+  }
+}
+
