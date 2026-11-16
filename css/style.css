@@ -1145,6 +1145,7 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  justify-content: flex-start;
   min-height: 160px;
   padding: 14px 12px 0;
   gap: 4px;
