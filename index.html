@@ -67,8 +67,50 @@
     </div>
   </div>
 
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- MOBILE BOTTOM NAVIGATION -->
+<nav class="mobile-bottom-nav" aria-label="Navigasi utama">
+
+  <a href="#dashboard" class="mobile-nav-item nav-link" data-page="dashboard">
+    <i data-lucide="layout-dashboard"></i>
+    <span>Dashboard</span>
+  </a>
+
+  <a href="#computers" class="mobile-nav-item nav-link" data-page="computers">
+    <i data-lucide="monitor"></i>
+    <span>Komputer</span>
+  </a>
+
+  <a href="#printers" class="mobile-nav-item nav-link" data-page="printers">
+    <i data-lucide="printer"></i>
+    <span>Printer</span>
+  </a>
+
+  <a href="#maintenance" class="mobile-nav-item nav-link" data-page="maintenance">
+    <i data-lucide="wrench"></i>
+    <span>Maintenance</span>
+  </a>
+
+  <details class="mobile-more">
+    <summary class="mobile-nav-item">
+      <i data-lucide="ellipsis"></i>
+      <span>Lainnya</span>
+    </summary>
+
+    <div class="mobile-more-menu">
+      <a href="#qr-info" class="nav-link" data-page="qr-info">
+        <i data-lucide="scan-qr-code"></i>
+        <span>QR Info</span>
+      </a>
+    </div>
+  </details>
+
+</nav>
+
+<div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
 
   <script defer src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
   <script defer src="./api.js"></script>
