@@ -419,62 +419,78 @@
     // ==========================================
 
     const computerCard = `
-      <a class="stat-card stat-card-acquisition dash-stat-link"
+      <a class="stat-card dash-stat-link dash-inventory-card computer-inventory-card"
          href="#computers">
 
-        <div class="stat-main">
-          <div class="stat-label">Total Komputer</div>
-          <div class="stat-value">${activeComputers.length}</div>
-          <div class="stat-note">
+        <div class="dash-card-top">
+          <span class="stat-icon blue dash-large-icon">
+            <i data-lucide="monitor"></i>
+          </span>
+
+          <div class="dash-card-main">
+            <div class="stat-label">Total Komputer</div>
+            <div class="stat-value">${activeComputers.length}</div>
             <span class="dash-active-label">Aktif</span>
-            <span>· ${archivedComputers.length} Arsip</span>
           </div>
+
+          <i class="dash-card-arrow" data-lucide="chevron-right"></i>
         </div>
 
-        <div class="stat-acquisition">
-          <strong>${acquiredComputers}</strong>
-          <span>Tahun Ini</span>
+        <div class="dash-card-bottom">
+          <span>
+            <i data-lucide="calendar-days"></i>
+            <b>${acquiredComputers}</b> Tahun Ini
+          </span>
+
+          <span>
+            <i data-lucide="archive"></i>
+            <b>${archivedComputers.length}</b> Arsip
+          </span>
         </div>
-
-        <span class="stat-icon blue">
-          <i data-lucide="monitor"></i>
-        </span>
-
-        <i class="dash-card-arrow" data-lucide="chevron-right"></i>
       </a>
     `;
 
     const printerCard = `
-      <a class="stat-card stat-card-acquisition dash-stat-link"
+      <a class="stat-card dash-stat-link dash-inventory-card printer-inventory-card"
          href="#printers">
 
-        <div class="stat-main">
-          <div class="stat-label">Total Printer</div>
-          <div class="stat-value">${activePrinters.length}</div>
-          <div class="stat-note">
+        <div class="dash-card-top">
+          <span class="stat-icon teal dash-large-icon">
+            <i data-lucide="printer"></i>
+          </span>
+
+          <div class="dash-card-main">
+            <div class="stat-label">Total Printer</div>
+            <div class="stat-value">${activePrinters.length}</div>
             <span class="dash-active-label">Aktif</span>
-            <span>· ${archivedPrinters.length} Arsip</span>
           </div>
+
+          <i class="dash-card-arrow" data-lucide="chevron-right"></i>
         </div>
 
-        <div class="stat-acquisition">
-          <strong>${acquiredPrinters}</strong>
-          <span>Tahun Ini</span>
+        <div class="dash-card-bottom">
+          <span>
+            <i data-lucide="calendar-days"></i>
+            <b>${acquiredPrinters}</b> Tahun Ini
+          </span>
+
+          <span>
+            <i data-lucide="archive"></i>
+            <b>${archivedPrinters.length}</b> Arsip
+          </span>
         </div>
-
-        <span class="stat-icon teal">
-          <i data-lucide="printer"></i>
-        </span>
-
-        <i class="dash-card-arrow" data-lucide="chevron-right"></i>
       </a>
     `;
 
     const maintenanceCard = `
-      <a class="stat-card dash-stat-link"
+      <a class="stat-card dash-stat-link dash-operation-card maintenance-summary-card"
          href="#maintenance">
 
-        <div>
+        <span class="stat-icon amber dash-large-icon">
+          <i data-lucide="wrench"></i>
+        </span>
+
+        <div class="dash-operation-copy">
           <div class="stat-label">Riwayat Maintenance</div>
           <div class="stat-value">${maintenance.length}</div>
           <div class="stat-note">
@@ -482,19 +498,18 @@
           </div>
         </div>
 
-        <span class="stat-icon amber">
-          <i data-lucide="wrench"></i>
-        </span>
-
         <i class="dash-card-arrow" data-lucide="chevron-right"></i>
       </a>
     `;
 
-    // Backend tidak dibuat sebagai tautan karena tidak memiliki
-    // halaman detail tersendiri.
     const backendCard = `
-      <article class="stat-card">
-        <div>
+      <article class="stat-card dash-operation-card backend-summary-card">
+
+        <span class="stat-icon green dash-large-icon">
+          <i data-lucide="activity"></i>
+        </span>
+
+        <div class="dash-operation-copy">
           <div class="stat-label">Koneksi Backend</div>
           <div class="stat-value dash-online">Terintegrasi</div>
           <div class="stat-note">
@@ -502,9 +517,6 @@
           </div>
         </div>
 
-        <span class="stat-icon green">
-          <i data-lucide="activity"></i>
-        </span>
       </article>
     `;
 
