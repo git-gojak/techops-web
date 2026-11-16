@@ -1028,12 +1028,26 @@
     // Simpan kode halaman, bukan nama tampilannya.
     state.page = pageNames[page] ? page : "dashboard";
 
-    $$(".nav-link").forEach(link => {
-      link.classList.toggle(
-        "active",
-        link.dataset.page === state.page
-      );
-    });
+    
+$$(".nav-link").forEach(link => {
+  link.classList.toggle(
+    "active",
+    link.dataset.page === state.page
+  );
+});
+
+// Tandai menu Lainnya jika QR Info sedang dibuka.
+const mobileMore = document.querySelector(".mobile-more");
+
+if (mobileMore) {
+  mobileMore.classList.toggle(
+    "active",
+    state.page === "qr-info"
+  );
+
+  mobileMore.open = false;
+}
+
 
     const breadcrumb = $("#pageCrumb");
 
