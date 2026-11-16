@@ -93,7 +93,8 @@
       </section>`;
 
     ui().$("#maintenanceSearch").addEventListener("input", event => {
-      drawTable(event.target.value);
+      currentQuery = event.target.value;
+      drawTable(currentQuery);
     });
 
     if (isAdmin()) {
@@ -1372,8 +1373,18 @@ const payload = {
   // EXPORT HALAMAN
   // =====================================================
 
-  window.MaintenancePage = {
-    render
-  };
+  
+async function refresh() {
+  const result = await api().get("maintenance.list");
+
+  state().maintenance = ui().normalizeArray(result);
+
+  drawTable(currentQuery);
+}
+
+window.MaintenancePage = {
+  render,
+  refresh
+};
 
 })();
