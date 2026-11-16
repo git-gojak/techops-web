@@ -1145,10 +1145,10 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: flex-start;
-  min-height: 160px;
-  padding: 14px 12px 0;
-  gap: 4px;
+  justify-content: space-between;
+  min-height: 178px;
+  padding: 18px 20px 0;
+  gap: 12px;
 }
 
 .dash-card-top {
@@ -1353,11 +1353,11 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
     gap: 12px;
   }
 
-  .dash-inventory-card {
-    min-height: 160px;
-    padding: 14px 12px 0;
-    gap: 10px;
-  }
+.dash-inventory-card {
+  min-height: 160px;
+  padding: 14px 12px 0;
+  gap: 4px;
+}
 
   .dash-card-top {
     gap: 9px;
