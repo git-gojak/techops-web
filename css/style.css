@@ -1356,6 +1356,7 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 .dash-inventory-card {
   min-height: 160px;
   padding: 14px 12px 0;
+  justify-content: flex-start;
   gap: 4px;
 }
 
