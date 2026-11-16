@@ -283,11 +283,17 @@
       inventoryByType[type] = [...unique.values()];
     });
 
-    function buildConditionPanel(devices, typeLabel) {
+    // ==========================================
+    // PERHITUNGAN KONDISI PERANGKAT
+    // ==========================================
+
+    function buildConditionPanel(devices, typeLabel, archivedCount) {
+      const archived = Math.max(0, Number(archivedCount) || 0);
+
       const counts = {
         Baik: 0,
         "Perlu Perhatian": 0,
-        Rusak: 0,
+        Rusak: archived,
         "Belum Ada Data Kondisi": 0
       };
 
@@ -323,6 +329,8 @@
         }
       });
 
+      const totalDevices = devices.length + archived;
+
       const missingHtml = missingHistory.length
         ? `
           <details class="dash-missing-details">
@@ -347,7 +355,7 @@
         : `
           <div class="dash-no-missing">
             <i data-lucide="check-circle-2"></i>
-            Semua perangkat sudah memiliki riwayat Maintenance.
+            Semua perangkat aktif sudah memiliki riwayat Maintenance.
           </div>
         `;
 
@@ -378,8 +386,10 @@
           </div>
 
           <small>
-            ${typeLabel}: ${devices.length} perangkat aktif.
-            Kondisi berdasarkan catatan Maintenance terbaru.
+            ${typeLabel}: ${totalDevices} perangkat.
+            ${devices.length} aktif dan ${archived} arsip.
+            Kondisi perangkat aktif berdasarkan catatan Maintenance terbaru.
+            Seluruh perangkat arsip dihitung sebagai Rusak.
           </small>
         </div>
 
@@ -389,12 +399,14 @@
 
     const computerConditionHtml = buildConditionPanel(
       inventoryByType.komputer,
-      "Komputer"
+      "Komputer",
+      archivedComputerCount
     );
 
     const printerConditionHtml = buildConditionPanel(
       inventoryByType.printer,
-      "Printer"
+      "Printer",
+      archivedPrinterCount
     );
 
     // ==========================================
