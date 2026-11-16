@@ -207,7 +207,6 @@
         (a._date?.getTime() || 0)
       );
 
-    
     // Normalisasi jenis aset agar kunci perangkat konsisten.
     function normalizeAssetType(value) {
       const type = String(value || "").trim().toLowerCase();
@@ -347,35 +346,6 @@
       </div>
     `;
 
-
-    const conditionHtml = `
-      <div class="dash-condition-list">
-        <div>
-          <span class="condition-dot good"></span>
-          <span>Baik</span>
-          <strong>${conditionCounts.Baik}</strong>
-        </div>
-
-        <div>
-          <span class="condition-dot attention"></span>
-          <span>Perlu Perhatian</span>
-          <strong>${conditionCounts["Perlu Perhatian"]}</strong>
-        </div>
-
-        <div>
-          <span class="condition-dot bad"></span>
-          <span>Rusak</span>
-          <strong>${conditionCounts.Rusak}</strong>
-        </div>
-
-        <small>
-          Merujuk kondisi terakhir tiap perangkat yang memiliki
-          riwayat maintenance.
-        </small>
-      </div>
-    `;
-
-    
     // ==========================================
     // 5. JADWAL MAINTENANCE
     // ==========================================
@@ -504,7 +474,6 @@
       }
     `;
 
-
     // ==========================================
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
@@ -538,7 +507,7 @@
       : empty("Belum ada aktivitas maintenance.");
 
     // ==========================================
-    // 8. KARTU DASHBOARD
+    // 7. KARTU INVENTARIS
     // ==========================================
 
     const computerCard = `
@@ -612,7 +581,7 @@
     `;
 
     // ==========================================
-    // KARTU TOTAL MAINTENANCE
+    // 8. KARTU TOTAL MAINTENANCE
     // ==========================================
 
     const totalPerawatan = maintenance.filter(row =>
