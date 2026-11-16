@@ -3,11 +3,14 @@
   "use strict";
 
   const ui = () => window.TechOpsUI;
+
   let scanner = null;
   let scanHandled = false;
+  let lastLookup = "";
 
   function render() {
-    stopScanner();
+  stopScanner();
+  lastLookup = "";
 
     const host = ui().$("#appContent");
     host.innerHTML =
@@ -142,7 +145,8 @@
     const result = ui().$("#qrResult");
     const qr = input.value.trim();
 
-    if (!qr) return;
+    if (!qr) return false;
+    lastLookup = qr;
 
     button.disabled = true;
     result.innerHTML =
@@ -254,5 +258,31 @@
     </div>`;
   }
 
-  window.QRInfoPage = { render };
+  
+async function refresh() {
+  if (!lastLookup) {
+    ui().toast(
+      "Belum ada perangkat yang dicari. Silakan cari atau scan QR terlebih dahulu."
+    );
+    return false;
+  }
+
+  const input = ui().$("#qrValue");
+  const form = ui().$("#qrForm");
+
+  if (!input || !form) return false;
+
+  input.value = lastLookup;
+
+  return await lookup({
+    preventDefault() {},
+    submitter: form.querySelector('button[type="submit"]')
+  });
+}
+
+window.QRInfoPage = {
+  render,
+  refresh
+};
+
 })();
