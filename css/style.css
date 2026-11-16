@@ -1142,14 +1142,10 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 }
 
 .dash-inventory-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: stretch;
-  min-height: 178px;
-  padding: 18px 20px 0;
-  gap: 12px;
-  overflow: hidden;
+  min-height: 160px;
+  padding: 14px 12px 0;
+  justify-content: flex-start;
+  gap: 10px;
 }
 
 .dash-card-top {
