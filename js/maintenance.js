@@ -9,6 +9,7 @@
   let selectedDevice = null;
   let qrScanner = null;
   let scannerStarting = false;
+  let currentQuery = "";
 
   // =====================================================
   // UTILITAS
