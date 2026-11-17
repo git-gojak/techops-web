@@ -389,6 +389,19 @@ i[data-lucide] { width: 18px; height: 18px; stroke-width: 1.9; flex: 0 0 auto; }
   border-style: dashed;
   cursor: not-allowed;
 }
+.computer-form-field input[type="radio"] {
+  width: 15px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0;
+  margin: 0;
+  border: initial;
+  border-radius: 50%;
+  box-shadow: none;
+  accent-color: var(--primary);
+  vertical-align: middle;
+  flex: 0 0 15px;
+}
 
 .computer-field-hint {
   color: #94a3b8;
