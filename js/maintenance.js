@@ -762,61 +762,9 @@ function drawTable(query) {
 
         <!-- IDENTITAS PERANGKAT -->
 
-        <section class="computer-form-section">
-
-          <div class="computer-section-heading">
-            <span class="computer-section-icon">
-              <i data-lucide="monitor-check"></i>
-            </span>
-
-            <div>
-              <span class="computer-section-number">01</span>
-              <h3>Identitas Perangkat</h3>
-            </div>
-          </div>
-
-          <div class="computer-form-grid">
-
-            <div class="computer-form-field">
-              <label class="computer-field-label">
-                Jenis Aset
-              </label>
-
-              <input
-                type="text"
-                readonly
-                value="${ui().escapeHTML(device.type)}"
-              >
-            </div>
-
-            <div class="computer-form-field">
-              <label class="computer-field-label">
-                Serial
-              </label>
-
-              <input
-                type="text"
-                readonly
-                value="${ui().escapeHTML(device.serial)}"
-              >
-            </div>
-
-            <div class="computer-form-field computer-field-wide">
-              <label class="computer-field-label">
-                Nama Perangkat
-              </label>
-
-              <input
-                type="text"
-                readonly
-                value="${ui().escapeHTML(
-                  device.name || device.model || "-"
-                )}"
-              >
-            </div>
-
-          </div>
-        </section>
+               <div class="computer-form-intro">
+          Silakan lengkapi detail kegiatan maintenance perangkat.
+        </div>
 
         <!-- DETAIL MAINTENANCE -->
 
