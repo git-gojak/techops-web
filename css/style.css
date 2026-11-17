@@ -1673,7 +1673,10 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
     border-top: 1px solid #e5eaf2;
     box-shadow: 0 -4px 18px rgba(15, 23, 42, .08);
   }
-
+  /* Sembunyikan navigasi ketika modal aktif */
+  body.modal-open .mobile-bottom-nav {
+    display: none !important;
+  }
   .mobile-nav-item {
     min-width: 0;
     display: flex;
