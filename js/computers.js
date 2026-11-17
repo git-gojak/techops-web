@@ -241,7 +241,6 @@ function drawTable(query) {
       <table class="data-table">
         <thead>
           <tr>
-            <th>NO</th>
             <th>COMPUTER NAME</th>
             <th>MEREK / MODEL</th>
             <th>SERIAL</th>
@@ -252,13 +251,12 @@ function drawTable(query) {
           </tr>
         </thead>
         <tbody>
-          ${displayed.map((row, index) => {
+          ${displayed.map(row => {
             const serial = escape(row.serial);
             const archived =
               String(row.status || "").trim().toLowerCase() === "arsip";
 
             return `<tr>
-              <td>${startIndex + index + 1}</td>
               <td class="primary-cell">${escape(row.komputer)}</td>
               <td>${escape([row.merek, row.model].filter(Boolean).join(" "))}</td>
               <td>${escape(row.serial)}</td>
