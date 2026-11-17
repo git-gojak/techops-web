@@ -1,4 +1,4 @@
-const CACHE_NAME = "gojak-techops-v2-ui-refresh";
+const CACHE_NAME = "gojak-techops-v3-mobile-pagination";
 const APP_SHELL = [
   "./",
   "./index.html",
