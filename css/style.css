@@ -1938,3 +1938,28 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
     cursor: not-allowed;
   }
 }
+
+
+/* =========================================
+   MAINTENANCE - MODAL SCAN QR MOBILE
+========================================= */
+
+@media (max-width: 760px) {
+
+  .modal-backdrop.qr-scan-backdrop {
+    align-items: center;
+    padding:
+      max(12px, env(safe-area-inset-top))
+      10px
+      max(12px, env(safe-area-inset-bottom));
+  }
+
+  .modal.qr-scan-modal {
+    width: 100%;
+    max-height: 88vh;
+    max-height: 88dvh;
+    overflow-y: auto;
+    border-radius: 16px;
+  }
+
+}
