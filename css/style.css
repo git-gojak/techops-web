@@ -1829,12 +1829,17 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 
 
 /* =========================================
-   PAGINATION INVENTARIS KOMPUTER — MOBILE
+   MOBILE PAGINATION — SHARED COMPONENT
+   Digunakan oleh Komputer, Printer, dan page lain.
    Desktop tidak mengalami perubahan.
 ========================================= */
 
+.mobile-pagination {
+  display: none;
+}
+
 @media (max-width: 760px) {
-  #computerTable .computer-pagination {
+  .mobile-pagination {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1843,8 +1848,8 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
     padding: 4px 0;
   }
 
-  #computerTable .computer-page-number,
-  #computerTable .computer-page-arrow {
+  .mobile-page-number,
+  .mobile-page-arrow {
     width: 34px;
     height: 34px;
     min-width: 34px;
@@ -1861,25 +1866,25 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
     cursor: pointer;
   }
 
-  #computerTable .computer-page-number.active {
+  .mobile-page-number.active {
     border-color: #2563eb;
     background: #2563eb;
     color: #ffffff;
   }
 
-  #computerTable .computer-page-number:not(.active):hover,
-  #computerTable .computer-page-arrow:not(:disabled):hover {
+  .mobile-page-number:not(.active):hover,
+  .mobile-page-arrow:not(:disabled):hover {
     border-color: #bfdbfe;
     background: #eff6ff;
     color: #1d4ed8;
   }
 
-  #computerTable .computer-page-arrow {
+  .mobile-page-arrow {
     font-size: 20px;
     font-weight: 400;
   }
 
-  #computerTable .computer-page-arrow:disabled {
+  .mobile-page-arrow:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
