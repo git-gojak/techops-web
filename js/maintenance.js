@@ -823,94 +823,75 @@ function drawTable(query) {
               </div>
             </div>
 
+            
             <!-- JENIS KERUSAKAN -->
-
+            
             <div
               class="computer-form-field computer-field-wide"
               id="maintenanceRepairTypeWrap"
               style="display:none"
             >
-
-              <label
-                class="computer-field-label"
-                for="maintenanceRepairType"
-              >
+              <label class="computer-field-label">
                 Jenis Kerusakan
                 <span class="computer-form-required">*</span>
               </label>
-
-              <select id="maintenanceRepairType">
-                <option value="">Pilih jenis kerusakan</option>
-                <option value="Hardware">Hardware</option>
-                <option value="Software">Software</option>
-              </select>
-
+            
+              <div class="maintenance-radio-group">
+                <label>
+                  <input type="radio" name="maintenanceRepairType" value="Hardware">
+                  Hardware
+                </label>
+            
+                <label>
+                  <input type="radio" name="maintenanceRepairType" value="Software">
+                  Software
+                </label>
+              </div>
             </div>
 
             <!-- KETERANGAN -->
-
+            
             <div class="computer-form-field computer-field-wide">
-
-              <label
-                class="computer-field-label"
-                for="maintenanceNotes"
-              >
+              <label class="computer-field-label" for="maintenanceNotes">
                 Keterangan
                 <span class="computer-form-required">*</span>
               </label>
-
-              <textarea
+            
+              <input
                 id="maintenanceNotes"
-                rows="3"
-                placeholder="Tuliskan pekerjaan perawatan yang dilakukan"
+                type="text"
+                placeholder="Tuliskan keterangan kegiatan maintenance"
                 required
-              ></textarea>
-
+              >
             </div>
 
-            <!-- KONDISI -->
-
-            <div class="computer-form-field computer-field-wide">
-
-              <label class="computer-field-label">
-                Kondisi Perangkat
-                <span class="computer-form-required">*</span>
+            
+          <!-- KONDISI -->
+          
+          <div class="computer-form-field computer-field-wide">
+            <label class="computer-field-label">
+              Kondisi Perangkat
+              <span class="computer-form-required">*</span>
+            </label>
+          
+            <div class="maintenance-radio-group">
+              <label>
+                <input type="radio" name="maintenanceCondition" value="Baik" required>
+                Baik
               </label>
-
-              <div style="display:flex;gap:22px;flex-wrap:wrap">
-
-                <label>
-                  <input
-                    type="radio"
-                    name="maintenanceCondition"
-                    value="Baik"
-                    required
-                  >
-                  Baik
-                </label>
-
-                <label>
-                  <input
-                    type="radio"
-                    name="maintenanceCondition"
-                    value="Perlu Perhatian"
-                    required
-                  >
-                  Perlu Perhatian
-                </label>
-
-                <label>
-                  <input
-                    type="radio"
-                    name="maintenanceCondition"
-                    value="Rusak"
-                    required
-                  >
-                  Rusak
-                </label>
-
-              </div>
+          
+              <label>
+                <input type="radio" name="maintenanceCondition" value="Perlu Perhatian" required>
+                Perlu Perhatian
+              </label>
+          
+              <label>
+                <input type="radio" name="maintenanceCondition" value="Rusak" required>
+                Rusak
+              </label>
             </div>
+          </div>
+
 
             <!-- REFILL -->
 
@@ -1155,41 +1136,49 @@ function drawTable(query) {
   // TAMPILKAN / SEMBUNYIKAN JENIS KERUSAKAN
   // =====================================================
 
-  function updateActivityFields() {
-    const activity = document.querySelector(
-      'input[name="maintenanceActivity"]:checked'
-    )?.value;
+ 
+function updateActivityFields() {
+  const activity = document.querySelector(
+    'input[name="maintenanceActivity"]:checked'
+  )?.value;
 
-    const wrapper = document.getElementById(
-      "maintenanceRepairTypeWrap"
-    );
+  const wrapper = document.getElementById(
+    "maintenanceRepairTypeWrap"
+  );
 
-    const repairType = document.getElementById(
-      "maintenanceRepairType"
-    );
+  const notes = document.getElementById(
+    "maintenanceNotes"
+  );
 
-    const notes = document.getElementById(
-      "maintenanceNotes"
-    );
+  const repairTypes = document.querySelectorAll(
+    'input[name="maintenanceRepairType"]'
+  );
 
-    if (!wrapper || !repairType || !notes) return;
+  if (!wrapper || !notes) return;
 
-    if (activity === "Perbaikan") {
-      wrapper.style.display = "";
-      repairType.required = true;
+  if (activity === "Perbaikan") {
+    wrapper.style.display = "";
 
-      notes.placeholder =
-        "Jelaskan detail kerusakan dan tindakan perbaikan";
+    repairTypes.forEach(input => {
+      input.required = true;
+    });
 
-    } else {
-      wrapper.style.display = "none";
-      repairType.required = false;
-      repairType.value = "";
+    notes.placeholder =
+      "Jelaskan detail kerusakan dan tindakan perbaikan";
 
-      notes.placeholder =
-        "Tuliskan pekerjaan perawatan yang dilakukan";
-    }
+  } else {
+    wrapper.style.display = "none";
+
+    repairTypes.forEach(input => {
+      input.required = false;
+      input.checked = false;
+    });
+
+    notes.placeholder =
+      "Tuliskan pekerjaan perawatan yang dilakukan";
   }
+}
+
 
   // =====================================================
   // SIMPAN MAINTENANCE
@@ -1238,9 +1227,9 @@ function drawTable(query) {
       .getElementById("maintenanceNotes")
       .value.trim();
 
-    const repairType = document
-      .getElementById("maintenanceRepairType")
-      .value;
+    const repairType = form.querySelector(
+  'input[name="maintenanceRepairType"]:checked'
+)?.value || "";
 
     if (!activity || !condition || !notes) {
       showFormMessage(
