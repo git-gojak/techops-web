@@ -873,7 +873,7 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
     justify-content: center;
     white-space: nowrap;
   }
-  .modal-backdrop {
+  .modal-backdrop:not(.device-confirmation-backdrop) {
     z-index: 120;
     align-items:flex-end;
     padding:8px 8px max(8px,env(safe-area-inset-bottom));
