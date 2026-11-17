@@ -187,7 +187,6 @@
       console.error("Gagal memuat komputer:", error);
     });
   }
-
   
 function drawTable(query) {
   const all = state().computers || [];
