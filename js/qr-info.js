@@ -65,9 +65,15 @@
           </button>
         </form>
 
-        <div id="qrScannerPanel" style="display:none;margin-top:18px">
-          <div class="panel" style="padding:14px">
-            <div class="panel-header">
+        <!-- Modal Scanner QR Info -->
+        <div
+          id="qrScannerPanel"
+          class="modal-backdrop qr-scan-backdrop"
+          style="display:none"
+        >
+          <section class="modal qr-scan-modal">
+
+            <div class="modal-header">
               <div>
                 <h2>Arahkan kamera ke QR Code</h2>
                 <div class="panel-subtitle" id="qrScannerStatus">
@@ -86,9 +92,17 @@
 
             <div
               id="qrReader"
-              style="width:100%;max-width:500px;margin:auto;overflow:hidden;border-radius:10px">
-            </div>
-          </div>
+              style="
+                width:100%;
+                max-width:440px;
+                margin:0 auto;
+                overflow:hidden;
+                border-radius:12px;
+                background:#111;
+              "
+            ></div>
+
+          </section>
         </div>
 
         <div id="qrResult" style="margin-top:18px"></div>
@@ -129,7 +143,7 @@
       return;
     }
 
-    panel.style.display = "block";
+    panel.style.display = "grid";
     button.disabled = true;
     scanHandled = false;
     status.textContent = "Meminta izin kamera...";
