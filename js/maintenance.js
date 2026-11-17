@@ -682,10 +682,6 @@ function drawTable(query) {
     }
 
     const content = `
-      <div class="computer-form-intro">
-        QR berhasil dibaca. Pastikan identitas perangkat berikut sudah benar.
-      </div>
-
       <section class="computer-form-section">
 
         <div class="computer-section-heading">
@@ -722,7 +718,7 @@ function drawTable(query) {
           class="button button-primary"
           id="maintenanceContinue"
         >
-          Lanjutkan ke Maintenance
+          Lanjutkan
         </button>
 
       </div>
