@@ -3037,3 +3037,16 @@ button, a, input, select {
   }
 
 }
+
+/*=========================================
+   HP LANDSCAPE — SIDEBAR VERTICAL SCROLL
+=========================================*/
+
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 500px) {
+  .sidebar {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+}
