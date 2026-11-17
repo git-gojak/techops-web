@@ -49,21 +49,27 @@
   }
 
   function normalizeFTPDate(value) {
-    if (!value) return "";
+  if (!value) return "";
 
-    const text = String(value).trim();
+  const text = String(value).trim();
 
-    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-      return text;
-    }
+  // Format ISO: 2014-05-30T00:00:00
+  const isoMatch = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoMatch) return isoMatch[1];
 
-    const match = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  // Format tanggal: 2014-05-30
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return text;
+  }
 
-    if (match) {
-      return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
-    }
+  // Format tanggal: 30-05-2014 atau 30/05/2014
+  const match = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
 
-    return "";
+  if (match) {
+    return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+  }
+
+  return "";
   }
 
   function calculateMP(ftp) {
