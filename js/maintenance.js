@@ -754,18 +754,8 @@ function drawTable(query) {
 
     const content = `
       <form id="maintenanceForm" class="computer-form">
-
-        <div class="computer-form-intro">
-          Perangkat sudah teridentifikasi dari inventaris.
-          Silakan isi detail kegiatan maintenance.
-        </div>
-
         <!-- IDENTITAS PERANGKAT -->
-
-               <div class="computer-form-intro">
-          Silakan lengkapi detail kegiatan maintenance perangkat.
-        </div>
-
+          <div class="computer-form-intro">Silakan isi detail kegiatan maintenance</div>
         <!-- DETAIL MAINTENANCE -->
 
         <section class="computer-form-section">
