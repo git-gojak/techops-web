@@ -1440,19 +1440,63 @@ function updateActivityFields() {
     return `${year}-${month}-${day}`;
   }
 
-  function formatDate(value) {
-    if (!value) return "-";
-
-    const date = new Date(value);
-
-    return Number.isNaN(date.getTime())
-      ? value
-      : date.toLocaleDateString("id-ID", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric"
-        });
+  
+function formatDate(value) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
   }
+
+  let year;
+  let month;
+  let day;
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return "-";
+
+    year = value.getFullYear();
+    month = value.getMonth() + 1;
+    day = value.getDate();
+  } else {
+    const text = String(value).trim();
+
+    // Format ISO: 2026-11-17 atau 2026-11-17T00:00:00
+    const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+
+    if (isoMatch) {
+      year = Number(isoMatch[1]);
+      month = Number(isoMatch[2]);
+      day = Number(isoMatch[3]);
+    } else {
+      // Format Indonesia: 17-11-2026 atau 17/11/2026
+      const localMatch = text.match(
+        /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/
+      );
+
+      if (!localMatch) return text;
+
+      day = Number(localMatch[1]);
+      month = Number(localMatch[2]);
+      year = Number(localMatch[3]);
+    }
+  }
+
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return "-";
+  }
+
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+}
+
 
   // =====================================================
   // EXPORT HALAMAN
