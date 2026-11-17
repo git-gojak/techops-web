@@ -406,7 +406,7 @@ function drawTable(query) {
       </div>
     `;
 
-    showModal("Scan QR Perangkat", content, "computer-modal");
+    showModal("Scan QR Perangkat", content, "computer-modal qr-scan-modal");
 
     startScanner();
   }
@@ -1124,6 +1124,10 @@ function drawTable(query) {
     const backdrop = document.createElement("div");
 
     backdrop.className = "modal-backdrop";
+
+    if (variant && variant.includes("qr-scan-modal")) {
+      backdrop.classList.add("qr-scan-backdrop");
+    }
     backdrop.id = "maintenanceModal";
 
     backdrop.innerHTML = `
