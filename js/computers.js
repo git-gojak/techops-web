@@ -45,8 +45,13 @@
   const FIELDS = FIELD_GROUPS.flatMap(group => group.fields);
 
   let currentQuery = "";
+  let currentPage = 1;
+  const PAGE_SIZE = 10;
+  
   let modalElement = null;
   let busy = false;
+  let lastMobileMode = null;
+  let resizeHandlerBound = false;
 
   function isAdmin() {
     return !!state().authenticated;
@@ -147,6 +152,7 @@
 
     input.addEventListener("input", () => {
       currentQuery = input.value;
+      currentPage = 1;
       drawTable(currentQuery);
     });
 
@@ -156,6 +162,23 @@
       });
     }
 
+        // Pagination hanya aktif pada tampilan HP.
+    lastMobileMode = window.matchMedia("(max-width: 760px)").matches;
+    
+    if (!resizeHandlerBound) {
+      window.addEventListener("resize", () => {
+        const mobileMode = window.matchMedia("(max-width: 760px)").matches;
+    
+        if (mobileMode !== lastMobileMode) {
+          lastMobileMode = mobileMode;
+          currentPage = 1;
+          drawTable(currentQuery);
+        }
+      });
+    
+      resizeHandlerBound = true;
+    }
+    
     drawTable("");
     ui().bindRefresh();
     ui().iconRefresh();
@@ -165,121 +188,210 @@
     });
   }
 
-  function drawTable(query) {
-    const all = state().computers || [];
-    const q = String(query || "").trim().toLowerCase();
+  
+function drawTable(query) {
+  const all = state().computers || [];
+  const q = String(query || "").trim().toLowerCase();
 
-    const filtered = all.filter(row => {
-      if (!q) return true;
+  const filtered = all.filter(row => {
+    if (!q) return true;
 
-      return Object.keys(row).some(key =>
-        String(row[key] ?? "").toLowerCase().includes(q)
-      );
-    });
+    return Object.keys(row).some(key =>
+      String(row[key] ?? "").toLowerCase().includes(q)
+    );
+  });
 
-    const host = ui().$("#computerTable");
-    const count = ui().$("#computerCount");
+  const host = ui().$("#computerTable");
+  const count = ui().$("#computerCount");
 
-    if (count) {
-      count.textContent = `${filtered.length} perangkat`;
-    }
-
-    if (!host) return;
-
-    if (!filtered.length) {
-      host.innerHTML =
-        `<div class="empty-state">Tidak ada data komputer yang cocok.</div>`;
-      return;
-    }
-
-    host.innerHTML =
-      `<div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>NO</th>
-              <th>COMPUTER NAME</th>
-              <th>MEREK / MODEL</th>
-              <th>SERIAL</th>
-              <th>PENGGUNA</th>
-              <th>TAHUN</th>
-              <th>STATUS</th>
-              <th>AKSI</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${filtered.map((row, index) => {
-              const serial = escape(row.serial);
-              const archived =
-                String(row.status || "").trim().toLowerCase() === "arsip";
-
-              return `<tr>
-                <td>${index + 1}</td>
-                <td class="primary-cell">${escape(row.komputer)}</td>
-                <td>${escape([row.merek, row.model].filter(Boolean).join(" "))}</td>
-                <td>${escape(row.serial)}</td>
-                <td>${escape(row.pengguna)}</td>
-                <td>${escape(row.tahun)}</td>
-                <td>
-                  <span class="badge ${archived ? "gray" : "green"}">
-                    ${archived ? "Arsip" : escape(row.status || "Aktif")}
-                  </span>
-                </td>
-                <td>
-                  <div class="computer-table-actions">
-                    <button
-                      class="table-action"
-                      type="button"
-                      data-action="detail"
-                      data-serial="${serial}"
-                    >Detail</button>
-
-                    ${isAdmin() ? `
-                      ${!archived ? `
-                        <button
-                          class="table-action"
-                          type="button"
-                          data-action="edit"
-                          data-serial="${serial}"
-                        >Edit</button>
-                        <button
-                          class="table-action danger"
-                          type="button"
-                          data-action="archive"
-                          data-serial="${serial}"
-                        >Arsipkan</button>
-                      ` : `
-                        <button
-                          class="table-action"
-                          type="button"
-                          data-action="unarchive"
-                          data-serial="${serial}"
-                        >Aktifkan</button>
-                      `}
-                    ` : ""}
-                  </div>
-                </td>
-              </tr>`;
-            }).join("")}
-          </tbody>
-        </table>
-      </div>
-      <div class="table-footer">
-        <span>Menampilkan ${filtered.length} dari ${all.length} komputer</span>
-      </div>`;
-
-    host.querySelectorAll("[data-action]").forEach(button => {
-      button.addEventListener("click", () => {
-        const action = button.dataset.action;
-        const serial = button.dataset.serial;
-
-        if (action === "detail") showDetail(serial);
-        if (action === "edit") openForm(serial);
-        if (action === "archive") archiveComputer(serial);
-        if (action === "unarchive") unarchiveComputer(serial);
-      });
-    });
+  if (count) {
+    count.textContent = `${filtered.length} perangkat`;
   }
+
+  if (!host) return;
+
+  if (!filtered.length) {
+    host.innerHTML =
+      `<div class="empty-state">Tidak ada data komputer yang cocok.</div>`;
+    return;
+  }
+
+  // Pagination hanya berlaku pada layar HP.
+  const isMobile = window.matchMedia("(max-width: 760px)").matches;
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+
+  if (isMobile) {
+    currentPage = Math.max(1, Math.min(currentPage, totalPages));
+  } else {
+    currentPage = 1;
+  }
+
+  const startIndex = isMobile
+    ? (currentPage - 1) * PAGE_SIZE
+    : 0;
+
+  const displayed = isMobile
+    ? filtered.slice(startIndex, startIndex + PAGE_SIZE)
+    : filtered;
+
+  const endIndex = startIndex + displayed.length;
+
+  host.innerHTML =
+    `<div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>NO</th>
+            <th>COMPUTER NAME</th>
+            <th>MEREK / MODEL</th>
+            <th>SERIAL</th>
+            <th>PENGGUNA</th>
+            <th>TAHUN</th>
+            <th>STATUS</th>
+            <th>AKSI</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${displayed.map((row, index) => {
+            const serial = escape(row.serial);
+            const archived =
+              String(row.status || "").trim().toLowerCase() === "arsip";
+
+            return `<tr>
+              <td>${startIndex + index + 1}</td>
+              <td class="primary-cell">${escape(row.komputer)}</td>
+              <td>${escape([row.merek, row.model].filter(Boolean).join(" "))}</td>
+              <td>${escape(row.serial)}</td>
+              <td>${escape(row.pengguna)}</td>
+              <td>${escape(row.tahun)}</td>
+              <td>
+                <span class="badge ${archived ? "gray" : "green"}">
+                  ${archived ? "Arsip" : escape(row.status || "Aktif")}
+                </span>
+              </td>
+              <td>
+                <div class="computer-table-actions">
+                  <button
+                    class="table-action"
+                    type="button"
+                    data-action="detail"
+                    data-serial="${serial}"
+                  >Detail</button>
+
+                  ${isAdmin() ? `
+                    ${!archived ? `
+                      <button
+                        class="table-action"
+                        type="button"
+                        data-action="edit"
+                        data-serial="${serial}"
+                      >Edit</button>
+                      <button
+                        class="table-action danger"
+                        type="button"
+                        data-action="archive"
+                        data-serial="${serial}"
+                      >Arsipkan</button>
+                    ` : `
+                      <button
+                        class="table-action"
+                        type="button"
+                        data-action="unarchive"
+                        data-serial="${serial}"
+                      >Aktifkan</button>
+                    `}
+                  ` : ""}
+                </div>
+              </td>
+            </tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span>${
+        isMobile
+          ? `Menampilkan ${startIndex + 1}–${endIndex} dari ${filtered.length} komputer`
+          : `Menampilkan ${filtered.length} dari ${all.length} komputer`
+      }</span>
+    </div>
+    ${
+      isMobile && totalPages > 1
+        ? (() => {
+            const pageStart = Math.max(
+              1,
+              Math.min(currentPage - 2, totalPages - 4)
+            );
+
+            const pageEnd = Math.min(totalPages, pageStart + 4);
+
+            let buttons = "";
+
+            for (let page = pageStart; page <= pageEnd; page++) {
+              buttons += `
+                <button
+                  type="button"
+                  class="computer-page-number ${page === currentPage ? "active" : ""}"
+                  data-page="${page}"
+                  aria-label="Halaman ${page}"
+                  aria-current="${page === currentPage ? "page" : "false"}"
+                >${page}</button>
+              `;
+            }
+
+            return `
+              <nav class="computer-pagination" aria-label="Navigasi halaman komputer">
+                <button
+                  type="button"
+                  class="computer-page-arrow"
+                  data-page="${currentPage - 1}"
+                  aria-label="Halaman sebelumnya"
+                  ${currentPage === 1 ? "disabled" : ""}
+                >&#8249;</button>
+
+                ${buttons}
+
+                <button
+                  type="button"
+                  class="computer-page-arrow"
+                  data-page="${currentPage + 1}"
+                  aria-label="Halaman berikutnya"
+                  ${currentPage === totalPages ? "disabled" : ""}
+                >&#8250;</button>
+              </nav>
+            `;
+          })()
+        : ""
+    }`;
+
+  // Tombol navigasi halaman.
+  host.querySelectorAll("[data-page]").forEach(button => {
+    button.addEventListener("click", () => {
+      const page = Number(button.dataset.page);
+
+      if (!Number.isInteger(page)) return;
+      if (page < 1 || page > totalPages) return;
+      if (page === currentPage) return;
+
+      currentPage = page;
+      drawTable(currentQuery);
+    });
+  });
+
+  // Tombol aksi komputer tetap menggunakan fungsi lama.
+  host.querySelectorAll("[data-action]").forEach(button => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.action;
+      const serial = button.dataset.serial;
+
+      if (action === "detail") showDetail(serial);
+      if (action === "edit") openForm(serial);
+      if (action === "archive") archiveComputer(serial);
+      if (action === "unarchive") unarchiveComputer(serial);
+    });
+  });
+}
 
   function showDetail(serial) {
     const row = (state().computers || []).find(
