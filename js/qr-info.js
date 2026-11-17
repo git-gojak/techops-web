@@ -129,6 +129,65 @@
       : "Belum ada pencarian";
   }
 
+  // Format tanggal tampilan: 17 Nov 2026.
+  // Tidak mengubah nilai tanggal yang tersimpan di database.
+  function formatDate(value) {
+    if (value === null || value === undefined || value === "") {
+      return "-";
+    }
+
+    let year;
+    let month;
+    let day;
+
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return "-";
+
+      year = value.getFullYear();
+      month = value.getMonth() + 1;
+      day = value.getDate();
+    } else {
+      const text = String(value).trim();
+
+      // Format ISO: 2026-11-17 atau 2026-11-17T00:00:00
+      const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+
+      if (isoMatch) {
+        year = Number(isoMatch[1]);
+        month = Number(isoMatch[2]);
+        day = Number(isoMatch[3]);
+      } else {
+        // Format Indonesia: 17-11-2026 atau 17/11/2026
+        const localMatch = text.match(
+          /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/
+        );
+
+        if (!localMatch) return text;
+
+        day = Number(localMatch[1]);
+        month = Number(localMatch[2]);
+        year = Number(localMatch[3]);
+      }
+    }
+
+    const date = new Date(year, month - 1, day);
+
+    // Pastikan tanggal valid.
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      return "-";
+    }
+
+    return new Intl.DateTimeFormat("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }).format(date);
+  }
+
   async function startScanner() {
     const panel = ui().$("#qrScannerPanel");
     const status = ui().$("#qrScannerStatus");
@@ -308,12 +367,16 @@
         .filter(([key]) =>
           device[key] !== undefined && device[key] !== ""
         )
-        .map(([key, label]) =>
-          `<div class="detail-item">
+        .map(([key, label]) => {
+          const value = key === "ftp"
+            ? formatDate(device[key])
+            : device[key];
+
+          return `<div class="detail-item">
             <small>${label}</small>
-            <strong>${ui().escapeHTML(device[key])}</strong>
-          </div>`
-        )
+            <strong>${ui().escapeHTML(value)}</strong>
+          </div>`;
+        })
         .join("");
 
       result.innerHTML =
@@ -393,7 +456,7 @@
         <tbody>
           ${rows.map(r => `
             <tr>
-              <td>${ui().escapeHTML(r.Tanggal || "-")}</td>
+              <td>${ui().escapeHTML(formatDate(r.Tanggal))}</td>
               <td>${ui().escapeHTML(r.kegiatan || "-")}</td>
               <td>${ui().escapeHTML(r.kondisi || "-")}</td>
               <td>${ui().escapeHTML(r.keterangan || "-")}</td>
