@@ -859,7 +859,9 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
   .qr-search { flex-direction:column; }
   .qr-search button { width:100%; justify-content:center; }
   .modal-backdrop {
-    align-items:flex-end; padding:8px 8px max(8px,env(safe-area-inset-bottom));
+    z-index: 120;
+    align-items:flex-end;
+    padding:8px 8px max(8px,env(safe-area-inset-bottom));
   }
   .modal {
     width:100%; max-height:90dvh; overflow:auto;
