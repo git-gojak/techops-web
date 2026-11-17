@@ -34,7 +34,7 @@
   let currentQuery = "";
   let currentPage = 1;
   const PAGE_SIZE = 10;
-  
+
   let modalElement = null;
   let busy = false;
   let lastMobileMode = null;
@@ -49,27 +49,40 @@
   }
 
   function normalizeFTPDate(value) {
-  if (!value) return "";
+    if (!value) return "";
 
-  const text = String(value).trim();
+    const text = String(value).trim();
 
-  // Format ISO: 2014-05-30T00:00:00
-  const isoMatch = text.match(/^(\d{4}-\d{2}-\d{2})/);
-  if (isoMatch) return isoMatch[1];
+    // Format ISO: 2014-05-30T00:00:00
+    const isoMatch = text.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoMatch) return isoMatch[1];
 
-  // Format tanggal: 2014-05-30
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return text;
+    // Format tanggal: 2014-05-30
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      return text;
+    }
+
+    // Format tanggal: 30-05-2014 atau 30/05/2014
+    const match = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+
+    if (match) {
+      return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
+    }
+
+    return "";
   }
 
-  // Format tanggal: 30-05-2014 atau 30/05/2014
-  const match = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  function formatFTPDate(value) {
+    const normalized = normalizeFTPDate(value);
+    if (!normalized) return "-";
 
-  if (match) {
-    return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
-  }
+    const [year, month, day] = normalized.split("-").map(Number);
 
-  return "";
+    return new Intl.DateTimeFormat("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }).format(new Date(year, month - 1, day));
   }
 
   function calculateMP(ftp) {
@@ -216,20 +229,20 @@
       });
     }
 
-        // Pagination hanya aktif pada tampilan HP.
+    // Pagination hanya aktif pada tampilan HP.
     lastMobileMode = window.matchMedia("(max-width: 760px)").matches;
-    
+
     if (!resizeHandlerBound) {
       window.addEventListener("resize", () => {
         const mobileMode = window.matchMedia("(max-width: 760px)").matches;
-    
+
         if (mobileMode !== lastMobileMode) {
           lastMobileMode = mobileMode;
           currentPage = 1;
           drawTable(currentQuery);
         }
       });
-    
+
       resizeHandlerBound = true;
     }
 
@@ -244,207 +257,208 @@
   }
 
   function drawTable(query) {
-  const all = state().printers || [];
-  const q = String(query || "").trim().toLowerCase();
+    const all = state().printers || [];
+    const q = String(query || "").trim().toLowerCase();
 
-  // Pencarian tetap memeriksa seluruh data printer.
-  const filtered = all.filter(row => {
-    if (!q) return true;
+    // Pencarian tetap memeriksa seluruh data printer.
+    const filtered = all.filter(row => {
+      if (!q) return true;
 
-    return Object.keys(row).some(key =>
-      String(row[key] ?? "").toLowerCase().includes(q)
-    );
-  });
+      return Object.keys(row).some(key =>
+        String(row[key] ?? "").toLowerCase().includes(q)
+      );
+    });
 
-  const host = ui().$("#printerTable");
-  const count = ui().$("#printerCount");
+    const host = ui().$("#printerTable");
+    const count = ui().$("#printerCount");
 
-  if (count) {
-    count.textContent = `${filtered.length} perangkat`;
-  }
+    if (count) {
+      count.textContent = `${filtered.length} perangkat`;
+    }
 
-  if (!host) return;
+    if (!host) return;
 
-  if (!filtered.length) {
+    if (!filtered.length) {
+      host.innerHTML =
+        `<div class="empty-state">Tidak ada data printer yang cocok.</div>`;
+      return;
+    }
+
+    // Pagination hanya berlaku pada layar HP.
+    const isMobile = window.matchMedia("(max-width: 760px)").matches;
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+
+    if (isMobile) {
+      currentPage = Math.max(1, Math.min(currentPage, totalPages));
+    } else {
+      currentPage = 1;
+    }
+
+    const startIndex = isMobile
+      ? (currentPage - 1) * PAGE_SIZE
+      : 0;
+
+    const displayed = isMobile
+      ? filtered.slice(startIndex, startIndex + PAGE_SIZE)
+      : filtered;
+
+    const endIndex = startIndex + displayed.length;
+
     host.innerHTML =
-      `<div class="empty-state">Tidak ada data printer yang cocok.</div>`;
-    return;
-  }
+      `<div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>NO</th>
+              <th>SERIAL NUMBER</th>
+              <th>UNIT</th>
+              <th>MEREK</th>
+              <th>MODEL</th>
+              <th>TINTA</th>
+              <th>FTP</th>
+              <th>MP</th>
+              <th>STATUS</th>
+              <th>AKSI</th>
+            </tr>
+          </thead>
 
-  // Pagination hanya berlaku pada layar HP.
-  const isMobile = window.matchMedia("(max-width: 760px)").matches;
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+          <tbody>
+            ${displayed.map((row, index) => {
+              const serial = escape(row.serial);
+              const archived =
+                String(row.status || "").trim().toLowerCase() === "arsip";
 
-  if (isMobile) {
-    currentPage = Math.max(1, Math.min(currentPage, totalPages));
-  } else {
-    currentPage = 1;
-  }
+              return `<tr>
+                <td>${startIndex + index + 1}</td>
+                <td class="primary-cell">${escape(row.serial)}</td>
+                <td>${escape(row.unit)}</td>
+                <td>${escape(row.merek)}</td>
+                <td>${escape(row.model)}</td>
+                <td>${escape(row.tinta)}</td>
+                <td>${escape(formatFTPDate(row.ftp))}</td>
+                <td>${escape(calculateMP(row.ftp) || "-")}</td>
+                <td>
+                  <span class="badge ${archived ? "gray" : "green"}">
+                    ${archived ? "Arsip" : escape(row.status || "Aktif")}
+                  </span>
+                </td>
+                <td>
+                  <div class="computer-table-actions">
+                    <button class="table-action" type="button"
+                      data-action="detail" data-serial="${serial}">
+                      Detail
+                    </button>
 
-  const startIndex = isMobile
-    ? (currentPage - 1) * PAGE_SIZE
-    : 0;
+                    ${isAdmin() ? `
+                      ${!archived ? `
+                        <button class="table-action" type="button"
+                          data-action="edit" data-serial="${serial}">
+                          Edit
+                        </button>
+                        <button class="table-action danger" type="button"
+                          data-action="archive" data-serial="${serial}">
+                          Arsipkan
+                        </button>
+                      ` : `
+                        <button class="table-action" type="button"
+                          data-action="unarchive" data-serial="${serial}">
+                          Aktifkan
+                        </button>
+                      `}
+                    ` : ""}
+                  </div>
+                </td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>
 
-  const displayed = isMobile
-    ? filtered.slice(startIndex, startIndex + PAGE_SIZE)
-    : filtered;
+      <div class="table-footer">
+        <span>${
+          isMobile
+            ? `Menampilkan ${startIndex + 1}–${endIndex} dari ${filtered.length} printer`
+            : `Menampilkan ${filtered.length} dari ${all.length} printer`
+        }</span>
+      </div>
 
-  const endIndex = startIndex + displayed.length;
+      ${
+        isMobile && totalPages > 1
+          ? (() => {
+              const pageStart = Math.max(
+                1,
+                Math.min(currentPage - 2, totalPages - 4)
+              );
 
-  host.innerHTML =
-    `<div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>NO</th>
-            <th>SERIAL NUMBER</th>
-            <th>UNIT</th>
-            <th>MEREK</th>
-            <th>MODEL</th>
-            <th>TINTA</th>
-            <th>FTP</th>
-            <th>MP</th>
-            <th>STATUS</th>
-            <th>AKSI</th>
-          </tr>
-        </thead>
+              const pageEnd = Math.min(totalPages, pageStart + 4);
 
-        <tbody>
-          ${displayed.map((row, index) => {
-            const serial = escape(row.serial);
-            const archived =
-              String(row.status || "").trim().toLowerCase() === "arsip";
+              let buttons = "";
 
-            return `<tr>
-              <td>${startIndex + index + 1}</td>
-              <td class="primary-cell">${escape(row.serial)}</td>
-              <td>${escape(row.unit)}</td>
-              <td>${escape(row.merek)}</td>
-              <td>${escape(row.model)}</td>
-              <td>${escape(row.tinta)}</td>
-              <td>${escape(row.ftp)}</td>
-              <td>${escape(calculateMP(row.ftp) || "-")}</td>
-              <td>
-                <span class="badge ${archived ? "gray" : "green"}">
-                  ${archived ? "Arsip" : escape(row.status || "Aktif")}
-                </span>
-              </td>
-              <td>
-                <div class="computer-table-actions">
-                  <button class="table-action" type="button"
-                    data-action="detail" data-serial="${serial}">
-                    Detail
-                  </button>
+              for (let page = pageStart; page <= pageEnd; page++) {
+                buttons += `
+                  <button
+                    type="button"
+                    class="mobile-page-number ${page === currentPage ? "active" : ""}"
+                    data-page="${page}"
+                    aria-label="Halaman ${page}"
+                    aria-current="${page === currentPage ? "page" : "false"}"
+                  >${page}</button>
+                `;
+              }
 
-                  ${isAdmin() ? `
-                    ${!archived ? `
-                      <button class="table-action" type="button"
-                        data-action="edit" data-serial="${serial}">
-                        Edit
-                      </button>
-                      <button class="table-action danger" type="button"
-                        data-action="archive" data-serial="${serial}">
-                        Arsipkan
-                      </button>
-                    ` : `
-                      <button class="table-action" type="button"
-                        data-action="unarchive" data-serial="${serial}">
-                        Aktifkan
-                      </button>
-                    `}
-                  ` : ""}
-                </div>
-              </td>
-            </tr>`;
-          }).join("")}
-        </tbody>
-      </table>
-    </div>
+              return `
+                <nav class="mobile-pagination" aria-label="Navigasi halaman printer">
+                  <button
+                    type="button"
+                    class="mobile-page-arrow"
+                    data-page="${currentPage - 1}"
+                    aria-label="Halaman sebelumnya"
+                    ${currentPage === 1 ? "disabled" : ""}
+                  >&#8249;</button>
 
-    <div class="table-footer">
-      <span>${
-        isMobile
-          ? `Menampilkan ${startIndex + 1}–${endIndex} dari ${filtered.length} printer`
-          : `Menampilkan ${filtered.length} dari ${all.length} printer`
-      }</span>
-    </div>
+                  ${buttons}
 
-    ${
-      isMobile && totalPages > 1
-        ? (() => {
-            const pageStart = Math.max(
-              1,
-              Math.min(currentPage - 2, totalPages - 4)
-            );
-
-            const pageEnd = Math.min(totalPages, pageStart + 4);
-
-            let buttons = "";
-
-            for (let page = pageStart; page <= pageEnd; page++) {
-              buttons += `
-                <button
-                  type="button"
-                  class="mobile-page-number ${page === currentPage ? "active" : ""}"
-                  data-page="${page}"
-                  aria-label="Halaman ${page}"
-                  aria-current="${page === currentPage ? "page" : "false"}"
-                >${page}</button>
+                  <button
+                    type="button"
+                    class="mobile-page-arrow"
+                    data-page="${currentPage + 1}"
+                    aria-label="Halaman berikutnya"
+                    ${currentPage === totalPages ? "disabled" : ""}
+                  >&#8250;</button>
+                </nav>
               `;
-            }
+            })()
+          : ""
+      }`;
 
-            return `
-              <nav class="mobile-pagination" aria-label="Navigasi halaman printer">
-                <button
-                  type="button"
-                  class="mobile-page-arrow"
-                  data-page="${currentPage - 1}"
-                  aria-label="Halaman sebelumnya"
-                  ${currentPage === 1 ? "disabled" : ""}
-                >&#8249;</button>
+    // Navigasi halaman.
+    host.querySelectorAll("[data-page]").forEach(button => {
+      button.addEventListener("click", () => {
+        const page = Number(button.dataset.page);
 
-                ${buttons}
+        if (!Number.isInteger(page)) return;
+        if (page < 1 || page > totalPages) return;
+        if (page === currentPage) return;
 
-                <button
-                  type="button"
-                  class="mobile-page-arrow"
-                  data-page="${currentPage + 1}"
-                  aria-label="Halaman berikutnya"
-                  ${currentPage === totalPages ? "disabled" : ""}
-                >&#8250;</button>
-              </nav>
-            `;
-          })()
-        : ""
-    }`;
-
-  // Navigasi halaman.
-  host.querySelectorAll("[data-page]").forEach(button => {
-    button.addEventListener("click", () => {
-      const page = Number(button.dataset.page);
-
-      if (!Number.isInteger(page)) return;
-      if (page < 1 || page > totalPages) return;
-      if (page === currentPage) return;
-
-      currentPage = page;
-      drawTable(currentQuery);
+        currentPage = page;
+        drawTable(currentQuery);
+      });
     });
-  });
 
-  // Aksi printer tetap menggunakan fungsi yang sudah ada.
-  host.querySelectorAll("[data-action]").forEach(button => {
-    button.addEventListener("click", () => {
-      const action = button.dataset.action;
-      const serial = button.dataset.serial;
+    // Aksi printer tetap menggunakan fungsi yang sudah ada.
+    host.querySelectorAll("[data-action]").forEach(button => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.action;
+        const serial = button.dataset.serial;
 
-      if (action === "detail") showDetail(serial);
-      if (action === "edit") openForm(serial);
-      if (action === "archive") archivePrinter(serial);
-      if (action === "unarchive") unarchivePrinter(serial);
+        if (action === "detail") showDetail(serial);
+        if (action === "edit") openForm(serial);
+        if (action === "archive") archivePrinter(serial);
+        if (action === "unarchive") unarchivePrinter(serial);
+      });
     });
-  });
-}
+  }
+
   function showDetail(serial) {
     const row = (state().printers || []).find(
       item => String(item.serial) === String(serial)
@@ -463,14 +477,18 @@
       status: "Status"
     };
 
-    const body = Object.entries(labels).map(([key, label]) =>
-      `<div class="detail-item">
+    const body = Object.entries(labels).map(([key, label]) => {
+      const value = key === "mp"
+        ? calculateMP(row.ftp) || "-"
+        : key === "ftp"
+          ? formatFTPDate(row.ftp)
+          : row[key] || "-";
+
+      return `<div class="detail-item">
         <small>${label}</small>
-        <strong>${escape(
-          key === "mp" ? calculateMP(row.ftp) || "-" : row[key] || "-"
-        )}</strong>
-      </div>`
-    ).join("");
+        <strong>${escape(value)}</strong>
+      </div>`;
+    }).join("");
 
     modal(
       "Detail Printer",
@@ -772,14 +790,14 @@
     ui().iconRefresh();
   }
 
-    function closeModal() {
-      if (modalElement) {
-        modalElement.remove();
-        modalElement = null;
-      }
-    
-      document.body.classList.remove("modal-open");
+  function closeModal() {
+    if (modalElement) {
+      modalElement.remove();
+      modalElement = null;
     }
+
+    document.body.classList.remove("modal-open");
+  }
 
   window.PrintersPage = {
     render,
