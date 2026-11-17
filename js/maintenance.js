@@ -727,11 +727,11 @@ function drawTable(query) {
 
       </div>
     `;
-
+    
     showModal(
       "Konfirmasi Perangkat",
       content,
-      "computer-modal"
+      "computer-modal device-confirmation-modal"
     );
 
     document.getElementById("maintenanceRescan")
@@ -1127,6 +1127,10 @@ function drawTable(query) {
 
     if (variant && variant.includes("qr-scan-modal")) {
       backdrop.classList.add("qr-scan-backdrop");
+    }
+    
+    if (variant && variant.includes("device-confirmation-modal")) {
+      backdrop.classList.add("device-confirmation-backdrop");
     }
     backdrop.id = "maintenanceModal";
 
