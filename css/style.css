@@ -748,25 +748,34 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
     font-size:9px; font-weight:800; letter-spacing:.55px;
     text-transform:uppercase;
   }
-  /* Computer inventory columns */
-  #computerTable .data-table td:nth-child(1)::before { content:"No"; }
-  #computerTable .data-table td:nth-child(2)::before { content:"Computer Name"; }
-  #computerTable .data-table td:nth-child(3)::before { content:"Merek / Model"; }
-  #computerTable .data-table td:nth-child(4)::before { content:"Serial"; }
-  #computerTable .data-table td:nth-child(5)::before { content:"Pengguna"; }
-  #computerTable .data-table td:nth-child(6)::before { content:"Tahun"; }
-  #computerTable .data-table td:nth-child(7)::before { content:"Status"; }
-  #computerTable .data-table td:nth-child(8)::before { content:"Aksi"; }
-  #computerTable .data-table td:nth-child(2),
-  #computerTable .data-table td:nth-child(8) { grid-column:1 / -1; }
-  #computerTable .data-table td:nth-child(2) { font-size:14px; }
-  #computerTable .computer-table-actions { gap:8px; }
-  #computerTable .table-action {
-    min-height:36px; padding:7px 10px; border-radius:8px;
-    background:#eff6ff; font-size:11px;
+  
+  /* =========================================
+     SHARED MOBILE CARD TABLE
+     Computer, Printer, Maintenance
+  ========================================= */
+
+  /* ---------- COMPUTER ---------- */
+
+  #computerTable .data-table td:nth-child(1)::before { content:"Computer Name"; }
+  #computerTable .data-table td:nth-child(2)::before { content:"Merek / Model"; }
+  #computerTable .data-table td:nth-child(3)::before { content:"Serial"; }
+  #computerTable .data-table td:nth-child(4)::before { content:"Pengguna"; }
+  #computerTable .data-table td:nth-child(5)::before { content:"Tahun"; }
+  #computerTable .data-table td:nth-child(6)::before { content:"Status"; }
+  #computerTable .data-table td:nth-child(7)::before { content:"Aksi"; }
+
+  #computerTable .data-table td:nth-child(1),
+  #computerTable .data-table td:nth-child(7) {
+    grid-column:1 / -1;
   }
-  #computerTable .table-action.danger { background:#fef2f2; }
-  /* Printer inventory columns */
+
+
+  /* ---------- PRINTER ---------- */
+
+  #printerTable .data-table td:nth-child(1) {
+    display:none;
+  }
+
   #printerTable .data-table td:nth-child(1)::before { content:"No"; }
   #printerTable .data-table td:nth-child(2)::before { content:"Serial Number"; }
   #printerTable .data-table td:nth-child(3)::before { content:"Unit"; }
@@ -777,17 +786,19 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
   #printerTable .data-table td:nth-child(8)::before { content:"Masa Pakai"; }
   #printerTable .data-table td:nth-child(9)::before { content:"Status"; }
   #printerTable .data-table td:nth-child(10)::before { content:"Aksi"; }
-  #printerTable .data-table td:nth-child(1) { display:none; }
+
   #printerTable .data-table td:nth-child(2),
-  #printerTable .data-table td:nth-child(10) { grid-column:1 / -1; }
-  #printerTable .data-table td:nth-child(2) { font-size:14px; }
-  #printerTable .computer-table-actions { gap:8px; }
-  #printerTable .table-action {
-    min-height:36px; padding:7px 10px; border-radius:8px;
-    background:#eff6ff; font-size:11px;
+  #printerTable .data-table td:nth-child(10) {
+    grid-column:1 / -1;
   }
-  /* Maintenance history columns */
-  #maintenanceTable .data-table tr { grid-template-columns:1fr 1fr; }
+
+
+  /* ---------- MAINTENANCE ---------- */
+
+  #maintenanceTable .data-table tr {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
   #maintenanceTable .data-table td:nth-child(1)::before { content:"Tanggal"; }
   #maintenanceTable .data-table td:nth-child(2)::before { content:"Jenis"; }
   #maintenanceTable .data-table td:nth-child(3)::before { content:"Nama Perangkat"; }
@@ -796,10 +807,43 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
   #maintenanceTable .data-table td:nth-child(6)::before { content:"Keterangan"; }
   #maintenanceTable .data-table td:nth-child(7)::before { content:"Kondisi"; }
   #maintenanceTable .data-table td:nth-child(8)::before { content:"Penanganan"; }
+
   #maintenanceTable .data-table td:nth-child(1),
   #maintenanceTable .data-table td:nth-child(3),
   #maintenanceTable .data-table td:nth-child(5),
-  #maintenanceTable .data-table td:nth-child(6) { grid-column:1 / -1; }
+  #maintenanceTable .data-table td:nth-child(6) {
+    grid-column:1 / -1;
+  }
+
+
+  /* ---------- SHARED DEVICE NAME ---------- */
+
+  #computerTable .data-table td:nth-child(1),
+  #printerTable .data-table td:nth-child(2) {
+    font-size:14px;
+  }
+
+
+  /* ---------- SHARED ACTION BUTTONS ---------- */
+
+  #computerTable .computer-table-actions,
+  #printerTable .computer-table-actions {
+    gap:8px;
+  }
+
+  #computerTable .table-action,
+  #printerTable .table-action {
+    min-height:36px;
+    padding:7px 10px;
+    border-radius:8px;
+    background:#eff6ff;
+    font-size:11px;
+  }
+
+  #computerTable .table-action.danger {
+    background:#fef2f2;
+  }
+
   /* QR Info maintenance history */
   #qrResult .data-table tr { grid-template-columns:1fr 1fr; }
   #qrResult .data-table td:nth-child(1)::before { content:"Tanggal"; }
