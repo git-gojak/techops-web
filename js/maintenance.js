@@ -10,6 +10,11 @@
   let qrScanner = null;
   let scannerStarting = false;
   let currentQuery = "";
+  
+  let currentPage = 1;
+  const PAGE_SIZE = 10;
+  let lastMobileMode = null;
+  let resizeHandlerBound = false;
 
   // =====================================================
   // UTILITAS
@@ -129,6 +134,7 @@
 
     ui().$("#maintenanceSearch").addEventListener("input", event => {
       currentQuery = event.target.value;
+      currentPage = 1;
       drawTable(currentQuery);
     });
 
@@ -147,107 +153,215 @@
   // TABEL RIWAYAT
   // =====================================================
 
-  function drawTable(query) {
-    const all = Array.isArray(state().maintenance)
-      ? state().maintenance
-      : [];
+function drawTable(query) {
+  const all = Array.isArray(state().maintenance)
+    ? state().maintenance
+    : [];
 
-    const q = String(query || "").toLowerCase();
+  const q = String(query || "").toLowerCase();
 
-    const rows = all.filter(row =>
-      [
-        "Tanggal",
-        "jenis_aset",
-        "nama_aset",
-        "serial",
-        "kegiatan",
-        "kondisi",
-        "keterangan",
-        "teknisi",
-        "jadwal"
-      ].some(key =>
-        String(row[key] ?? "").toLowerCase().includes(q)
-      )
+  // Pencarian tetap dilakukan terhadap seluruh riwayat.
+  const filteredRows = all.filter(row =>
+    [
+      "Tanggal",
+      "jenis_aset",
+      "nama_aset",
+      "serial",
+      "kegiatan",
+      "kondisi",
+      "keterangan",
+      "teknisi",
+      "jadwal"
+    ].some(key =>
+      String(row[key] ?? "").toLowerCase().includes(q)
+    )
+  );
+
+  const host = ui().$("#maintenanceTable");
+  const isMobile = window.matchMedia("(max-width: 760px)").matches;
+
+  if (!filteredRows.length) {
+    currentPage = 1;
+
+    host.innerHTML = `
+      <div class="empty-state">
+        Tidak ada riwayat maintenance yang cocok.
+      </div>
+    `;
+    return;
+  }
+
+  // Desktop menampilkan semua data.
+  // Mobile membatasi 10 data per halaman.
+  const totalPages = isMobile
+    ? Math.ceil(filteredRows.length / PAGE_SIZE)
+    : 1;
+
+  currentPage = isMobile
+    ? Math.min(Math.max(currentPage, 1), totalPages)
+    : 1;
+
+  const startIndex = isMobile
+    ? (currentPage - 1) * PAGE_SIZE
+    : 0;
+
+  const visibleRows = isMobile
+    ? filteredRows.slice(startIndex, startIndex + PAGE_SIZE)
+    : filteredRows;
+
+  const endIndex = startIndex + visibleRows.length;
+
+  let paginationHTML = "";
+
+  if (isMobile && totalPages > 1) {
+    const maxVisiblePages = 5;
+
+    let firstPage = Math.max(
+      1,
+      currentPage - Math.floor(maxVisiblePages / 2)
     );
 
-    const host = ui().$("#maintenanceTable");
+    let lastPage = Math.min(
+      totalPages,
+      firstPage + maxVisiblePages - 1
+    );
 
-    if (!rows.length) {
-      host.innerHTML =
-        `<div class="empty-state">
-          Tidak ada riwayat maintenance yang cocok.
-        </div>`;
-      return;
+    firstPage = Math.max(
+      1,
+      lastPage - maxVisiblePages + 1
+    );
+
+    const pageNumbers = [];
+
+    for (let page = firstPage; page <= lastPage; page++) {
+      pageNumbers.push(`
+        <button
+          type="button"
+          class="mobile-page-number ${page === currentPage ? "active" : ""}"
+          data-page="${page}"
+          aria-label="Halaman ${page}"
+          aria-current="${page === currentPage ? "page" : "false"}"
+        >${page}</button>
+      `);
     }
 
-    host.innerHTML =
-      `<div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>TANGGAL</th>
-              <th>JENIS</th>
-              <th>NAMA PERANGKAT</th>
-              <th>SERIAL</th>
-              <th>KEGIATAN</th>
-              <th>KETERANGAN</th>
-              <th>KONDISI</th>
-              <th>PENANGANAN</th>
-            </tr>
-          </thead>
+    paginationHTML = `
+      <nav
+        class="mobile-pagination"
+        aria-label="Navigasi halaman riwayat maintenance"
+      >
+        <button
+          type="button"
+          class="mobile-page-arrow"
+          data-page="${currentPage - 1}"
+          aria-label="Halaman sebelumnya"
+          ${currentPage === 1 ? "disabled" : ""}
+        >‹</button>
 
-          <tbody>
-            ${rows.map(row => `
-              <tr>
-                <td>
-                  ${ui().escapeHTML(formatDate(row.Tanggal))}
-                </td>
+        ${pageNumbers.join("")}
 
-                <td>
-                  <span class="badge ${
-                    String(row.jenis_aset).toLowerCase() === "printer"
-                      ? "green"
-                      : ""
-                  }">
-                    ${ui().escapeHTML(row.jenis_aset || "-")}
-                  </span>
-                </td>
-
-                <td class="primary-cell">
-                  ${ui().escapeHTML(row.nama_aset || "-")}
-                </td>
-
-                <td>
-                  ${ui().escapeHTML(row.serial || "-")}
-                </td>
-
-                <td>
-                  ${ui().escapeHTML(row.kegiatan || "-")}
-                </td>
-
-                <td>
-                  ${ui().escapeHTML(row.keterangan || "-")}
-                </td>
-
-                <td>
-                  ${ui().escapeHTML(row.kondisi || "-")}
-                </td>
-
-                <td>
-                  ${ui().escapeHTML(row.teknisi || "-")}
-                </td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="table-footer">
-        <span>
-          Menampilkan ${rows.length} dari ${all.length} riwayat
-        </span>
-      </div>`;
+        <button
+          type="button"
+          class="mobile-page-arrow"
+          data-page="${currentPage + 1}"
+          aria-label="Halaman berikutnya"
+          ${currentPage === totalPages ? "disabled" : ""}
+        >›</button>
+      </nav>
+    `;
   }
+
+  host.innerHTML = `
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>TANGGAL</th>
+            <th>JENIS</th>
+            <th>NAMA PERANGKAT</th>
+            <th>SERIAL</th>
+            <th>KEGIATAN</th>
+            <th>KETERANGAN</th>
+            <th>KONDISI</th>
+            <th>PENANGANAN</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          ${visibleRows.map(row => `
+            <tr>
+              <td>
+                ${ui().escapeHTML(formatDate(row.Tanggal))}
+              </td>
+
+              <td>
+                <span class="badge ${
+                  String(row.jenis_aset).toLowerCase() === "printer"
+                    ? "green"
+                    : ""
+                }">
+                  ${ui().escapeHTML(row.jenis_aset || "-")}
+                </span>
+              </td>
+
+              <td class="primary-cell">
+                ${ui().escapeHTML(row.nama_aset || "-")}
+              </td>
+
+              <td>
+                ${ui().escapeHTML(row.serial || "-")}
+              </td>
+
+              <td>
+                ${ui().escapeHTML(row.kegiatan || "-")}
+              </td>
+
+              <td>
+                ${ui().escapeHTML(row.keterangan || "-")}
+              </td>
+
+              <td>
+                ${ui().escapeHTML(row.kondisi || "-")}
+              </td>
+
+              <td>
+                ${ui().escapeHTML(row.teknisi || "-")}
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+
+    ${paginationHTML}
+
+    <div class="table-footer">
+      <span>
+        Menampilkan ${startIndex + 1}–${endIndex} dari ${filteredRows.length} riwayat
+      </span>
+    </div>
+  `;
+
+  // Event navigasi halaman.
+  host.querySelectorAll("[data-page]").forEach(button => {
+    button.addEventListener("click", () => {
+      const nextPage = Number(button.dataset.page);
+
+      if (
+        !Number.isInteger(nextPage) ||
+        nextPage < 1 ||
+        nextPage > totalPages ||
+        nextPage === currentPage
+      ) {
+        return;
+      }
+
+      currentPage = nextPage;
+      drawTable(currentQuery);
+    });
+  });
+}
+
 
   // =====================================================
   // SCAN QR
@@ -1416,6 +1530,22 @@
     state().maintenance = ui().normalizeArray(result);
     state().lastUpdated = new Date();
 
+  lastMobileMode = window.matchMedia("(max-width: 760px)").matches;
+
+    if (!resizeHandlerBound) {
+      window.addEventListener("resize", () => {
+        const mobileMode = window.matchMedia("(max-width: 760px)").matches;
+    
+        if (mobileMode !== lastMobileMode) {
+          lastMobileMode = mobileMode;
+          currentPage = 1;
+          drawTable(currentQuery);
+        }
+      });
+    
+      resizeHandlerBound = true;
+    }
+    
     drawTable(currentQuery);
     updateMaintenanceLastUpdated();
   }
