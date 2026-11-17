@@ -669,9 +669,10 @@ function drawTable(query) {
         </div>
         ${content}
       </section>`;
-
+    
     document.body.appendChild(wrap);
     modalElement = wrap;
+    document.body.classList.add("modal-open");
 
     wrap.querySelector(".icon-button").addEventListener("click", closeModal);
 
@@ -687,6 +688,8 @@ function drawTable(query) {
       modalElement.remove();
       modalElement = null;
     }
+  
+    document.body.classList.remove("modal-open");
   }
 
   window.ComputersPage = {
