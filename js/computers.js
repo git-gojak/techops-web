@@ -331,7 +331,7 @@ function drawTable(query) {
               buttons += `
                 <button
                   type="button"
-                  class="computer-page-number ${page === currentPage ? "active" : ""}"
+                  class="mobile-page-number ${page === currentPage ? "active" : ""}"
                   data-page="${page}"
                   aria-label="Halaman ${page}"
                   aria-current="${page === currentPage ? "page" : "false"}"
@@ -340,10 +340,10 @@ function drawTable(query) {
             }
 
             return `
-              <nav class="computer-pagination" aria-label="Navigasi halaman komputer">
+              <nav class="mobile-pagination" aria-label="Navigasi halaman komputer">
                 <button
                   type="button"
-                  class="computer-page-arrow"
+                  class="mobile-page-arrow"
                   data-page="${currentPage - 1}"
                   aria-label="Halaman sebelumnya"
                   ${currentPage === 1 ? "disabled" : ""}
@@ -353,7 +353,7 @@ function drawTable(query) {
 
                 <button
                   type="button"
-                  class="computer-page-arrow"
+                  class="mobile-page-arrow"
                   data-page="${currentPage + 1}"
                   aria-label="Halaman berikutnya"
                   ${currentPage === totalPages ? "disabled" : ""}
