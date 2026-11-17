@@ -755,6 +755,7 @@
 
     document.body.appendChild(wrap);
     modalElement = wrap;
+    document.body.classList.add("modal-open");
 
     wrap.querySelector(".icon-button").addEventListener("click", closeModal);
 
@@ -765,12 +766,14 @@
     ui().iconRefresh();
   }
 
-  function closeModal() {
-    if (modalElement) {
-      modalElement.remove();
-      modalElement = null;
+    function closeModal() {
+      if (modalElement) {
+        modalElement.remove();
+        modalElement = null;
+      }
+    
+      document.body.classList.remove("modal-open");
     }
-  }
 
   window.PrintersPage = {
     render,
