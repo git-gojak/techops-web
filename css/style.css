@@ -856,8 +856,23 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
   .table-footer { align-items:flex-start; flex-direction:column; }
   .detail-grid { gap:8px 14px; }
   .detail-item { min-width:0; }
-  .qr-search { flex-direction:column; }
-  .qr-search button { width:100%; justify-content:center; }
+  .qr-search {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  
+  .qr-search input {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+  }
+  
+  .qr-search button {
+    width: 100%;
+    justify-content: center;
+    white-space: nowrap;
+  }
   .modal-backdrop {
     z-index: 120;
     align-items:flex-end;
