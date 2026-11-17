@@ -1828,3 +1828,60 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 }
 
 
+/* =========================================
+   PAGINATION INVENTARIS KOMPUTER — MOBILE
+   Desktop tidak mengalami perubahan.
+========================================= */
+
+@media (max-width: 760px) {
+  #computerTable .computer-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding: 4px 0;
+  }
+
+  #computerTable .computer-page-number,
+  #computerTable .computer-page-arrow {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid #e5eaf2;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  #computerTable .computer-page-number.active {
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #ffffff;
+  }
+
+  #computerTable .computer-page-number:not(.active):hover,
+  #computerTable .computer-page-arrow:not(:disabled):hover {
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  #computerTable .computer-page-arrow {
+    font-size: 20px;
+    font-weight: 400;
+  }
+
+  #computerTable .computer-page-arrow:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
