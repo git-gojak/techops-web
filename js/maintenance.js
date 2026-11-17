@@ -1160,6 +1160,7 @@ function drawTable(query) {
     `;
 
     document.body.appendChild(backdrop);
+    document.body.classList.add("modal-open");
 
     backdrop.addEventListener("click", event => {
       if (event.target === backdrop) {
@@ -1173,15 +1174,17 @@ function drawTable(query) {
     ui().iconRefresh();
   }
 
-  function closeModal() {
-    stopScanner();
-
-    const modal = document.getElementById("maintenanceModal");
-
-    if (modal) {
-      modal.remove();
+    function closeModal() {
+      stopScanner();
+    
+      const modal = document.getElementById("maintenanceModal");
+    
+      if (modal) {
+        modal.remove();
+      }
+    
+      document.body.classList.remove("modal-open");
     }
-  }
 
   // =====================================================
   // EVENT FORM
