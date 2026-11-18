@@ -191,29 +191,26 @@ function drawTable(query) {
     return;
   }
 
-  // Desktop menampilkan semua data.
-  // Mobile membatasi 10 data per halaman.
-  const totalPages = isMobile
-    ? Math.ceil(filteredRows.length / PAGE_SIZE)
-    : 1;
-
-  currentPage = isMobile
-    ? Math.min(Math.max(currentPage, 1), totalPages)
-    : 1;
-
-  const startIndex = isMobile
-    ? (currentPage - 1) * PAGE_SIZE
-    : 0;
-
-  const visibleRows = isMobile
-    ? filteredRows.slice(startIndex, startIndex + PAGE_SIZE)
-    : filteredRows;
-
+  // Pagination berlaku pada desktop dan HP.
+  const totalPages = Math.ceil(filteredRows.length / PAGE_SIZE);
+  
+  currentPage = Math.min(
+    Math.max(currentPage, 1),
+    totalPages
+  );
+  
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  
+  const visibleRows = filteredRows.slice(
+    startIndex,
+    startIndex + PAGE_SIZE
+  );
+  
   const endIndex = startIndex + visibleRows.length;
 
   let paginationHTML = "";
 
-  if (isMobile && totalPages > 1) {
+  if (totalPages > 1) {
     const maxVisiblePages = 5;
 
     let firstPage = Math.max(
