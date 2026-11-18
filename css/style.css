@@ -739,29 +739,30 @@ i[data-lucide] {
 }
 
 
+
 /* Hamburger tampil di desktop */
 .mobile-menu {
   display: grid;
 }
 
-/* Animasi sidebar desktop */
+/* Animasi sidebar */
 .sidebar {
   transition: transform .22s ease;
 }
 
-/* Sidebar disembunyikan saat hamburger ditekan */
-body.sidebar-open .sidebar {
-  transform: translateX(-100%);
-}
+/* Khusus desktop: sidebar bisa disembunyikan */
+@media (min-width: 761px) and (pointer: fine) {
+  body.sidebar-open .sidebar {
+    transform: translateX(-100%);
+  }
 
-body.sidebar-open .main-area {
-  margin-left: 0;
-}
+  body.sidebar-open .main-area {
+    margin-left: 0;
+  }
 
-/* Overlay hanya ditampilkan pada perangkat mobile,
-   bukan pada desktop */
-.sidebar-overlay {
-  display: none;
+  .sidebar-overlay {
+    display: none !important;
+  }
 }
 
 
