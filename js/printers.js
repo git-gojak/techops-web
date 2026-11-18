@@ -206,7 +206,7 @@
 
             ${isAdmin()
               ? `<button class="button button-primary" id="addPrinterBtn" type="button">
-                   <i data-lucide="plus"></i> Tambah Printer
+                   <i data-lucide="plus"></i> Printer
                  </button>`
               : ""}
           </div>
