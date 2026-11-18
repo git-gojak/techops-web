@@ -284,24 +284,18 @@
       return;
     }
 
-    // Pagination hanya berlaku pada layar HP.
-    const isMobile = window.matchMedia("(max-width: 760px)").matches;
+    // Pagination berlaku pada desktop dan HP.
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-
-    if (isMobile) {
-      currentPage = Math.max(1, Math.min(currentPage, totalPages));
-    } else {
-      currentPage = 1;
-    }
-
-    const startIndex = isMobile
-      ? (currentPage - 1) * PAGE_SIZE
-      : 0;
-
-    const displayed = isMobile
-      ? filtered.slice(startIndex, startIndex + PAGE_SIZE)
-      : filtered;
-
+    
+    currentPage = Math.max(1, Math.min(currentPage, totalPages));
+    
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    
+    const displayed = filtered.slice(
+      startIndex,
+      startIndex + PAGE_SIZE
+    );
+    
     const endIndex = startIndex + displayed.length;
 
     host.innerHTML =
@@ -373,17 +367,14 @@
           </tbody>
         </table>
       </div>
-
       <div class="table-footer">
-        <span>${
-          isMobile
-            ? `Menampilkan ${startIndex + 1}–${endIndex} dari ${filtered.length} printer`
-            : `Menampilkan ${filtered.length} dari ${all.length} printer`
-        }</span>
+        <span>
+          Menampilkan ${startIndex + 1}–${endIndex} dari ${filtered.length} printer
+        </span>
       </div>
-
+      
       ${
-        isMobile && totalPages > 1
+        totalPages > 1
           ? (() => {
               const pageStart = Math.max(
                 1,
