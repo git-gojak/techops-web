@@ -734,6 +734,7 @@ i[data-lucide] {
   font-size: 10px;
 }
 
+
 /* Hamburger tampil di desktop */
 .mobile-menu {
   display: grid;
@@ -744,7 +745,7 @@ i[data-lucide] {
   transition: transform .22s ease;
 }
 
-/* Saat sidebar ditutup */
+/* Sidebar disembunyikan saat hamburger ditekan */
 body.sidebar-open .sidebar {
   transform: translateX(-100%);
 }
@@ -753,17 +754,12 @@ body.sidebar-open .main-area {
   margin-left: 0;
 }
 
-/* Overlay saat sidebar dibuka */
-.sidebar-overlay.show {
-  display: block;
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, .42);
-  z-index: 25;
-}
+/* Overlay hanya ditampilkan pada perangkat mobile,
+   bukan pada desktop */
 .sidebar-overlay {
   display: none;
 }
+
 
 @media (max-width: 1100px) {
   .stats-grid {
