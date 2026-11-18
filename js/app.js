@@ -295,7 +295,29 @@
     });
   }
 
+  function updateQRScanNavState() {
+    const qrScanLink = $(".qrscan-nav-item");
+  
+    if (!qrScanLink) return;
+  
+    const isAdmin = !!state.authenticated;
+  
+    qrScanLink.classList.toggle("is-admin", isAdmin);
+  
+    qrScanLink.setAttribute(
+      "aria-label",
+      isAdmin
+        ? "QRScan - mode Admin"
+        : "QRScan - mode informasi publik"
+    );
+  
+    qrScanLink.title = isAdmin
+      ? "QRScan - Admin dapat mengelola data"
+      : "QRScan - hanya melihat informasi";
+  }
+  
   function updateUserDisplay() {
+    updateQRScanNavState();
     const avatar = $(".avatar");
 
     // Hapus tombol akun terpisah dari versi sebelumnya.
@@ -1035,19 +1057,6 @@ $$(".nav-link").forEach(link => {
     link.dataset.page === state.page
   );
 });
-
-// Tandai menu Lainnya jika QR Info sedang dibuka.
-const mobileMore = document.querySelector(".mobile-more");
-
-if (mobileMore) {
-  mobileMore.classList.toggle(
-    "active",
-    state.page === "qr-info"
-  );
-
-  mobileMore.open = false;
-}
-
 
     const breadcrumb = $("#pageCrumb");
 
