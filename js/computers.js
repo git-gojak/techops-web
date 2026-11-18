@@ -61,8 +61,6 @@
     return ui().escapeHTML(value == null ? "" : String(value));
   }
 
-  // Format tanggal tampilan: 17 Nov 2026.
-  // Tidak mengubah nilai tanggal yang tersimpan.
   function formatDate(value) {
     if (value === null || value === undefined || value === "") {
       return "-";
@@ -80,8 +78,6 @@
       day = value.getDate();
     } else {
       const text = String(value).trim();
-
-      // Format ISO: 2026-11-17 atau 2026-11-17T00:00:00
       const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
 
       if (isoMatch) {
@@ -89,7 +85,6 @@
         month = Number(isoMatch[2]);
         day = Number(isoMatch[3]);
       } else {
-        // Format Indonesia: 17-11-2026 atau 17/11/2026
         const localMatch = text.match(
           /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/
         );
@@ -194,8 +189,18 @@
               placeholder="Cari nama, merek, model, serial, pengguna..."
             >
           </div>
+
           <div class="computer-toolbar-actions">
             <span class="badge" id="computerCount">${rows.length} perangkat</span>
+
+            <button
+              class="button button-secondary"
+              id="scanComputerBtn"
+              type="button">
+              <i data-lucide="scan"></i>
+              Scan Spesifikasi
+            </button>
+
             ${isAdmin()
               ? `<button class="button button-primary" id="addComputerBtn" type="button">
                    <i data-lucide="plus"></i> Komputer
@@ -203,6 +208,7 @@
               : ""}
           </div>
         </div>
+
         <div id="computerTable"></div>
       </section>`;
 
@@ -214,13 +220,26 @@
       drawTable(currentQuery);
     });
 
+    // Integrasi tombol Scan Spesifikasi.
+    // Hanya membuka modal hasil scan, tidak menyimpan data.
+    const scanComputerBtn = ui().$("#scanComputerBtn");
+
+    if (scanComputerBtn) {
+      scanComputerBtn.addEventListener("click", () => {
+        if (window.TechOpsHardwareScan) {
+          window.TechOpsHardwareScan.open();
+        } else {
+          alert("Modul Scan Spesifikasi belum berhasil dimuat.");
+        }
+      });
+    }
+
     if (isAdmin()) {
       ui().$("#addComputerBtn").addEventListener("click", () => {
         openForm();
       });
     }
 
-    // Pagination hanya aktif pada tampilan HP.
     lastMobileMode = window.matchMedia("(max-width: 760px)").matches;
 
     if (!resizeHandlerBound) {
@@ -273,18 +292,17 @@
       return;
     }
 
-    // Pagination berlaku pada desktop dan HP.
     const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-    
+
     currentPage = Math.max(1, Math.min(currentPage, totalPages));
-    
+
     const startIndex = (currentPage - 1) * PAGE_SIZE;
-    
+
     const displayed = filtered.slice(
       startIndex,
       startIndex + PAGE_SIZE
     );
-    
+
     const endIndex = startIndex + displayed.length;
 
     host.innerHTML =
@@ -413,7 +431,6 @@
           : ""
       }`;
 
-    // Tombol navigasi halaman.
     host.querySelectorAll("[data-page]").forEach(button => {
       button.addEventListener("click", () => {
         const page = Number(button.dataset.page);
@@ -427,7 +444,6 @@
       });
     });
 
-    // Tombol aksi komputer tetap menggunakan fungsi lama.
     host.querySelectorAll("[data-action]").forEach(button => {
       button.addEventListener("click", () => {
         const action = button.dataset.action;
@@ -550,7 +566,7 @@
       </section>
     `).join("");
 
-      modal(
+    modal(
       editing
         ? "Perbarui informasi perangkat"
         : "Daftarkan perangkat baru",
