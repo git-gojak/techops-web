@@ -557,20 +557,24 @@
       </section>
     `).join("");
 
-    modal(
-      <div>
-            <strong>${editing ? "Perbarui informasi perangkat" : "Daftarkan perangkat baru"}</strong>
-            <p>${editing
-              ? "Pastikan informasi komputer sudah sesuai."
-              : "Lengkapi informasi komputer untuk menambahkannya ke inventaris."}</p>
-          </div>
-      `<form id="computerForm" class="computer-form">
-        <div class="computer-form-intro">
-          <div class="computer-form-intro-icon">
-            <i data-lucide="monitor"></i>
-          </div>          
-        </div>
+      modal(
+      editing
+        ? "Perbarui informasi perangkat"
+        : "Daftarkan perangkat baru",
 
+      `<div class="computer-form-intro">
+        <div class="computer-form-intro-icon">
+          <i data-lucide="monitor"></i>
+        </div>
+        <div>
+          <strong>${editing ? "Perbarui informasi perangkat" : "Daftarkan perangkat baru"}</strong>
+          <p>${editing
+            ? "Pastikan informasi komputer sudah sesuai."
+            : "Lengkapi informasi komputer untuk menambahkannya ke inventaris."}</p>
+        </div>
+      </div>
+
+      <form id="computerForm" class="computer-form">
         ${sections}
 
         <div class="computer-form-required">
