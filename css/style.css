@@ -3086,11 +3086,11 @@ button, a, input, select {
     z-index: 30;
   }
 
-  /* Sidebar terbuka */
-  .sidebar.open {
-    transform: translateX(0);
+  /* Sidebar terbuka di HP landscape */
+  body.sidebar-open .sidebar.open {
+    transform: translateX(0) !important;
   }
-
+  
   /* Tombol hamburger tetap tampil */
   .mobile-menu {
     display: grid !important;
