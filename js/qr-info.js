@@ -492,9 +492,21 @@
     });
   }
 
+
   window.QRInfoPage = {
     render,
-    refresh
+    refresh,
+  
+    openScanner() {
+      // Siapkan halaman QR Info jika elemen scanner belum tersedia.
+      if (!ui().$("#qrScannerPanel")) {
+        render();
+      }
+  
+      // Gunakan scanner QR Info yang sudah ada.
+      startScanner();
+    }
   };
+
 
 })();
