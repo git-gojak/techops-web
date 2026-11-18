@@ -1525,9 +1525,11 @@ function formatDate(value) {
     updateMaintenanceLastUpdated();
   }
 
-  window.MaintenancePage = {
-    render,
-    refresh
-  };
+window.MaintenancePage = {
+  render,
+  refresh,
+  openScanner
+};
+
 
 })();
