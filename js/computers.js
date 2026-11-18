@@ -198,7 +198,7 @@
             <span class="badge" id="computerCount">${rows.length} perangkat</span>
             ${isAdmin()
               ? `<button class="button button-primary" id="addComputerBtn" type="button">
-                   <i data-lucide="plus"></i> Tambah Komputer
+                   <i data-lucide="plus"></i> Komputer
                  </button>`
               : ""}
           </div>
@@ -558,18 +558,17 @@
     `).join("");
 
     modal(
-      editing ? "Edit Komputer" : "Tambah Komputer",
-      `<form id="computerForm" class="computer-form">
-        <div class="computer-form-intro">
-          <div class="computer-form-intro-icon">
-            <i data-lucide="monitor"></i>
-          </div>
-          <div>
+      <div>
             <strong>${editing ? "Perbarui informasi perangkat" : "Daftarkan perangkat baru"}</strong>
             <p>${editing
               ? "Pastikan informasi komputer sudah sesuai."
               : "Lengkapi informasi komputer untuk menambahkannya ke inventaris."}</p>
           </div>
+      `<form id="computerForm" class="computer-form">
+        <div class="computer-form-intro">
+          <div class="computer-form-intro-icon">
+            <i data-lucide="monitor"></i>
+          </div>          
         </div>
 
         ${sections}
