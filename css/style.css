@@ -3098,5 +3098,25 @@ button, a, input, select {
   .dash-content-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  
+  /* Samakan posisi ikon keempat kartu statistik */
+  .dash-operation-card {
+    align-items: flex-start;
+    padding-top: 18px;
+  }
+  
+  /* Cegah tulisan Backend keluar dari kartu */
+  .backend-summary-card .dash-operation-copy {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+  
+  .backend-summary-card .dash-online {
+    font-size: 20px;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
