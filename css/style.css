@@ -2792,6 +2792,20 @@ button, a, input, select {
     font-weight: 700;
   }
 
+  /* =========================================
+   QRSCAN — STATUS AKSES PUBLIK / ADMIN
+  ========================================= */
+  
+  /* Publik: ikon abu-abu */
+  .mobile-bottom-nav .mobile-nav-item.qrscan-nav-item {
+    color: #929292;
+  }
+  
+  /* Admin login: ikon hijau */
+  .mobile-bottom-nav .mobile-nav-item.qrscan-nav-item.is-admin {
+    color: #16a34a;
+  }
+  
   .mobile-nav-item.active i, .mobile-more.active > summary i {
     stroke-width: 2.4;
   }
