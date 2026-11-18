@@ -3046,7 +3046,7 @@ button, a, input, select {
    Sidebar bisa dibuka, ditutup, dan di-scroll.
 =========================================*/
 
-@media (orientation: landscape) and (pointer: coarse) and (max-height: 500px) {
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 700px) {
 
   /* Sidebar tertutup secara default */
   .sidebar {
@@ -3094,24 +3094,28 @@ button, a, input, select {
     display: none !important;
   }
 
-  /* Dashboard HP landscape */
+    /* Dashboard HP landscape */
   .dash-content-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  
-  /* Samakan posisi ikon keempat kartu statistik */
+
+  /* Sejajarkan posisi ikon keempat kartu */
+  .dash-card-top {
+    align-items: flex-start;
+  }
+
   .dash-operation-card {
     align-items: flex-start;
     padding-top: 18px;
   }
-  
-  /* Cegah tulisan Backend keluar dari kartu */
+
+  /* Batasi isi kartu Backend agar tidak meluber */
   .backend-summary-card .dash-operation-copy {
     flex: 1 1 0;
     min-width: 0;
     overflow: hidden;
   }
-  
+
   .backend-summary-card .dash-online {
     font-size: 20px;
     line-height: 1.2;
