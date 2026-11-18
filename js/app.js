@@ -1098,6 +1098,22 @@ $$(".nav-link").forEach(link => {
     $("#menuToggle")?.addEventListener("click", toggleSidebar);
     $("#sidebarOverlay")?.addEventListener("click", closeSidebar);
 
+    // QRScan: pilih scanner berdasarkan status login.
+    $(".qrscan-nav-item")?.addEventListener("click", () => {
+      if (state.authChecking) {
+        toast("Sedang memeriksa sesi Admin. Silakan tunggu sebentar.");
+        return;
+      }
+
+      if (state.authenticated && state.user) {
+        // Admin: gunakan scanner khusus Maintenance.
+        window.MaintenancePage?.openScanner();
+      } else {
+        // Publik: gunakan scanner QR Info.
+        window.QRInfoPage?.openScanner();
+      }
+    });
+    
     // Tutup dropdown ketika klik di luar avatar dan menu.
     document.addEventListener("click", event => {
       const menu = $("#techOpsProfileMenu");
