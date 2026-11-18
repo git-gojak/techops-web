@@ -180,6 +180,7 @@ i[data-lucide] {
   flex-direction: column;
 }
 
+
 .topbar {
   height: 68px;
   padding: 0 34px;
@@ -187,12 +188,14 @@ i[data-lucide] {
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 18px;
   position: sticky;
   top: 0;
   z-index: 20;
   backdrop-filter: blur(12px);
 }
+
 
 .breadcrumb {
   display: flex;
@@ -217,6 +220,7 @@ i[data-lucide] {
   align-items: center;
   gap: 18px;
   position: relative;
+  margin-left: auto;
 }
 
 .environment-label {
