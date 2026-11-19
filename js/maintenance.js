@@ -1521,8 +1521,11 @@ function formatDate(value) {
       resizeHandlerBound = true;
     }
     
-    drawTable(currentQuery);
-    updateMaintenanceLastUpdated();
+    // Gambar ulang tabel hanya jika halaman Maintenance sedang tampil.
+if (document.getElementById("maintenanceTable")) {
+  drawTable(currentQuery);
+  updateMaintenanceLastUpdated();
+}
   }
 
 window.MaintenancePage = {
