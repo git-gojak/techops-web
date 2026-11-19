@@ -464,48 +464,54 @@
     });
   }
 
-  function showDetail(serial) {
-    const row = (state().computers || []).find(
-      item => String(item.serial) === String(serial)
-    );
-
-    if (!row) return;
-
-    const labels = {
-      tahun: "Tahun Perolehan",
-      komputer: "Computer Name",
-      merek: "Manufacturer",
-      model: "Model",
-      serial: "Asset / Serial ID",
-      cpu: "CPU",
-      core: "Core",
-      thread: "Thread",
-      ram: "RAM",
-      storage: "Storage",
-      gpu: "GPU",
-      os: "Operating System",
-      pengguna: "Pengguna",
-      scan_terakhir: "Scan Terakhir",
-      perubahan: "Perubahan",
-      status: "Status"
-    };
-
-    const body = Object.entries(labels).map(([key, label]) => {
-      const value = key === "scan_terakhir"
-        ? formatDate(row[key])
-        : row[key] || "-";
-
-      return `<div class="detail-item">
-        <small>${label}</small>
-        <strong>${escape(value)}</strong>
-      </div>`;
-    }).join("");
-
-    modal(
-      "Detail Komputer",
-      `<div class="detail-grid">${body}</div>`
-    );
-  }
+      function showDetail(serial) {
+        const row = (state().computers || []).find(
+          item => String(item.serial) === String(serial)
+        );
+      
+        if (!row) return;
+      
+        const labels = {
+          tahun: "Tahun Perolehan",
+          komputer: "Computer Name",
+          merek: "Manufacturer",
+          model: "Model",
+          serial: "Asset / Serial ID",
+          cpu: "CPU",
+          core: "Core",
+          thread: "Thread",
+          ram: "RAM",
+          storage: "Storage",
+          gpu: "GPU",
+          os: "Operating System",
+          pengguna: "Pengguna",
+          scan_terakhir: "Scan Terakhir",
+          perubahan: "Perubahan",
+          status: "Status"
+        };
+      
+        const body = Object.entries(labels).map(([key, label]) => {
+          let value = row[key] || "-";
+      
+          if (key === "scan_terakhir") {
+            value = formatDate(row[key]);
+          } else if (key === "komputer") {
+            value = ui().maskComputerName(row[key]);
+          } else if (key === "serial") {
+            value = ui().maskSerial(row[key]);
+          }
+      
+          return `<div class="detail-item">
+            <small>${label}</small>
+            <strong>${escape(value)}</strong>
+          </div>`;
+        }).join("");
+      
+        modal(
+          "Detail Komputer",
+          `<div class="detail-grid">${body}</div>`
+        );
+      }
 
   function renderFormField(field, row, editing) {
     const [key, label, type] = field;
