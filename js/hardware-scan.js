@@ -7,12 +7,11 @@
 
   const state = () => window.TechOpsState;
 
-  // Seluruh data pemindaian harus memiliki pasangan kolom Sheet.
+  // Data scanner yang memiliki pasangan kolom di Sheet.
   const SCAN_FIELDS = [
     ["komputer", "Computer Name", "computerName"],
     ["merek", "Manufacturer", "manufacturer"],
     ["model", "Model", "model"],
-    ["serial", "Asset / Serial ID", "assetSerialID"],
     ["cpu", "CPU", "cpu"],
     ["core", "Core", "core"],
     ["thread", "Thread", "thread"],
@@ -22,6 +21,7 @@
     ["os", "Operating System", "operatingSystem"]
   ];
 
+  // Kolom yang digunakan tetap 16 kolom sesuai Sheet computers.
   const SHEET_FIELDS = [
     "tahun",
     "komputer",
@@ -66,6 +66,13 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  function normalizeValue(value) {
+    return String(value ?? "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+  }
+
   function addStyles() {
     if (document.getElementById(STYLE_ID)) return;
 
@@ -85,7 +92,7 @@
       }
 
       .hwscan-dialog {
-        width: min(760px, 100%);
+        width: min(820px, 100%);
         max-height: 92vh;
         overflow: auto;
         background: var(--surface,#fff);
@@ -143,6 +150,11 @@
       .hwscan-status.success {
         background: #ecfdf5;
         color: #065f46;
+      }
+
+      .hwscan-status.warning {
+        background: #fffbeb;
+        color: #92400e;
       }
 
       .hwscan-groups {
@@ -222,6 +234,11 @@
         font: inherit;
       }
 
+      .hwscan-input input:focus {
+        outline: 2px solid var(--primary,#2563eb);
+        outline-offset: 1px;
+      }
+
       .hwscan-existing {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -243,6 +260,56 @@
 
       .hwscan-existing strong {
         overflow-wrap: anywhere;
+      }
+
+      .hwscan-change-list {
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+
+      .hwscan-change-item {
+        display: grid;
+        grid-template-columns: 115px minmax(0,1fr);
+        gap: 10px;
+        padding: 10px;
+        border-radius: 9px;
+        background: var(--surface-muted,#f3f4f6);
+        font-size: 12px;
+      }
+
+      .hwscan-change-item > strong {
+        overflow-wrap: anywhere;
+      }
+
+      .hwscan-change-values {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .hwscan-old {
+        color: #b45309;
+        overflow-wrap: anywhere;
+      }
+
+      .hwscan-new {
+        color: #047857;
+        overflow-wrap: anywhere;
+      }
+
+      .hwscan-no-change {
+        padding: 12px;
+        border-radius: 9px;
+        background: var(--surface-muted,#f3f4f6);
+        font-size: 12px;
+      }
+
+      .hwscan-note {
+        font-size: 11px;
+        opacity: .65;
+        margin-top: 12px;
       }
 
       .hwscan-actions {
@@ -273,12 +340,6 @@
         color: white;
       }
 
-      .hwscan-note {
-        font-size: 11px;
-        opacity: .65;
-        margin-top: 12px;
-      }
-
       @media(max-width:620px) {
         .hwscan-groups {
           grid-template-columns: 1fr;
@@ -291,6 +352,11 @@
 
         .hwscan-field {
           grid-template-columns: 112px minmax(0,1fr);
+        }
+
+        .hwscan-change-item {
+          grid-template-columns: 1fr;
+          gap: 5px;
         }
 
         .hwscan-backdrop {
@@ -319,6 +385,7 @@
     busy = false;
   }
 
+  // Pencocokan menggunakan Serial ID sebagai identitas utama.
   function getMatchingRecord(serial) {
     const rows = state()?.computers || [];
     const key = normalizeSerial(serial);
@@ -338,24 +405,34 @@
     return matches[0] || null;
   }
 
-  function renderScanFields(data) {
-    const fields = SCAN_FIELDS.map(([key, label]) => `
+  function renderField([key, label], data) {
+    return `
       <div class="hwscan-field">
         <span>${esc(label)}</span>
         <strong>${esc(data[key] || "-")}</strong>
       </div>
-    `).join("");
+    `;
+  }
+
+  function renderScanFields(data) {
+    const identity = SCAN_FIELDS.slice(0, 4)
+      .map(field => renderField(field, data))
+      .join("");
+
+    const hardware = SCAN_FIELDS.slice(4)
+      .map(field => renderField(field, data))
+      .join("");
 
     return `
       <div class="hwscan-groups">
         <section class="hwscan-group">
           <h3>Identitas Perangkat</h3>
-          ${fields.split("</div>").slice(0, 4).join("</div>")}
+          ${identity}
         </section>
 
         <section class="hwscan-group">
           <h3>Spesifikasi Hardware</h3>
-          ${fields.split("</div>").slice(4).join("</div>")}
+          ${hardware}
         </section>
       </div>
     `;
@@ -369,19 +446,103 @@
           <strong>${esc(row.tahun || "-")}</strong>
         </div>
         <div>
-          <small>Pengguna</small>
+          <small>Pengguna Saat Ini</small>
           <strong>${esc(row.pengguna || "-")}</strong>
         </div>
         <div>
-          <small>Status</small>
+          <small>Status Saat Ini</small>
           <strong>${esc(row.status || "-")}</strong>
         </div>
         <div>
-          <small>Perubahan</small>
+          <small>Perubahan Sebelumnya</small>
           <strong>${esc(row.perubahan || "-")}</strong>
         </div>
       </div>
     `;
+  }
+
+  // Bandingkan data lama dan hasil scan.
+  function getChanges(data, pengguna) {
+    if (!currentRecord) return [];
+
+    const changes = [];
+
+    SCAN_FIELDS.forEach(([key, label]) => {
+      const oldValue = String(currentRecord[key] ?? "").trim();
+      const newValue = String(data[key] ?? "").trim();
+
+      if (normalizeValue(oldValue) !== normalizeValue(newValue)) {
+        changes.push({
+          key,
+          label,
+          oldValue: oldValue || "(kosong)",
+          newValue: newValue || "(kosong)"
+        });
+      }
+    });
+
+    const oldUser = String(currentRecord.pengguna ?? "").trim();
+    const newUser = String(pengguna ?? "").trim();
+
+    if (normalizeValue(oldUser) !== normalizeValue(newUser)) {
+      changes.push({
+        key: "pengguna",
+        label: "Pengguna",
+        oldValue: oldUser || "(kosong)",
+        newValue: newUser || "(kosong)"
+      });
+    }
+
+    return changes;
+  }
+
+  function renderChanges(changes) {
+    if (!changes.length) {
+      return `
+        <div class="hwscan-no-change">
+          <strong>Tidak ada perubahan.</strong>
+          <p>Data hasil scan dan Pengguna masih sama dengan inventaris.</p>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="hwscan-change-list">
+        ${changes.map(change => `
+          <div class="hwscan-change-item">
+            <strong>${esc(change.label)}</strong>
+            <div class="hwscan-change-values">
+              <span class="hwscan-old">
+                Sebelum: ${esc(change.oldValue)}
+              </span>
+              <span class="hwscan-new">
+                Sesudah: ${esc(change.newValue)}
+              </span>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function refreshChangePreview() {
+    const pengguna = document
+      .getElementById("hwscanPengguna")?.value.trim() || "";
+
+    const changes = getChanges(currentData, pengguna);
+    const preview = document.getElementById("hwscanChangePreview");
+
+    if (preview) {
+      preview.innerHTML = renderChanges(changes);
+    }
+
+    const count = document.getElementById("hwscanChangeCount");
+
+    if (count) {
+      count.textContent = changes.length
+        ? `${changes.length} perubahan terdeteksi`
+        : "Tidak ada perubahan";
+    }
   }
 
   function renderResults(data, row) {
@@ -394,15 +555,51 @@
       ? `
         <section class="hwscan-section">
           <h3>Data Inventaris Terdaftar</h3>
+
           ${renderExistingInfo(row)}
+
+          <div class="hwscan-meta" style="margin-top:14px">
+            <label class="hwscan-input">
+              <span>Tahun Perolehan</span>
+              <input
+                type="text"
+                value="${esc(row.tahun || "")}"
+                readonly
+              >
+            </label>
+
+            <label class="hwscan-input">
+              <span>Pengguna *</span>
+              <input
+                type="text"
+                id="hwscanPengguna"
+                value="${esc(row.pengguna || "")}"
+                placeholder="Masukkan pengguna"
+                required
+              >
+            </label>
+          </div>
+
           <p class="hwscan-note">
-            Tahun Perolehan, Pengguna, Perubahan, dan Status akan dipertahankan.
+            Tahun Perolehan dipertahankan. Pengguna dapat diubah oleh Admin.
+          </p>
+        </section>
+
+        <section class="hwscan-section">
+          <h3>
+            Pemeriksaan Perubahan
+            <span id="hwscanChangeCount"></span>
+          </h3>
+          <div id="hwscanChangePreview"></div>
+          <p class="hwscan-note">
+            Perbandingan dilakukan terhadap data inventaris sebelum disimpan.
           </p>
         </section>
       `
       : `
         <section class="hwscan-section">
           <h3>Data Komputer Baru</h3>
+
           <div class="hwscan-meta">
             <label class="hwscan-input">
               <span>Tahun Perolehan *</span>
@@ -427,6 +624,10 @@
               >
             </label>
           </div>
+
+          <p class="hwscan-note">
+            Lengkapi Tahun Perolehan dan Pengguna sebelum menyimpan.
+          </p>
         </section>
       `;
 
@@ -494,12 +695,13 @@
       }
 
       const source = result.data;
-
       const data = {};
 
       SCAN_FIELDS.forEach(([sheetKey, label, sourceKey]) => {
         data[sheetKey] = String(source[sourceKey] ?? "").trim();
       });
+
+      data.serial = String(source.assetSerialID ?? "").trim();
 
       data.scan_terakhir = String(
         source.scannedAt || new Date().toISOString()
@@ -521,6 +723,15 @@
       body.innerHTML = renderResults(data, row);
 
       bindResultActions(body);
+
+      // Perbarui perbandingan ketika Pengguna diedit.
+      const penggunaInput = body.querySelector("#hwscanPengguna");
+
+      penggunaInput?.addEventListener("input", refreshChangePreview);
+
+      if (row) {
+        refreshChangePreview();
+      }
 
       if (window.lucide) {
         window.lucide.createIcons();
@@ -563,35 +774,60 @@
   function buildSaveData() {
     const data = {};
 
-    // Seluruh kolom Sheet disiapkan dengan struktur yang konsisten.
     SHEET_FIELDS.forEach(key => {
       data[key] = "";
     });
 
-    // Data spesifikasi hasil pemindaian.
+    // Isi data hasil scanner.
     SCAN_FIELDS.forEach(([key]) => {
       data[key] = currentData[key] || "";
     });
 
+    data.serial = currentData.serial || "";
     data.scan_terakhir = currentData.scan_terakhir;
 
+    const pengguna = document
+      .getElementById("hwscanPengguna")?.value.trim();
+
+    if (!pengguna) {
+      throw new Error("Pengguna wajib diisi.");
+    }
+
+    data.pengguna = pengguna;
+
     if (currentRecord) {
-      // Pertahankan data inventaris yang bukan berasal dari scanner.
+      // Pertahankan Tahun Perolehan dari inventaris.
       data.tahun = currentRecord.tahun || "";
-      data.pengguna = currentRecord.pengguna || "";
-      data.perubahan = currentRecord.perubahan || "";
-      data.status = currentRecord.status || "Aktif";
+
+      // Deteksi perubahan seluruh data yang dapat dibandingkan.
+      const changes = getChanges(currentData, pengguna);
+
+      data.perubahan = changes.length
+        ? changes.map(change =>
+            `${change.label}: ${change.oldValue} → ${change.newValue}`
+          ).join("; ")
+        : "Tidak ada perubahan";
+
+      // Pertahankan status Arsip.
+      // Selain Arsip, status mengikuti hasil pemeriksaan perubahan.
+      const oldStatus = String(currentRecord.status || "")
+        .trim()
+        .toLowerCase();
+
+      if (oldStatus === "arsip") {
+        data.status = currentRecord.status;
+      } else {
+        data.status = changes.length
+          ? "Ada Perubahan"
+          : "Aktif";
+      }
+
     } else {
       const tahun = document
         .getElementById("hwscanTahun")?.value.trim();
 
-      const pengguna = document
-        .getElementById("hwscanPengguna")?.value.trim();
-
-      if (!tahun || !pengguna) {
-        throw new Error(
-          "Tahun Perolehan dan Pengguna wajib diisi."
-        );
+      if (!tahun) {
+        throw new Error("Tahun Perolehan wajib diisi.");
       }
 
       const year = Number(tahun);
@@ -605,8 +841,7 @@
       }
 
       data.tahun = String(year);
-      data.pengguna = pengguna;
-      data.perubahan = "";
+      data.perubahan = "Komputer baru";
       data.status = "Aktif";
     }
 
@@ -627,9 +862,19 @@
     try {
       const data = buildSaveData();
 
+      const changes = isExisting
+        ? getChanges(currentData, data.pengguna)
+        : [];
+
+      const changeMessage = changes.length
+        ? "\n\nPerubahan:\n" + changes.map(change =>
+            `- ${change.label}: ${change.oldValue} → ${change.newValue}`
+          ).join("\n")
+        : "";
+
       const confirmed = confirm(
         isExisting
-          ? `Simpan pembaruan spesifikasi komputer ${data.komputer}?`
+          ? `Simpan pembaruan komputer ${data.komputer}?${changeMessage}`
           : `Tambahkan komputer ${data.komputer} ke inventaris?`
       );
 
@@ -671,6 +916,8 @@
                 : "Komputer baru berhasil ditambahkan."}
             </strong>
             <p>${esc(data.komputer)} — ${esc(data.serial)}</p>
+            <p>Status: ${esc(data.status)}</p>
+            <p>Perubahan: ${esc(data.perubahan)}</p>
           </div>
 
           <div class="hwscan-actions">
