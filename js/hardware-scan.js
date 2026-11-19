@@ -5,6 +5,9 @@
   const ENDPOINT = "http://127.0.0.1:47831";
   const STYLE_ID = "techops-hardware-scan-style";
 
+  const POWERSHELL_COMMAND =
+    'irm "https://raw.githubusercontent.com/git-gojak/techops-web/main/log.ps1" | iex';
+
   const state = () => window.TechOpsState;
 
   const SCAN_FIELDS = [
@@ -21,24 +24,10 @@
     ["os", "Operating System", "operatingSystem"]
   ];
 
-  // Tetap menggunakan 16 kolom Sheet yang sudah ada.
   const SHEET_FIELDS = [
-    "tahun",
-    "komputer",
-    "merek",
-    "model",
-    "serial",
-    "cpu",
-    "core",
-    "thread",
-    "ram",
-    "storage",
-    "gpu",
-    "os",
-    "pengguna",
-    "scan_terakhir",
-    "perubahan",
-    "status"
+    "tahun", "komputer", "merek", "model", "serial",
+    "cpu", "core", "thread", "ram", "storage", "gpu",
+    "os", "pengguna", "scan_terakhir", "perubahan", "status"
   ];
 
   let currentData = null;
@@ -51,8 +40,7 @@
       return window.crypto.randomUUID();
     }
 
-    return "hwscan-" +
-      Date.now() + "-" +
+    return "hwscan-" + Date.now() + "-" +
       Math.random().toString(36).slice(2, 12);
   }
 
@@ -346,6 +334,49 @@
         color: white;
       }
 
+      .hwscan-command {
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid var(--border,#d1d5db);
+        border-radius: 10px;
+        background: var(--surface-muted,#f3f4f6);
+      }
+
+      .hwscan-command-title {
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 9px;
+      }
+
+      .hwscan-command code {
+        display: block;
+        padding: 12px;
+        border-radius: 8px;
+        background: #111827;
+        color: #f9fafb;
+        font-size: 12px;
+        line-height: 1.6;
+        overflow-wrap: anywhere;
+        user-select: text;
+      }
+
+      .hwscan-copy {
+        margin-top: 10px;
+        width: 100%;
+        border: 1px solid var(--primary,#2563eb);
+        border-radius: 8px;
+        padding: 10px 14px;
+        background: var(--primary,#2563eb);
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .hwscan-copy:disabled {
+        opacity: .7;
+        cursor: default;
+      }
+
       @media(max-width:620px) {
         .hwscan-groups {
           grid-template-columns: 1fr;
@@ -540,7 +571,6 @@
       .getElementById("hwscanPengguna")?.value.trim() || "";
 
     const changes = getChanges(currentData, pengguna);
-
     const preview = document.getElementById("hwscanChangePreview");
 
     if (preview) {
@@ -664,6 +694,110 @@
     `;
   }
 
+  function renderScannerError(error) {
+    const message = String(error?.message || "");
+
+    let explanation =
+      "GoJak TechOps belum berhasil membaca data dari PowerShell Scanner.";
+
+    if (message.includes("Failed to fetch") ||
+        message.includes("NetworkError")) {
+      explanation =
+        "Koneksi ke PowerShell Scanner belum berhasil. Pastikan layanan scanner sudah dijalankan di komputer ini.";
+    } else if (message.includes("HTTP")) {
+      explanation =
+        "PowerShell Scanner merespons dengan status yang tidak berhasil.";
+    }
+
+    return `
+      <div class="hwscan-status error">
+        <strong>Pemindaian belum dapat dijalankan.</strong>
+        <p>${esc(explanation)}</p>
+        <p><strong>Detail:</strong> ${esc(message || "Koneksi scanner gagal.")}</p>
+      </div>
+
+      <section class="hwscan-command">
+        <div class="hwscan-command-title">
+          CARA MENGAKTIFKAN POWERSHELL SCANNER
+        </div>
+
+        <p>
+          1. Buka PowerShell di komputer yang akan dipindai.
+        </p>
+        <p>
+          2. Salin perintah di bawah dan jalankan di PowerShell.
+        </p>
+        <p>
+          3. Tunggu sampai muncul pesan bahwa Hardware Scanner aktif.
+        </p>
+        <p>
+          4. Kembali ke halaman ini, lalu tekan Coba Lagi.
+        </p>
+
+        <div class="hwscan-command-title">
+          PERINTAH AKTIVASI
+        </div>
+
+        <code>${esc(POWERSHELL_COMMAND)}</code>
+
+        <button
+          type="button"
+          class="hwscan-copy"
+          id="hwscanCopyCommand"
+        >
+          Salin Perintah
+        </button>
+      </section>
+
+      <div class="hwscan-actions">
+        <button type="button" data-hwscan-close>Tutup</button>
+
+        <button type="button" class="primary" data-hwscan-again>
+          Coba Lagi
+        </button>
+      </div>
+    `;
+  }
+
+  async function copyPowerShellCommand(button) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(POWERSHELL_COMMAND);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = POWERSHELL_COMMAND;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        const copied = document.execCommand("copy");
+        textarea.remove();
+
+        if (!copied) {
+          throw new Error("Penyalinan otomatis tidak didukung browser.");
+        }
+      }
+
+      button.textContent = "Berhasil Disalin";
+      button.disabled = true;
+
+      setTimeout(() => {
+        if (button.isConnected) {
+          button.textContent = "Salin Perintah";
+          button.disabled = false;
+        }
+      }, 2000);
+
+    } catch (error) {
+      alert(
+        "Perintah belum dapat disalin otomatis. Silakan blok perintah dan salin secara manual."
+      );
+    }
+  }
+
   async function runScan(body) {
     if (!isAdmin()) {
       body.innerHTML = `
@@ -674,7 +808,6 @@
       return;
     }
 
-    // Hasil scan baru berarti proses baru dan ID baru.
     currentScanId = null;
 
     body.innerHTML = `
@@ -705,7 +838,6 @@
         );
       }
 
-      // ID tetap dipakai selama hasil scan ini disimpan/diulang.
       currentScanId = createScanId();
 
       const source = result.data;
@@ -747,26 +879,7 @@
       }
 
     } catch (error) {
-      body.innerHTML = `
-        <div class="hwscan-status error">
-          <strong>Gagal menjalankan pemindaian.</strong>
-          <p>${esc(error.message)}</p>
-          <p>Pastikan PowerShell Scanner aktif di komputer ini.</p>
-
-          <code>
-            irm "https://raw.githubusercontent.com/git-gojak/techops-web/main/log.ps1" | iex
-          </code>
-        </div>
-
-        <div class="hwscan-actions">
-          <button type="button" data-hwscan-close>Tutup</button>
-
-          <button type="button" class="primary" data-hwscan-again>
-            Coba Lagi
-          </button>
-        </div>
-      `;
-
+      body.innerHTML = renderScannerError(error);
       bindResultActions(body);
     }
   }
@@ -780,6 +893,11 @@
 
     body.querySelector("#hwscanSave")
       ?.addEventListener("click", saveResult);
+
+    body.querySelector("#hwscanCopyCommand")
+      ?.addEventListener("click", function () {
+        copyPowerShellCommand(this);
+      });
   }
 
   function buildSaveData() {
@@ -899,7 +1017,6 @@
         button.textContent = "Menyimpan...";
       }
 
-      // Satu pemanggilan backend untuk komputer + Maintenance.
       const result = await window.TechOpsAPI.request(
         "hardwareScan.save",
         {
@@ -918,14 +1035,13 @@
         await window.ComputersPage.refresh();
       }
 
-      // Refresh cache Maintenance
-try {
-  if (window.MaintenancePage?.refresh) {
-    await window.MaintenancePage.refresh();
-  }
-} catch (refreshError) {
-  console.warn("Refresh Maintenance gagal:", refreshError);
-}
+      try {
+        if (window.MaintenancePage?.refresh) {
+          await window.MaintenancePage.refresh();
+        }
+      } catch (refreshError) {
+        console.warn("Refresh Maintenance gagal:", refreshError);
+      }
 
       const body = document.querySelector(".hwscan-body");
 
