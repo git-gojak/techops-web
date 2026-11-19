@@ -7,7 +7,6 @@
 
   const state = () => window.TechOpsState;
 
-  // Data yang ditampilkan dari Hardware Scanner.
   const SCAN_FIELDS = [
     ["komputer", "Computer Name", "computerName"],
     ["merek", "Manufacturer", "manufacturer"],
@@ -44,7 +43,18 @@
 
   let currentData = null;
   let currentRecord = null;
+  let currentScanId = null;
   let busy = false;
+
+  function createScanId() {
+    if (window.crypto?.randomUUID) {
+      return window.crypto.randomUUID();
+    }
+
+    return "hwscan-" +
+      Date.now() + "-" +
+      Math.random().toString(36).slice(2, 12);
+  }
 
   function isAdmin() {
     return !!state()?.authenticated;
@@ -378,6 +388,7 @@
 
     currentData = null;
     currentRecord = null;
+    currentScanId = null;
     busy = false;
   }
 
@@ -459,7 +470,6 @@
     `;
   }
 
-  // Membandingkan data lama dengan data scan dan Pengguna terbaru.
   function getChanges(data, pengguna) {
     if (!currentRecord) return [];
 
@@ -664,6 +674,9 @@
       return;
     }
 
+    // Hasil scan baru berarti proses baru dan ID baru.
+    currentScanId = null;
+
     body.innerHTML = `
       <div class="hwscan-status">
         Menghubungi Hardware Scanner dan membaca spesifikasi komputer...
@@ -692,6 +705,9 @@
         );
       }
 
+      // ID tetap dipakai selama hasil scan ini disimpan/diulang.
+      currentScanId = createScanId();
+
       const source = result.data;
       const data = {};
 
@@ -709,7 +725,6 @@
         );
       }
 
-      // Ambil data inventaris terbaru sebelum menentukan create/update.
       if (window.ComputersPage?.refresh) {
         await window.ComputersPage.refresh();
       }
@@ -774,7 +789,6 @@
       data[key] = "";
     });
 
-    // Isi spesifikasi dari hasil scanner.
     SCAN_FIELDS.forEach(([key]) => {
       data[key] = currentData[key] || "";
     });
@@ -791,18 +805,15 @@
     data.pengguna = pengguna;
 
     if (currentRecord) {
-      // Tahun Perolehan selalu mengambil nilai dari inventaris lama.
       data.tahun = currentRecord.tahun || "";
 
       const changes = getChanges(currentData, pengguna);
 
       if (changes.length) {
-        // Catat perubahan terbaru hanya jika memang ada perubahan.
         data.perubahan = changes.map(change =>
           `${change.label}: ${change.oldValue} → ${change.newValue}`
         ).join("; ");
       } else {
-        // Jangan menghapus catatan perubahan sebelumnya.
         data.perubahan = currentRecord.perubahan || "";
       }
 
@@ -814,7 +825,6 @@
       } else if (changes.length) {
         data.status = "Ada Perubahan";
       } else {
-        // Jika tidak ada perubahan baru, pertahankan status lama.
         data.status = currentRecord.status || "Aktif";
       }
 
@@ -876,6 +886,12 @@
 
       if (!confirmed) return;
 
+      if (!currentScanId) {
+        throw new Error(
+          "ID pemindaian tidak tersedia. Silakan lakukan scan ulang."
+        );
+      }
+
       busy = true;
 
       if (button) {
@@ -883,17 +899,18 @@
         button.textContent = "Menyimpan...";
       }
 
-      const action = isExisting
-        ? "computers.update"
-        : "computers.create";
-
-      const result = await window.TechOpsAPI.request(action, {
-        data: data
-      });
+      // Satu pemanggilan backend untuk komputer + Maintenance.
+      const result = await window.TechOpsAPI.request(
+        "hardwareScan.save",
+        {
+          computer: data,
+          scanId: currentScanId
+        }
+      );
 
       if (!result || result.success !== true) {
         throw new Error(
-          result?.message || "Gagal menyimpan data komputer."
+          result?.message || "Gagal menyimpan data komputer dan Maintenance."
         );
       }
 
@@ -915,6 +932,13 @@
             <p>${esc(data.komputer)} — ${esc(data.serial)}</p>
             <p>Status: ${esc(data.status)}</p>
             <p>Perubahan: ${esc(data.perubahan || "-")}</p>
+
+            <hr>
+
+            <strong>Riwayat Maintenance berhasil dicatat.</strong>
+            <p>Kegiatan: Perawatan</p>
+            <p>Kondisi: Baik</p>
+            <p>Jadwal perawatan berikutnya dihitung otomatis oleh sistem.</p>
           </div>
 
           <div class="hwscan-actions">
