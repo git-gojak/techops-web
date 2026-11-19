@@ -324,7 +324,7 @@
 
               return `<tr>
                 <td>${startIndex + index + 1}</td>
-                <td class="primary-cell">${escape(row.serial)}</td>
+                <td class="primary-cell">${escape(ui().maskSerial(row.serial))}</td>
                 <td>${escape(row.unit)}</td>
                 <td>${escape(row.merek)}</td>
                 <td>${escape(row.model)}</td>
