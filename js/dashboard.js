@@ -344,7 +344,11 @@
                 <div class="dash-missing-row">
                   <div>
                     <strong>${esc(device.name)}</strong>
-                    <small>Serial: ${esc(device.serial || "-")}</small>
+                    <small>Serial: ${esc(
+                       window.TechOpsUI
+                         ? window.TechOpsUI.maskSerial(device.serial)
+                         : device.serial || "-"
+                     )}</small>
                   </div>
                   <span>Belum tercatat</span>
                 </div>
@@ -553,8 +557,8 @@
 
               <div class="dash-activity-copy">
                 <strong>
-                  ${esc(row.nama_aset || row.serial || "Perangkat")}
-                </strong>
+                 ${esc(row.nama_aset || "Perangkat")}
+               </strong>
 
                 <small>
                   ${esc(row.kegiatan || "Maintenance")}
