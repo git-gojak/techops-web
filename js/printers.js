@@ -450,42 +450,47 @@
     });
   }
 
-  function showDetail(serial) {
-    const row = (state().printers || []).find(
-      item => String(item.serial) === String(serial)
-    );
+function showDetail(serial) {
+  const row = (state().printers || []).find(
+    item => String(item.serial) === String(serial)
+  );
 
-    if (!row) return;
+  if (!row) return;
 
-    const labels = {
-      serial: "Serial Number",
-      unit: "Unit",
-      merek: "Merek",
-      model: "Model",
-      tinta: "Jenis Tinta",
-      ftp: "Tanggal FTP",
-      mp: "Masa Pakai",
-      status: "Status"
-    };
+  const labels = {
+    serial: "Serial Number",
+    unit: "Unit",
+    merek: "Merek",
+    model: "Model",
+    tinta: "Jenis Tinta",
+    ftp: "Tanggal FTP",
+    mp: "Masa Pakai",
+    status: "Status"
+  };
 
-    const body = Object.entries(labels).map(([key, label]) => {
-      const value = key === "mp"
-        ? calculateMP(row.ftp) || "-"
-        : key === "ftp"
-          ? formatFTPDate(row.ftp)
-          : row[key] || "-";
+  const body = Object.entries(labels).map(([key, label]) => {
+    let value = row[key] || "-";
 
-      return `<div class="detail-item">
-        <small>${label}</small>
-        <strong>${escape(value)}</strong>
-      </div>`;
-    }).join("");
+    if (key === "serial") {
+      value = ui().maskSerial(row.serial);
+    } else if (key === "mp") {
+      value = calculateMP(row.ftp) || "-";
+    } else if (key === "ftp") {
+      value = formatFTPDate(row.ftp);
+    }
 
-    modal(
-      "Detail Printer",
-      `<div class="detail-grid">${body}</div>`
-    );
-  }
+    return `<div class="detail-item">
+      <small>${label}</small>
+      <strong>${escape(value)}</strong>
+    </div>`;
+  }).join("");
+
+  modal(
+    "Detail Printer",
+    `<div class="detail-grid">${body}</div>`
+  );
+}
+
 
   function renderFormField(field, row, editing) {
     const [key, label, type] = field;
