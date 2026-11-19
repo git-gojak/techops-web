@@ -193,19 +193,22 @@
           <div class="computer-toolbar-actions">
             <span class="badge" id="computerCount">${rows.length} perangkat</span>
 
-            <button
-              class="button button-secondary"
-              id="scanComputerBtn"
-              type="button">
-              <i data-lucide="scan"></i>
-              Scan Spesifikasi
-            </button>
+            ${isAdmin() ? `
+              <button
+                class="button button-secondary"
+                id="scanComputerBtn"
+                type="button">
+                <i data-lucide="scan"></i>
+                Scan Spesifikasi
+              </button>
 
-            ${isAdmin()
-              ? `<button class="button button-primary" id="addComputerBtn" type="button">
-                   <i data-lucide="plus"></i> Komputer
-                 </button>`
-              : ""}
+              <button
+                class="button button-primary"
+                id="addComputerBtn"
+                type="button">
+                <i data-lucide="plus"></i> Komputer
+              </button>
+            ` : ""}
           </div>
         </div>
 
@@ -220,12 +223,16 @@
       drawTable(currentQuery);
     });
 
-    // Integrasi tombol Scan Spesifikasi.
-    // Hanya membuka modal hasil scan, tidak menyimpan data.
+    // Scan Spesifikasi hanya tersedia untuk Admin.
     const scanComputerBtn = ui().$("#scanComputerBtn");
 
-    if (scanComputerBtn) {
+    if (scanComputerBtn && isAdmin()) {
       scanComputerBtn.addEventListener("click", () => {
+        if (!isAdmin()) {
+          alert("Silakan login sebagai Admin.");
+          return;
+        }
+
         if (window.TechOpsHardwareScan) {
           window.TechOpsHardwareScan.open();
         } else {
