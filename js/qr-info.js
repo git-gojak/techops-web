@@ -50,7 +50,7 @@
           <input
             id="qrValue"
             autocomplete="off"
-            placeholder="Contoh: FCGBZR3 atau RAEK029524"
+            placeholder="Cari serial diperangkat"
             required>
 
           <button class="button button-primary" type="submit">
@@ -290,6 +290,7 @@
       form.querySelector('button[type="submit"]');
 
     const qr = input.value.trim();
+    input.value = "";
 
     if (!qr) {
       return false;
@@ -315,7 +316,9 @@
               response?.message || "Perangkat tidak ditemukan."
             )}
             <br>
-            Serial: ${ui().escapeHTML(response?.serial || qr)}
+            Serial: ${ui().escapeHTML(
+  ui().maskSerial(response?.serial || qr)
+)}
           </div>`;
 
         return false;
@@ -368,9 +371,15 @@
           device[key] !== undefined && device[key] !== ""
         )
         .map(([key, label]) => {
-          const value = key === "ftp"
-            ? formatDate(device[key])
-            : device[key];
+          let value = device[key];
+          
+          if (key === "serial") {
+            value = ui().maskSerial(device.serial);
+          } else if (key === "komputer" && !isPrinter) {
+            value = ui().maskComputerName(device.komputer);
+          } else if (key === "ftp") {
+            value = formatDate(device[key]);
+          }
 
           return `<div class="detail-item">
             <small>${label}</small>
@@ -387,7 +396,9 @@
                 ${isPrinter ? "Informasi Printer" : "Informasi Komputer"}
               </h2>
               <div class="panel-subtitle">
-                Serial: ${ui().escapeHTML(device.serial || qr)}
+                Serial: ${ui().escapeHTML(
+                  ui().maskSerial(device.serial || qr)
+                )}
               </div>
             </div>
             <span class="badge green">Ditemukan</span>
