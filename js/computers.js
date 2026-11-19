@@ -333,9 +333,9 @@
                 String(row.status || "").trim().toLowerCase() === "arsip";
 
               return `<tr>
-                <td class="primary-cell">${escape(row.komputer)}</td>
-                <td>${escape([row.merek, row.model].filter(Boolean).join(" "))}</td>
-                <td>${escape(row.serial)}</td>
+                <td class="primary-cell">${escape(ui().maskComputerName(row.komputer))}</td>
+                <td>${escape([row.merek, row.model].filter(Boolean).join(" "))}</td>                
+                <td>${escape(ui().maskSerial(row.serial))}</td>
                 <td>${escape(row.pengguna)}</td>
                 <td>${escape(row.tahun)}</td>
                 <td>
