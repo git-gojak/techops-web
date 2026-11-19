@@ -918,6 +918,15 @@
         await window.ComputersPage.refresh();
       }
 
+      // Refresh cache Maintenance
+try {
+  if (window.MaintenancePage?.refresh) {
+    await window.MaintenancePage.refresh();
+  }
+} catch (refreshError) {
+  console.warn("Refresh Maintenance gagal:", refreshError);
+}
+
       const body = document.querySelector(".hwscan-body");
 
       if (body) {
