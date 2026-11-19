@@ -7,11 +7,12 @@
 
   const state = () => window.TechOpsState;
 
-  // Data scanner yang memiliki pasangan kolom di Sheet.
+  // Data yang ditampilkan dari Hardware Scanner.
   const SCAN_FIELDS = [
     ["komputer", "Computer Name", "computerName"],
     ["merek", "Manufacturer", "manufacturer"],
     ["model", "Model", "model"],
+    ["serial", "Asset / Serial ID", "assetSerialID"],
     ["cpu", "CPU", "cpu"],
     ["core", "Core", "core"],
     ["thread", "Thread", "thread"],
@@ -21,7 +22,7 @@
     ["os", "Operating System", "operatingSystem"]
   ];
 
-  // Kolom yang digunakan tetap 16 kolom sesuai Sheet computers.
+  // Tetap menggunakan 16 kolom Sheet yang sudah ada.
   const SHEET_FIELDS = [
     "tahun",
     "komputer",
@@ -150,11 +151,6 @@
       .hwscan-status.success {
         background: #ecfdf5;
         color: #065f46;
-      }
-
-      .hwscan-status.warning {
-        background: #fffbeb;
-        color: #92400e;
       }
 
       .hwscan-groups {
@@ -385,7 +381,6 @@
     busy = false;
   }
 
-  // Pencocokan menggunakan Serial ID sebagai identitas utama.
   function getMatchingRecord(serial) {
     const rows = state()?.computers || [];
     const key = normalizeSerial(serial);
@@ -445,14 +440,17 @@
           <small>Tahun Perolehan</small>
           <strong>${esc(row.tahun || "-")}</strong>
         </div>
+
         <div>
           <small>Pengguna Saat Ini</small>
           <strong>${esc(row.pengguna || "-")}</strong>
         </div>
+
         <div>
           <small>Status Saat Ini</small>
           <strong>${esc(row.status || "-")}</strong>
         </div>
+
         <div>
           <small>Perubahan Sebelumnya</small>
           <strong>${esc(row.perubahan || "-")}</strong>
@@ -461,7 +459,7 @@
     `;
   }
 
-  // Bandingkan data lama dan hasil scan.
+  // Membandingkan data lama dengan data scan dan Pengguna terbaru.
   function getChanges(data, pengguna) {
     if (!currentRecord) return [];
 
@@ -500,7 +498,7 @@
     if (!changes.length) {
       return `
         <div class="hwscan-no-change">
-          <strong>Tidak ada perubahan.</strong>
+          <strong>Tidak ada perubahan baru.</strong>
           <p>Data hasil scan dan Pengguna masih sama dengan inventaris.</p>
         </div>
       `;
@@ -511,10 +509,12 @@
         ${changes.map(change => `
           <div class="hwscan-change-item">
             <strong>${esc(change.label)}</strong>
+
             <div class="hwscan-change-values">
               <span class="hwscan-old">
                 Sebelum: ${esc(change.oldValue)}
               </span>
+
               <span class="hwscan-new">
                 Sesudah: ${esc(change.newValue)}
               </span>
@@ -530,6 +530,7 @@
       .getElementById("hwscanPengguna")?.value.trim() || "";
 
     const changes = getChanges(currentData, pengguna);
+
     const preview = document.getElementById("hwscanChangePreview");
 
     if (preview) {
@@ -540,8 +541,8 @@
 
     if (count) {
       count.textContent = changes.length
-        ? `${changes.length} perubahan terdeteksi`
-        : "Tidak ada perubahan";
+        ? ` — ${changes.length} perubahan terdeteksi`
+        : " — Tidak ada perubahan baru";
     }
   }
 
@@ -560,16 +561,8 @@
 
           <div class="hwscan-meta" style="margin-top:14px">
             <label class="hwscan-input">
-              <span>Tahun Perolehan</span>
-              <input
-                type="text"
-                value="${esc(row.tahun || "")}"
-                readonly
-              >
-            </label>
-
-            <label class="hwscan-input">
               <span>Pengguna *</span>
+
               <input
                 type="text"
                 id="hwscanPengguna"
@@ -581,7 +574,8 @@
           </div>
 
           <p class="hwscan-note">
-            Tahun Perolehan dipertahankan. Pengguna dapat diubah oleh Admin.
+            Tahun Perolehan dipertahankan dan tidak diubah melalui pemindaian.
+            Pengguna dapat diubah oleh Admin.
           </p>
         </section>
 
@@ -590,7 +584,9 @@
             Pemeriksaan Perubahan
             <span id="hwscanChangeCount"></span>
           </h3>
+
           <div id="hwscanChangePreview"></div>
+
           <p class="hwscan-note">
             Perbandingan dilakukan terhadap data inventaris sebelum disimpan.
           </p>
@@ -603,6 +599,7 @@
           <div class="hwscan-meta">
             <label class="hwscan-input">
               <span>Tahun Perolehan *</span>
+
               <input
                 type="number"
                 id="hwscanTahun"
@@ -616,6 +613,7 @@
 
             <label class="hwscan-input">
               <span>Pengguna *</span>
+
               <input
                 type="text"
                 id="hwscanPengguna"
@@ -624,10 +622,6 @@
               >
             </label>
           </div>
-
-          <p class="hwscan-note">
-            Lengkapi Tahun Perolehan dan Pengguna sebelum menyimpan.
-          </p>
         </section>
       `;
 
@@ -648,7 +642,11 @@
 
       <div class="hwscan-actions">
         <button type="button" data-hwscan-close>Tutup</button>
-        <button type="button" data-hwscan-again>Scan Ulang</button>
+
+        <button type="button" data-hwscan-again>
+          Scan Ulang
+        </button>
+
         <button type="button" class="primary" id="hwscanSave">
           ${isExisting ? "Simpan Pembaruan" : "Simpan Komputer Baru"}
         </button>
@@ -701,8 +699,6 @@
         data[sheetKey] = String(source[sourceKey] ?? "").trim();
       });
 
-      data.serial = String(source.assetSerialID ?? "").trim();
-
       data.scan_terakhir = String(
         source.scannedAt || new Date().toISOString()
       );
@@ -724,10 +720,8 @@
 
       bindResultActions(body);
 
-      // Perbarui perbandingan ketika Pengguna diedit.
-      const penggunaInput = body.querySelector("#hwscanPengguna");
-
-      penggunaInput?.addEventListener("input", refreshChangePreview);
+      body.querySelector("#hwscanPengguna")
+        ?.addEventListener("input", refreshChangePreview);
 
       if (row) {
         refreshChangePreview();
@@ -742,14 +736,16 @@
         <div class="hwscan-status error">
           <strong>Gagal menjalankan pemindaian.</strong>
           <p>${esc(error.message)}</p>
-          <p>
-            Pastikan PowerShell Scanner aktif di komputer ini.
-          </p>
-          <code>irm "https://raw.githubusercontent.com/git-gojak/techops-web/main/log.ps1" | iex</code>
+          <p>Pastikan PowerShell Scanner aktif di komputer ini.</p>
+
+          <code>
+            irm "https://raw.githubusercontent.com/git-gojak/techops-web/main/log.ps1" | iex
+          </code>
         </div>
 
         <div class="hwscan-actions">
           <button type="button" data-hwscan-close>Tutup</button>
+
           <button type="button" class="primary" data-hwscan-again>
             Coba Lagi
           </button>
@@ -778,12 +774,11 @@
       data[key] = "";
     });
 
-    // Isi data hasil scanner.
+    // Isi spesifikasi dari hasil scanner.
     SCAN_FIELDS.forEach(([key]) => {
       data[key] = currentData[key] || "";
     });
 
-    data.serial = currentData.serial || "";
     data.scan_terakhir = currentData.scan_terakhir;
 
     const pengguna = document
@@ -796,30 +791,31 @@
     data.pengguna = pengguna;
 
     if (currentRecord) {
-      // Pertahankan Tahun Perolehan dari inventaris.
+      // Tahun Perolehan selalu mengambil nilai dari inventaris lama.
       data.tahun = currentRecord.tahun || "";
 
-      // Deteksi perubahan seluruh data yang dapat dibandingkan.
       const changes = getChanges(currentData, pengguna);
 
-      data.perubahan = changes.length
-        ? changes.map(change =>
-            `${change.label}: ${change.oldValue} → ${change.newValue}`
-          ).join("; ")
-        : "Tidak ada perubahan";
-
-      // Pertahankan status Arsip.
-      // Selain Arsip, status mengikuti hasil pemeriksaan perubahan.
-      const oldStatus = String(currentRecord.status || "")
-        .trim()
-        .toLowerCase();
-
-      if (oldStatus === "arsip") {
-        data.status = currentRecord.status;
+      if (changes.length) {
+        // Catat perubahan terbaru hanya jika memang ada perubahan.
+        data.perubahan = changes.map(change =>
+          `${change.label}: ${change.oldValue} → ${change.newValue}`
+        ).join("; ");
       } else {
-        data.status = changes.length
-          ? "Ada Perubahan"
-          : "Aktif";
+        // Jangan menghapus catatan perubahan sebelumnya.
+        data.perubahan = currentRecord.perubahan || "";
+      }
+
+      const oldStatus = String(currentRecord.status || "").trim();
+      const normalizedStatus = oldStatus.toLowerCase();
+
+      if (normalizedStatus === "arsip") {
+        data.status = currentRecord.status;
+      } else if (changes.length) {
+        data.status = "Ada Perubahan";
+      } else {
+        // Jika tidak ada perubahan baru, pertahankan status lama.
+        data.status = currentRecord.status || "Aktif";
       }
 
     } else {
@@ -915,9 +911,10 @@
                 ? "Pembaruan komputer berhasil disimpan."
                 : "Komputer baru berhasil ditambahkan."}
             </strong>
+
             <p>${esc(data.komputer)} — ${esc(data.serial)}</p>
             <p>Status: ${esc(data.status)}</p>
-            <p>Perubahan: ${esc(data.perubahan)}</p>
+            <p>Perubahan: ${esc(data.perubahan || "-")}</p>
           </div>
 
           <div class="hwscan-actions">
