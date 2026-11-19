@@ -302,11 +302,15 @@ function drawTable(query) {
               </td>
 
               <td class="primary-cell">
-                ${ui().escapeHTML(row.nama_aset || "-")}
+                ${ui().escapeHTML(
+                String(row.jenis_aset || "").toLowerCase() === "printer"
+                  ? row.nama_aset || "-"
+                  : ui().maskComputerName(row.nama_aset)
+              )}
               </td>
 
               <td>
-                ${ui().escapeHTML(row.serial || "-")}
+                ${ui().escapeHTML(ui().maskSerial(row.serial))}
               </td>
 
               <td>
