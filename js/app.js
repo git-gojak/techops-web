@@ -43,6 +43,40 @@
     })[char]);
   }
 
+  
+  // =====================================================
+  // MASKING DATA PUBLIK GOJAK TECHOPS
+  // =====================================================
+
+  function maskSerial(value) {
+    const serial = String(value || "").trim();
+
+    if (!serial) return "-";
+    if (state.authenticated) return serial;
+
+    if (serial.length <= 4) {
+      return "*".repeat(serial.length);
+    }
+
+    return "*".repeat(serial.length - 4) + serial.slice(-4);
+  }
+
+  function maskComputerName(value) {
+    const name = String(value || "").trim();
+
+    if (!name) return "-";
+    if (state.authenticated) return name;
+
+    if (name.length <= 4) {
+      return "*".repeat(name.length);
+    }
+
+    return name.slice(0, 2) +
+      "*".repeat(name.length - 4) +
+      name.slice(-2);
+  }
+
+
   function normalizeArray(payload) {
     if (Array.isArray(payload)) return payload;
     if (payload && Array.isArray(payload.data)) return payload.data;
@@ -1227,9 +1261,12 @@ $$(".nav-link").forEach(link => {
     pageHeading,
     bindRefresh,
     iconRefresh,
-    refreshAndRender
+    refreshAndRender,
+  
+    maskSerial,
+    maskComputerName
   };
-
+  
   document.addEventListener("DOMContentLoaded", init);
 
 })();
