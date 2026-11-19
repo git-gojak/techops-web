@@ -7,6 +7,8 @@
 
   const POWERSHELL_COMMAND =
     'irm "https://raw.githubusercontent.com/git-gojak/techops-web/main/log.ps1" | iex';
+  const LINUX_COMMAND =
+  'bash <(curl -fsSL "https://raw.githubusercontent.com/git-gojak/techops-web/main/log.sh")';
 
   const state = () => window.TechOpsState;
 
@@ -695,108 +697,128 @@
   }
 
   function renderScannerError(error) {
-    const message = String(error?.message || "");
+  const message = String(error?.message || "");
 
-    let explanation =
-      "GoJak TechOps belum berhasil membaca data dari PowerShell Scanner.";
+  let explanation =
+    "GoJak TechOps belum berhasil membaca data dari Hardware Scanner.";
 
-    if (message.includes("Failed to fetch") ||
-        message.includes("NetworkError")) {
-      explanation =
-        "Koneksi ke PowerShell Scanner belum berhasil. Pastikan layanan scanner sudah dijalankan di komputer ini.";
-    } else if (message.includes("HTTP")) {
-      explanation =
-        "PowerShell Scanner merespons dengan status yang tidak berhasil.";
-    }
-
-    return `
-      <div class="hwscan-status error">
-        <strong>Pemindaian belum dapat dijalankan.</strong>
-        <p>${esc(explanation)}</p>
-        <p><strong>Detail:</strong> ${esc(message || "Koneksi scanner gagal.")}</p>
-      </div>
-
-      <section class="hwscan-command">
-        <div class="hwscan-command-title">
-          CARA MENGAKTIFKAN POWERSHELL SCANNER
-        </div>
-
-        <p>
-          1. Buka PowerShell di komputer yang akan dipindai.
-        </p>
-        <p>
-          2. Salin perintah di bawah dan jalankan di PowerShell.
-        </p>
-        <p>
-          3. Tunggu sampai muncul pesan bahwa Hardware Scanner aktif.
-        </p>
-        <p>
-          4. Kembali ke halaman ini, lalu tekan Coba Lagi.
-        </p>
-
-        <div class="hwscan-command-title">
-          PERINTAH AKTIVASI
-        </div>
-
-        <code>${esc(POWERSHELL_COMMAND)}</code>
-
-        <button
-          type="button"
-          class="hwscan-copy"
-          id="hwscanCopyCommand"
-        >
-          Salin Perintah
-        </button>
-      </section>
-
-      <div class="hwscan-actions">
-        <button type="button" data-hwscan-close>Tutup</button>
-
-        <button type="button" class="primary" data-hwscan-again>
-          Coba Lagi
-        </button>
-      </div>
-    `;
+  if (message.includes("Failed to fetch") ||
+      message.includes("NetworkError")) {
+    explanation =
+      "Koneksi ke Hardware Scanner belum berhasil. Pastikan layanan scanner sudah dijalankan di komputer ini.";
+  } else if (message.includes("HTTP")) {
+    explanation =
+      "Hardware Scanner merespons dengan status yang tidak berhasil.";
   }
 
-  async function copyPowerShellCommand(button) {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(POWERSHELL_COMMAND);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = POWERSHELL_COMMAND;
-        textarea.setAttribute("readonly", "");
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
+  return `
+    <div class="hwscan-status error">
+      <strong>Pemindaian belum dapat dijalankan.</strong>
+      <p>${esc(explanation)}</p>
+      <p><strong>Detail:</strong> ${esc(message || "Koneksi scanner gagal.")}</p>
+    </div>
 
-        document.body.appendChild(textarea);
-        textarea.select();
+    <section class="hwscan-command">
+      <div class="hwscan-command-title">
+        CARA MENGAKTIFKAN WINDOWS SCANNER
+      </div>
 
-        const copied = document.execCommand("copy");
-        textarea.remove();
+      <p>1. Buka PowerShell di komputer yang akan dipindai.</p>
+      <p>2. Jalankan perintah aktivasi berikut.</p>
+      <p>3. Tunggu sampai Hardware Scanner aktif.</p>
+      <p>4. Kembali ke halaman ini, lalu tekan Coba Lagi.</p>
 
-        if (!copied) {
-          throw new Error("Penyalinan otomatis tidak didukung browser.");
-        }
+      <div class="hwscan-command-title">
+        PERINTAH POWERSHELL
+      </div>
+
+      <code>${esc(POWERSHELL_COMMAND)}</code>
+
+      <button
+        type="button"
+        class="hwscan-copy"
+        id="hwscanCopyCommand"
+      >
+        Salin Perintah
+      </button>
+    </section>
+
+    <section class="hwscan-command">
+      <div class="hwscan-command-title">
+        CARA MENGAKTIFKAN LINUX SCANNER
+      </div>
+
+      <p>1. Buka Terminal Linux di komputer yang akan dipindai.</p>
+      <p>2. Salin dan jalankan perintah di bawah ini.</p>
+      <p>3. Tunggu sampai Hardware Scanner aktif.</p>
+      <p>4. Kembali ke halaman ini, lalu tekan Coba Lagi.</p>
+
+      <div class="hwscan-command-title">
+        PERINTAH LINUX
+      </div>
+
+      <code>${esc(LINUX_COMMAND)}</code>
+
+      <button
+        type="button"
+        class="hwscan-copy"
+        id="hwscanCopyLinuxCommand"
+      >
+        Salin Perintah Linux
+      </button>
+    </section>
+
+    <div class="hwscan-actions">
+      <button type="button" data-hwscan-close>Tutup</button>
+
+      <button type="button" class="primary" data-hwscan-again>
+        Coba Lagi
+      </button>
+    </div>
+  `;
+}
+
+  async function copyScannerCommand(button, command) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(command);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = command;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+
+      document.body.appendChild(textarea);
+      textarea.select();
+
+      const copied = document.execCommand("copy");
+      textarea.remove();
+
+      if (!copied) {
+        throw new Error("Penyalinan otomatis tidak didukung browser.");
       }
-
-      button.textContent = "Berhasil Disalin";
-      button.disabled = true;
-
-      setTimeout(() => {
-        if (button.isConnected) {
-          button.textContent = "Salin Perintah";
-          button.disabled = false;
-        }
-      }, 2000);
-
-    } catch (error) {
-      alert(
-        "Perintah belum dapat disalin otomatis. Silakan blok perintah dan salin secara manual."
-      );
     }
+
+    button.textContent = "Berhasil Disalin";
+    button.disabled = true;
+
+    setTimeout(() => {
+      if (button.isConnected) {
+        button.textContent = button.id === "hwscanCopyLinuxCommand"
+          ? "Salin Perintah Linux"
+          : "Salin Perintah";
+
+        button.disabled = false;
+      }
+    }, 2000);
+
+  } catch (error) {
+    alert(
+      "Perintah belum dapat disalin otomatis. Silakan salin secara manual."
+    );
   }
+}
 
   async function runScan(body) {
     if (!isAdmin()) {
@@ -895,9 +917,14 @@
       ?.addEventListener("click", saveResult);
 
     body.querySelector("#hwscanCopyCommand")
-      ?.addEventListener("click", function () {
-        copyPowerShellCommand(this);
-      });
+  ?.addEventListener("click", function () {
+    copyScannerCommand(this, POWERSHELL_COMMAND);
+  });
+
+body.querySelector("#hwscanCopyLinuxCommand")
+  ?.addEventListener("click", function () {
+    copyScannerCommand(this, LINUX_COMMAND);
+  });
   }
 
   function buildSaveData() {
