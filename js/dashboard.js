@@ -437,14 +437,73 @@ function buildConditionPanel(devices, typeLabel, archivedCount) {
   // Daftar perangkat yang benar-benar belum memiliki riwayat.
   const missingHtml = missingHistory.length
     ? `
+
+function buildConditionPanel(devices, typeLabel, archivedCount) {
+  const archived = Math.max(0, Number(archivedCount) || 0);
+
+  const groups = {
+    Baik: [],
+    "Perlu Perhatian": [],
+    Rusak: [],
+    "Belum Ada Data Kondisi": []
+  };
+
+  devices.forEach(device => {
+    const key = deviceKey(
+      device.type,
+      device.serial,
+      device.name
+    );
+
+    const latest = latestByDevice.get(key);
+
+    const condition = String(latest?.kondisi || "")
+      .trim()
+      .toLowerCase();
+
+    const item = {
+      ...device,
+      latestDate: latest
+        ? (latest["Waktu Dibuat"] || latest.Tanggal)
+        : null
+    };
+
+    if (!latest) {
+      groups["Belum Ada Data Kondisi"].push(item);
+    } else if (condition === "baik") {
+      groups.Baik.push(item);
+    } else if (condition === "perlu perhatian") {
+      groups["Perlu Perhatian"].push(item);
+    } else if (condition === "rusak") {
+      groups.Rusak.push(item);
+    } else {
+      groups["Belum Ada Data Kondisi"].push(item);
+    }
+  });
+
+  const counts = {
+    Baik: groups.Baik.length,
+    "Perlu Perhatian": groups["Perlu Perhatian"].length,
+    Rusak: groups.Rusak.length + archived,
+    "Belum Ada Data Kondisi":
+      groups["Belum Ada Data Kondisi"].length
+  };
+
+  function deviceDetails(label, items, totalCount) {
+    const hasArchived = label === "Rusak" && archived > 0;
+
+    // Kategori kosong tidak ditampilkan pada daftar detail.
+    if (!items.length && !hasArchived) return "";
+
+    return `
       <details class="dash-missing-details">
         <summary>
-          <span>Belum ada riwayat Maintenance</span>
-          <strong>${missingHistory.length}</strong>
+          <span>${esc(label)}</span>
+          <strong>${totalCount}</strong>
         </summary>
 
         <div class="dash-missing-list">
-          ${missingHistory.map(device => `
+          ${items.map(device => `
             <div class="dash-missing-row">
               <div>
                 <strong>${esc(device.name)}</strong>
@@ -454,21 +513,34 @@ function buildConditionPanel(devices, typeLabel, archivedCount) {
                       ? window.TechOpsUI.maskSerial(device.serial)
                       : device.serial || "-"
                   )}
+                  ${
+                    device.latestDate
+                      ? " · Maintenance: " +
+                        esc(fmtDateTime(device.latestDate))
+                      : " · Belum ada catatan"
+                  }
                 </small>
               </div>
 
-              <span>Belum tercatat</span>
+              <span>${esc(label)}</span>
             </div>
           `).join("")}
+
+          ${hasArchived ? `
+            <div class="dash-missing-row">
+              <div>
+                <strong>${archived} perangkat arsip</strong>
+                <small>
+                  Detail perangkat arsip belum tersedia dari API.
+                </small>
+              </div>
+              <span>Arsip</span>
+            </div>
+          ` : ""}
         </div>
       </details>
-    `
-    : `
-      <div class="dash-no-missing">
-        <i data-lucide="check-circle-2"></i>
-        Semua perangkat aktif sudah memiliki riwayat Maintenance.
-      </div>
     `;
+  }
 
   const totalDevices = devices.length + archived;
 
@@ -506,26 +578,25 @@ function buildConditionPanel(devices, typeLabel, archivedCount) {
       </small>
     </div>
 
-    ${deviceDetails("Baik", groups.Baik, counts.Baik)}
+    <div class="dash-condition-details">
+      ${deviceDetails("Baik", groups.Baik, counts.Baik)}
 
-    ${deviceDetails(
-      "Perlu Perhatian",
-      groups["Perlu Perhatian"],
-      counts["Perlu Perhatian"]
-    )}
+      ${deviceDetails(
+        "Perlu Perhatian",
+        groups["Perlu Perhatian"],
+        counts["Perlu Perhatian"]
+      )}
 
-    ${deviceDetails("Rusak", groups.Rusak, counts.Rusak)}
+      ${deviceDetails("Rusak", groups.Rusak, counts.Rusak)}
 
-    ${deviceDetails(
-      "Belum Ada Data Kondisi",
-      groups["Belum Ada Data Kondisi"],
-      counts["Belum Ada Data Kondisi"]
-    )}
-
-    ${missingHtml}
+      ${deviceDetails(
+        "Belum Ada Data Kondisi",
+        groups["Belum Ada Data Kondisi"],
+        counts["Belum Ada Data Kondisi"]
+      )}
+    </div>
   `;
 }
-
 
     const computerConditionHtml = buildConditionPanel(
       inventoryByType.komputer,
