@@ -3001,20 +3001,34 @@ button, a, input, select {
    DASHBOARD — MONITORING KONDISI PER JENIS
 =========================================*/
 
-.dash-missing-details {
-  margin-top: 15px;
-  border-top: 1px solid #edf1f6;
-  padding-top: 12px;
+
+/* =========================================
+   DASHBOARD — MONITORING KONDISI PER JENIS
+========================================= */
+
+.dash-condition-combined {
+  display: grid;
+  gap: 0;
+  padding: 5px 0;
 }
 
-.dash-missing-details summary {
+.dash-missing-details {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid #edf1f6;
+}
+
+.dash-missing-details summary,
+.dash-condition-summary {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
+  min-height: 54px;
+  padding: 10px 0;
   cursor: pointer;
   list-style: none;
-  color: #b45309;
+  color: #64748b;
   font-size: 11px;
   font-weight: 600;
 }
@@ -3023,25 +3037,42 @@ button, a, input, select {
   display: none;
 }
 
-.dash-missing-details summary::after {
-  content: "Lihat daftar +";
-  margin-left: auto;
-  color: #64748b;
-  font-size: 10px;
-  font-weight: 500;
+.dash-condition-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
 }
 
-.dash-missing-details[open] summary::after {
-  content: "Tutup daftar −";
-}
-
-.dash-missing-details summary strong {
+.dash-missing-details summary strong,
+.dash-condition-summary strong {
   min-width: 25px;
   padding: 4px 7px;
   border-radius: 20px;
   background: #fff7ed;
   color: #c2410c;
   text-align: center;
+}
+
+.dash-missing-details summary::after {
+  content: "Lihat daftar +";
+  margin-left: auto;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dash-missing-details[open] summary::after {
+  content: "Tutup daftar −";
+}
+
+.dash-condition-item.is-empty .dash-condition-summary {
+  cursor: default;
+}
+
+.dash-condition-item.is-empty .dash-condition-summary::after {
+  content: none;
 }
 
 .dash-missing-list {
@@ -3083,6 +3114,14 @@ button, a, input, select {
   flex: 0 0 auto;
   color: #b45309;
   font-size: 9px;
+}
+
+.dash-condition-note {
+  display: block;
+  margin-top: 12px;
+  color: #94a3b8;
+  font-size: 9px;
+  line-height: 1.5;
 }
 
 .dash-no-missing {
