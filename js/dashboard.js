@@ -461,27 +461,31 @@ function parseDate(value) {
       .map(row => ({
         ...row,
         _date: parseDate(row.Tanggal),
+        _created: parseDate(row["Waktu Dibuat"]),
         _schedule: parseDate(row.jadwal)
       }))
       .filter(row => row._date)
-      .sort((a, b) =>
-        b._date.getTime() - a._date.getTime()
-      );
+      .sort((a, b) => {
+        const dateDiff = b._date.getTime() - a._date.getTime();
+
+        if (dateDiff !== 0) return dateDiff;
+
+        return (b._created?.getTime() || 0) -
+               (a._created?.getTime() || 0);
+      });
 
     // Ambil satu catatan Perawatan terbaru
-    // untuk setiap perangkat.
+    // untuk setiap perangkat berdasarkan jenis aset + serial.
     const latestCareByDevice = new Map();
 
     maintenanceCare.forEach(row => {
-      const type = String(row.jenis_aset || "")
-        .trim()
-        .toLowerCase();
+      const type = normalizeAssetType(row.jenis_aset);
 
       const serial = String(
         row.serial || row.nama_aset || ""
       ).trim().toUpperCase();
 
-      if (!serial) return;
+      if (!type || !serial) return;
 
       const key = `${type}|${serial}`;
 
@@ -490,8 +494,7 @@ function parseDate(value) {
       }
     });
 
-    // Jadwal aktif hanya berasal dari Perawatan
-    // terbaru masing-masing perangkat.
+    // Jadwal diambil hanya dari catatan Perawatan terbaru.
     const schedules = [...latestCareByDevice.values()]
       .filter(row => row._schedule)
       .sort((a, b) =>
@@ -524,10 +527,77 @@ function parseDate(value) {
       row => row._schedule > next30Days
     );
 
-    // Jadwal mendatang yang paling dekat.
-    const nearestSchedule = schedules.find(
-      row => row._schedule >= today
-    );
+    // Lima jadwal mendatang terdekat.
+    // Jadwal yang sudah terlambat tidak dimasukkan ke daftar ini.
+    const nextSchedules = schedules
+      .filter(row => row._schedule >= today)
+      .slice(0, 5);
+
+    // Format satu baris perangkat.
+    function scheduleRowHtml(row) {
+      const type = normalizeAssetType(row.jenis_aset);
+      const typeLabel = type === "komputer"
+        ? "Komputer"
+        : type === "printer"
+          ? "Printer"
+          : String(row.jenis_aset || "Perangkat");
+
+      const assetName = String(
+        row.nama_aset || "Nama perangkat tidak tersedia"
+      ).trim();
+
+      const serial = String(row.serial || "").trim();
+
+      const maskedSerial = window.TechOpsUI
+        ? window.TechOpsUI.maskSerial(serial)
+        : serial || "-";
+
+      return `
+        <div class="dash-schedule-row">
+          <div class="dash-schedule-device">
+            <strong>
+              ${esc(typeLabel)} · ${esc(assetName)}
+            </strong>
+
+            <small>
+              Serial: ${esc(maskedSerial || "-")}
+            </small>
+          </div>
+
+          <time>
+            ${esc(fmtDate(row.jadwal))}
+          </time>
+        </div>
+      `;
+    }
+
+    const scheduleListHtml = nextSchedules.length
+      ? `
+        <div class="dash-schedule-list">
+          ${nextSchedules.map(scheduleRowHtml).join("")}
+        </div>
+      `
+      : empty(
+          schedules.length
+            ? "Belum ada jadwal Perawatan mendatang."
+            : "Belum ada jadwal Perawatan."
+        );
+
+    // Daftar lengkap dapat dibuka tanpa meninggalkan dashboard.
+    const allScheduleHtml = schedules.length
+      ? `
+        <details class="dash-schedule-all">
+          <summary>
+            <span>Lihat Semua Jadwal</span>
+            <strong>${schedules.length} perangkat</strong>
+          </summary>
+
+          <div class="dash-schedule-list dash-schedule-full-list">
+            ${schedules.map(scheduleRowHtml).join("")}
+          </div>
+        </details>
+      `
+      : "";
 
     const scheduleHtml = `
       <div class="dash-schedule-summary">
@@ -547,33 +617,14 @@ function parseDate(value) {
         </div>
       </div>
 
-      ${
-        nearestSchedule
-          ? `
-            <div class="dash-schedule-next">
-              <small>Jadwal Perawatan Berikutnya</small>
+      <div class="dash-schedule-next">
+        <small>5 Jadwal Perawatan Terdekat</small>
 
-              <strong>
-                ${esc(
-                  nearestSchedule.nama_aset ||
-                  nearestSchedule.serial ||
-                  "Perangkat"
-                )}
-              </strong>
+        ${scheduleListHtml}
 
-              <span>
-                ${esc(fmtDate(nearestSchedule.jadwal))}
-              </span>
-            </div>
-          `
-          : empty(
-              schedules.length
-                ? "Belum ada jadwal Perawatan mendatang."
-                : "Belum ada jadwal Perawatan aktif."
-            )
-      }
+        ${allScheduleHtml}
+      </div>
     `;
-
     // ==========================================
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
