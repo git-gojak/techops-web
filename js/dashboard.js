@@ -14,54 +14,55 @@
     "'": "&#39;"
   }[c]));
 
-function parseDate(value) {
-  if (!value) return null;
+  function parseDate(value) {
+    if (!value) return null;
 
-  if (value instanceof Date && !isNaN(value)) {
-    return value;
-  }
+    if (value instanceof Date && !isNaN(value)) {
+      return value;
+    }
 
-  const s = String(value).trim();
+    const s = String(value).trim();
 
-  // ISO datetime: pertahankan jam dan menit.
-  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) {
-    const parsed = new Date(s.replace(" ", "T"));
-    return isNaN(parsed) ? null : parsed;
-  }
+    // ISO datetime: pertahankan jam dan menit.
+    if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) {
+      const parsed = new Date(s.replace(" ", "T"));
+      return isNaN(parsed) ? null : parsed;
+    }
 
-  // dd-MM-yyyy HH:mm:ss
-  let m = s.match(
-    /^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/
-  );
-
-  if (m) {
-    return new Date(
-      +m[3],
-      +m[2] - 1,
-      +m[1],
-      +(m[4] || 0),
-      +(m[5] || 0),
-      +(m[6] || 0)
+    // dd-MM-yyyy HH:mm:ss
+    let m = s.match(
+      /^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/
     );
+
+    if (m) {
+      return new Date(
+        +m[3],
+        +m[2] - 1,
+        +m[1],
+        +(m[4] || 0),
+        +(m[5] || 0),
+        +(m[6] || 0)
+      );
+    }
+
+    // yyyy-MM-dd
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+    if (m) {
+      return new Date(+m[1], +m[2] - 1, +m[3]);
+    }
+
+    // dd/MM/yyyy
+    m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+    if (m) {
+      return new Date(+m[3], +m[2] - 1, +m[1]);
+    }
+
+    const d = new Date(s);
+    return isNaN(d) ? null : d;
   }
 
-  // yyyy-MM-dd
-  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-
-  if (m) {
-    return new Date(+m[1], +m[2] - 1, +m[3]);
-  }
-
-  // dd/MM/yyyy
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-
-  if (m) {
-    return new Date(+m[3], +m[2] - 1, +m[1]);
-  }
-
-  const d = new Date(s);
-  return isNaN(d) ? null : d;
-}
   function yearOf(value) {
     if (value == null || value === "") return null;
 
@@ -227,6 +228,7 @@ function parseDate(value) {
     // ==========================================
     // 4. MONITORING KONDISI KOMPUTER & PRINTER
     // ==========================================
+
     const datedMaintenance = maintenance
       .map(row => ({
         ...row,
@@ -238,7 +240,7 @@ function parseDate(value) {
         (b._date?.getTime() || 0) -
         (a._date?.getTime() || 0)
       );
-     
+
     function normalizeAssetType(value) {
       const type = String(value || "").trim().toLowerCase();
 
@@ -377,10 +379,10 @@ function parseDate(value) {
                   <div>
                     <strong>${esc(device.name)}</strong>
                     <small>Serial: ${esc(
-                       window.TechOpsUI
-                         ? window.TechOpsUI.maskSerial(device.serial)
-                         : device.serial || "-"
-                     )}</small>
+                      window.TechOpsUI
+                        ? window.TechOpsUI.maskSerial(device.serial)
+                        : device.serial || "-"
+                    )}</small>
                   </div>
                   <span>Belum tercatat</span>
                 </div>
@@ -446,7 +448,7 @@ function parseDate(value) {
     );
 
     // ==========================================
-    // 5. JADWAL MAINTENANCE
+    // 5. MONITORING JADWAL MAINTENANCE
     // ==========================================
 
     // Hanya catatan Perawatan yang menjadi sumber jadwal.
@@ -495,6 +497,7 @@ function parseDate(value) {
     });
 
     // Jadwal diambil hanya dari catatan Perawatan terbaru.
+    // Urut dari tanggal terdekat ke tanggal paling jauh.
     const schedules = [...latestCareByDevice.values()]
       .filter(row => row._schedule)
       .sort((a, b) =>
@@ -527,15 +530,10 @@ function parseDate(value) {
       row => row._schedule > next30Days
     );
 
-    // Lima jadwal mendatang terdekat.
-    // Jadwal yang sudah terlambat tidak dimasukkan ke daftar ini.
-    const nextSchedules = schedules
-      .filter(row => row._schedule >= today)
-      .slice(0, 5);
-
     // Format satu baris perangkat.
     function scheduleRowHtml(row) {
       const type = normalizeAssetType(row.jenis_aset);
+
       const typeLabel = type === "komputer"
         ? "Komputer"
         : type === "printer"
@@ -571,33 +569,15 @@ function parseDate(value) {
       `;
     }
 
-    const scheduleListHtml = nextSchedules.length
+    // SATU DAFTAR SCROLL UNTUK SELURUH JADWAL.
+    // Tidak ada lagi daftar lima jadwal dan daftar lengkap terpisah.
+    const scheduleListHtml = schedules.length
       ? `
-        <div class="dash-schedule-list">
-          ${nextSchedules.map(scheduleRowHtml).join("")}
+        <div class="dash-schedule-list dash-schedule-full-list">
+          ${schedules.map(scheduleRowHtml).join("")}
         </div>
       `
-      : empty(
-          schedules.length
-            ? "Belum ada jadwal Perawatan mendatang."
-            : "Belum ada jadwal Perawatan."
-        );
-
-    // Daftar lengkap dapat dibuka tanpa meninggalkan dashboard.
-    const allScheduleHtml = schedules.length
-      ? `
-        <details class="dash-schedule-all">
-          <summary>
-            <span>Lihat Semua Jadwal</span>
-            <strong>${schedules.length} perangkat</strong>
-          </summary>
-
-          <div class="dash-schedule-list dash-schedule-full-list">
-            ${schedules.map(scheduleRowHtml).join("")}
-          </div>
-        </details>
-      `
-      : "";
+      : empty("Belum ada jadwal Perawatan.");
 
     const scheduleHtml = `
       <div class="dash-schedule-summary">
@@ -618,13 +598,14 @@ function parseDate(value) {
       </div>
 
       <div class="dash-schedule-next">
-        <small>5 Jadwal Perawatan Terdekat</small>
+        <small>
+          Seluruh Jadwal Perawatan · ${schedules.length} perangkat
+        </small>
 
         ${scheduleListHtml}
-
-        ${allScheduleHtml}
       </div>
     `;
+
     // ==========================================
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
@@ -640,8 +621,8 @@ function parseDate(value) {
 
               <div class="dash-activity-copy">
                 <strong>
-                 ${esc(row.nama_aset || "Perangkat")}
-               </strong>
+                  ${esc(row.nama_aset || "Perangkat")}
+                </strong>
 
                 <small>
                   ${esc(row.kegiatan || "Maintenance")}
@@ -651,8 +632,8 @@ function parseDate(value) {
               </div>
 
               <time>${esc(
-  fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
-)}</time>
+                fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
+              )}</time>
             </div>
           `).join("")}
         </div>
