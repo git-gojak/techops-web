@@ -23,13 +23,11 @@
 
     const s = String(value).trim();
 
-    // ISO datetime: pertahankan jam dan menit.
     if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) {
       const parsed = new Date(s.replace(" ", "T"));
       return isNaN(parsed) ? null : parsed;
     }
 
-    // dd-MM-yyyy HH:mm:ss
     let m = s.match(
       /^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/
     );
@@ -45,14 +43,12 @@
       );
     }
 
-    // yyyy-MM-dd
     m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
 
     if (m) {
       return new Date(+m[1], +m[2] - 1, +m[3]);
     }
 
-    // dd/MM/yyyy
     m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
 
     if (m) {
@@ -321,282 +317,165 @@
     // PERHITUNGAN KONDISI PERANGKAT
     // ==========================================
 
-    
-function buildConditionPanel(devices, typeLabel, archivedCount) {
-  const archived = Math.max(0, Number(archivedCount) || 0);
+    function buildConditionPanel(devices, typeLabel, archivedCount) {
+      const archived = Math.max(0, Number(archivedCount) || 0);
 
-  const groups = {
-    Baik: [],
-    "Perlu Perhatian": [],
-    Rusak: [],
-    "Belum Ada Data Kondisi": []
-  };
+      const groups = {
+        Baik: [],
+        "Perlu Perhatian": [],
+        Rusak: [],
+        "Belum Ada Data Kondisi": []
+      };
 
-  const missingHistory = [];
+      devices.forEach(device => {
+        const key = deviceKey(
+          device.type,
+          device.serial,
+          device.name
+        );
 
-  devices.forEach(device => {
-    const key = deviceKey(
-      device.type,
-      device.serial,
-      device.name
-    );
+        const latest = latestByDevice.get(key);
 
-    const latest = latestByDevice.get(key);
+        const condition = String(latest?.kondisi || "")
+          .trim()
+          .toLowerCase();
 
-    const condition = String(latest?.kondisi || "")
-      .trim()
-      .toLowerCase();
+        const item = {
+          ...device,
+          latestDate: latest
+            ? (latest["Waktu Dibuat"] || latest.Tanggal)
+            : null
+        };
 
-    const item = {
-      ...device,
-      latestDate: latest
-        ? (latest["Waktu Dibuat"] || latest.Tanggal)
-        : null
-    };
+        if (!latest) {
+          groups["Belum Ada Data Kondisi"].push(item);
+        } else if (condition === "baik") {
+          groups.Baik.push(item);
+        } else if (condition === "perlu perhatian") {
+          groups["Perlu Perhatian"].push(item);
+        } else if (condition === "rusak") {
+          groups.Rusak.push(item);
+        } else {
+          groups["Belum Ada Data Kondisi"].push(item);
+        }
+      });
 
-    if (!latest) {
-      groups["Belum Ada Data Kondisi"].push(item);
-      missingHistory.push(item);
+      const counts = {
+        Baik: groups.Baik.length,
+        "Perlu Perhatian": groups["Perlu Perhatian"].length,
+        Rusak: groups.Rusak.length + archived,
+        "Belum Ada Data Kondisi":
+          groups["Belum Ada Data Kondisi"].length
+      };
 
-    } else if (condition === "baik") {
-      groups.Baik.push(item);
+      function deviceDetails(label, items, totalCount) {
+        const hasArchived = label === "Rusak" && archived > 0;
 
-    } else if (condition === "perlu perhatian") {
-      groups["Perlu Perhatian"].push(item);
+        // Kategori kosong tidak ditampilkan pada daftar detail.
+        if (!items.length && !hasArchived) return "";
 
-    } else if (condition === "rusak") {
-      groups.Rusak.push(item);
-
-    } else {
-      groups["Belum Ada Data Kondisi"].push(item);
-    }
-  });
-
-  const counts = {
-    Baik: groups.Baik.length,
-    "Perlu Perhatian": groups["Perlu Perhatian"].length,
-    Rusak: groups.Rusak.length + archived,
-    "Belum Ada Data Kondisi":
-      groups["Belum Ada Data Kondisi"].length
-  };
-
-  // Menggunakan CSS daftar Maintenance yang sudah tersedia.
-  function deviceDetails(label, items, totalCount) {
-    const hasArchived = label === "Rusak" && archived > 0;
-
-    if (!items.length && !hasArchived) return "";
-
-    return `
-      <details class="dash-missing-details">
-        <summary>
-          <span>${esc(label)}</span>
-          <strong>${totalCount}</strong>
-        </summary>
-
-        <div class="dash-missing-list">
-          ${items.map(device => `
-            <div class="dash-missing-row">
-              <div>
-                <strong>${esc(device.name)}</strong>
-                <small>
-                  Serial: ${esc(
-                    window.TechOpsUI
-                      ? window.TechOpsUI.maskSerial(device.serial)
-                      : device.serial || "-"
-                  )}
-                  ${
-                    device.latestDate
-                      ? " · Maintenance: " +
-                        esc(fmtDateTime(device.latestDate))
-                      : " · Belum ada catatan"
-                  }
-                </small>
-              </div>
-
+        return `
+          <details class="dash-missing-details">
+            <summary>
               <span>${esc(label)}</span>
-            </div>
-          `).join("")}
+              <strong>${totalCount}</strong>
+            </summary>
 
-          ${hasArchived ? `
-            <div class="dash-missing-row">
-              <div>
-                <strong>${archived} perangkat arsip</strong>
-                <small>
-                  Dihitung sebagai Rusak sesuai rekap arsip.
-                  Detail perangkat arsip belum tersedia dari API.
-                </small>
-              </div>
-              <span>Arsip</span>
+            <div class="dash-missing-list">
+              ${items.map(device => `
+                <div class="dash-missing-row">
+                  <div>
+                    <strong>${esc(device.name)}</strong>
+                    <small>
+                      Serial: ${esc(
+                        window.TechOpsUI
+                          ? window.TechOpsUI.maskSerial(device.serial)
+                          : device.serial || "-"
+                      )}
+                      ${
+                        device.latestDate
+                          ? " · Maintenance: " +
+                            esc(fmtDateTime(device.latestDate))
+                          : " · Belum ada catatan"
+                      }
+                    </small>
+                  </div>
+
+                  <span>${esc(label)}</span>
+                </div>
+              `).join("")}
+
+              ${hasArchived ? `
+                <div class="dash-missing-row">
+                  <div>
+                    <strong>${archived} perangkat arsip</strong>
+                    <small>
+                      Detail perangkat arsip belum tersedia dari API.
+                    </small>
+                  </div>
+                  <span>Arsip</span>
+                </div>
+              ` : ""}
             </div>
-          ` : ""}
+          </details>
+        `;
+      }
+
+      const totalDevices = devices.length + archived;
+
+      return `
+        <div class="dash-condition-list">
+          <div>
+            <span class="condition-dot good"></span>
+            <span>Baik</span>
+            <strong>${counts.Baik}</strong>
+          </div>
+
+          <div>
+            <span class="condition-dot attention"></span>
+            <span>Perlu Perhatian</span>
+            <strong>${counts["Perlu Perhatian"]}</strong>
+          </div>
+
+          <div>
+            <span class="condition-dot bad"></span>
+            <span>Rusak</span>
+            <strong>${counts.Rusak}</strong>
+          </div>
+
+          <div>
+            <span class="condition-dot"></span>
+            <span>Belum Ada Data Kondisi</span>
+            <strong>${counts["Belum Ada Data Kondisi"]}</strong>
+          </div>
+
+          <small>
+            ${typeLabel}: ${totalDevices} perangkat.
+            ${devices.length} aktif dan ${archived} arsip.
+            Kondisi perangkat aktif berdasarkan catatan Maintenance terbaru.
+            Seluruh perangkat arsip dihitung sebagai Rusak.
+          </small>
         </div>
-      </details>
-    `;
-  }
 
-  // Daftar perangkat yang benar-benar belum memiliki riwayat.
-  const missingHtml = missingHistory.length
-    ? `
+        <div class="dash-condition-details">
+          ${deviceDetails("Baik", groups.Baik, counts.Baik)}
 
-function buildConditionPanel(devices, typeLabel, archivedCount) {
-  const archived = Math.max(0, Number(archivedCount) || 0);
+          ${deviceDetails(
+            "Perlu Perhatian",
+            groups["Perlu Perhatian"],
+            counts["Perlu Perhatian"]
+          )}
 
-  const groups = {
-    Baik: [],
-    "Perlu Perhatian": [],
-    Rusak: [],
-    "Belum Ada Data Kondisi": []
-  };
+          ${deviceDetails("Rusak", groups.Rusak, counts.Rusak)}
 
-  devices.forEach(device => {
-    const key = deviceKey(
-      device.type,
-      device.serial,
-      device.name
-    );
-
-    const latest = latestByDevice.get(key);
-
-    const condition = String(latest?.kondisi || "")
-      .trim()
-      .toLowerCase();
-
-    const item = {
-      ...device,
-      latestDate: latest
-        ? (latest["Waktu Dibuat"] || latest.Tanggal)
-        : null
-    };
-
-    if (!latest) {
-      groups["Belum Ada Data Kondisi"].push(item);
-    } else if (condition === "baik") {
-      groups.Baik.push(item);
-    } else if (condition === "perlu perhatian") {
-      groups["Perlu Perhatian"].push(item);
-    } else if (condition === "rusak") {
-      groups.Rusak.push(item);
-    } else {
-      groups["Belum Ada Data Kondisi"].push(item);
+          ${deviceDetails(
+            "Belum Ada Data Kondisi",
+            groups["Belum Ada Data Kondisi"],
+            counts["Belum Ada Data Kondisi"]
+          )}
+        </div>
+      `;
     }
-  });
-
-  const counts = {
-    Baik: groups.Baik.length,
-    "Perlu Perhatian": groups["Perlu Perhatian"].length,
-    Rusak: groups.Rusak.length + archived,
-    "Belum Ada Data Kondisi":
-      groups["Belum Ada Data Kondisi"].length
-  };
-
-  function deviceDetails(label, items, totalCount) {
-    const hasArchived = label === "Rusak" && archived > 0;
-
-    // Kategori kosong tidak ditampilkan pada daftar detail.
-    if (!items.length && !hasArchived) return "";
-
-    return `
-      <details class="dash-missing-details">
-        <summary>
-          <span>${esc(label)}</span>
-          <strong>${totalCount}</strong>
-        </summary>
-
-        <div class="dash-missing-list">
-          ${items.map(device => `
-            <div class="dash-missing-row">
-              <div>
-                <strong>${esc(device.name)}</strong>
-                <small>
-                  Serial: ${esc(
-                    window.TechOpsUI
-                      ? window.TechOpsUI.maskSerial(device.serial)
-                      : device.serial || "-"
-                  )}
-                  ${
-                    device.latestDate
-                      ? " · Maintenance: " +
-                        esc(fmtDateTime(device.latestDate))
-                      : " · Belum ada catatan"
-                  }
-                </small>
-              </div>
-
-              <span>${esc(label)}</span>
-            </div>
-          `).join("")}
-
-          ${hasArchived ? `
-            <div class="dash-missing-row">
-              <div>
-                <strong>${archived} perangkat arsip</strong>
-                <small>
-                  Detail perangkat arsip belum tersedia dari API.
-                </small>
-              </div>
-              <span>Arsip</span>
-            </div>
-          ` : ""}
-        </div>
-      </details>
-    `;
-  }
-
-  const totalDevices = devices.length + archived;
-
-  return `
-    <div class="dash-condition-list">
-      <div>
-        <span class="condition-dot good"></span>
-        <span>Baik</span>
-        <strong>${counts.Baik}</strong>
-      </div>
-
-      <div>
-        <span class="condition-dot attention"></span>
-        <span>Perlu Perhatian</span>
-        <strong>${counts["Perlu Perhatian"]}</strong>
-      </div>
-
-      <div>
-        <span class="condition-dot bad"></span>
-        <span>Rusak</span>
-        <strong>${counts.Rusak}</strong>
-      </div>
-
-      <div>
-        <span class="condition-dot"></span>
-        <span>Belum Ada Data Kondisi</span>
-        <strong>${counts["Belum Ada Data Kondisi"]}</strong>
-      </div>
-
-      <small>
-        ${typeLabel}: ${totalDevices} perangkat.
-        ${devices.length} aktif dan ${archived} arsip.
-        Kondisi perangkat aktif berdasarkan catatan Maintenance terbaru.
-        Seluruh perangkat arsip dihitung sebagai Rusak.
-      </small>
-    </div>
-
-    <div class="dash-condition-details">
-      ${deviceDetails("Baik", groups.Baik, counts.Baik)}
-
-      ${deviceDetails(
-        "Perlu Perhatian",
-        groups["Perlu Perhatian"],
-        counts["Perlu Perhatian"]
-      )}
-
-      ${deviceDetails("Rusak", groups.Rusak, counts.Rusak)}
-
-      ${deviceDetails(
-        "Belum Ada Data Kondisi",
-        groups["Belum Ada Data Kondisi"],
-        counts["Belum Ada Data Kondisi"]
-      )}
-    </div>
-  `;
-}
 
     const computerConditionHtml = buildConditionPanel(
       inventoryByType.komputer,
