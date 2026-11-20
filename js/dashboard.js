@@ -501,90 +501,6 @@
                (a._created?.getTime() || 0);
       });
 
-    // Ambil satu catatan Perawatan terbaru
-    // untuk setiap perangkat berdasarkan jenis aset + serial.
-    const latestCareByDevice = new Map();
-
-    maintenanceCare.forEach(row => {
-      const type = normalizeAssetType(row.jenis_aset);
-
-      const serial = String(
-        row.serial || row.nama_aset || ""
-      ).trim().toUpperCase();
-
-      if (!type || !serial) return;
-
-      const key = `${type}|${serial}`;
-
-      if (!latestCareByDevice.has(key)) {
-        latestCareByDevice.set(key, row);
-      }
-    });
-
-    // Jadwal diambil hanya dari catatan Perawatan terbaru.
-    // Urut dari tanggal terdekat ke tanggal paling jauh.
-    const schedules = [...latestCareByDevice.values()]
-      .filter(row => row._schedule)
-      .sort((a, b) =>
-        a._schedule.getTime() - b._schedule.getTime()
-      );
-
-    const today = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate()
-    );
-
-    const next30Days = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      today.getDate() + 30
-    );
-
-    const overdueSchedules = schedules.filter(
-      row => row._schedule < today
-    );
-
-    const upcomingSchedules = schedules.filter(
-      row =>
-        row._schedule >= today &&
-        row._schedule <= next30Days
-    );
-
-    const futureSchedules = schedules.filter(
-      row => row._schedule > next30Days
-    );
-
-   
-    // ==========================================
-    // 5. MONITORING JADWAL MAINTENANCE
-    // ==========================================
-
-    // Hanya catatan Perawatan yang menjadi sumber jadwal.
-    const maintenanceCare = maintenance
-      .filter(row => {
-        const activity = String(
-          row.jenis_kegiatan || row.kegiatan || ""
-        ).trim().toLowerCase();
-
-        return activity === "perawatan";
-      })
-      .map(row => ({
-        ...row,
-        _date: parseDate(row.Tanggal),
-        _created: parseDate(row["Waktu Dibuat"]),
-        _schedule: parseDate(row.jadwal)
-      }))
-      .filter(row => row._date)
-      .sort((a, b) => {
-        const dateDiff = b._date.getTime() - a._date.getTime();
-
-        if (dateDiff !== 0) return dateDiff;
-
-        return (b._created?.getTime() || 0) -
-               (a._created?.getTime() || 0);
-      });
-
     // Ambil catatan Perawatan terbaru untuk setiap perangkat.
     const latestCareByDevice = new Map();
 
@@ -883,10 +799,10 @@
         </span>
 
         <div class="dash-operation-copy">
-          <div class="stat-label">Koneksi Backend</div>
-          <div class="stat-value dash-online">Terintegrasi</div>
+          <div class="stat-label">Koneksi</div>
+          <div class="stat-value dash-online">Online</div>
           <div class="stat-note">
-            Menggunakan Google Apps Script
+            Google Apps Script
           </div>
         </div>
 
