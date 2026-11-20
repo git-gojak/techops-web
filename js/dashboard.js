@@ -555,38 +555,7 @@
       row => row._schedule > next30Days
     );
 
-    // Format satu baris perangkat.
-    function scheduleRowHtml(row) {
-      const type = normalizeAssetType(row.jenis_aset);
-
-      const typeLabel = type === "komputer"
-        ? "Komputer"
-        : type === "printer"
-          ? "Printer"
-          : String(row.jenis_aset || "Perangkat");
-
-      const assetName = String(
-        row.nama_aset || "Nama perangkat tidak tersedia"
-      ).trim();
-
-      const serial = String(row.serial || "").trim();
-
-      const maskedSerial = window.TechOpsUI
-        ? window.TechOpsUI.maskSerial(serial)
-        : serial || "-";
-
-      return `
-        <div class="dash-schedule-row">
-          <div class="dash-schedule-device">
-            <strong>
-              ${esc(typeLabel)} · ${esc(assetName)}
-            </strong>
-
-            <small>
-              Serial: ${esc(maskedSerial || "-")}
-            </small>
-          </div>
-
+   
     // ==========================================
     // 5. MONITORING JADWAL MAINTENANCE
     // ==========================================
