@@ -1,3 +1,4 @@
+
 (function () {
   "use strict";
 
@@ -9,8 +10,6 @@
     printers: [],
     maintenance: [],
 
-    // Jumlah arsip dari API khusus.
-    // Tidak berisi data detail perangkat arsip.
     archiveCounts: {
       computers: 0,
       printers: 0
@@ -22,7 +21,8 @@
     user: null,
     authenticated: false,
     authChecking: true,
-    loading: false
+    loading: false,
+    initializing: true
   };
 
   const pageNames = {
@@ -43,7 +43,6 @@
     })[char]);
   }
 
-  
   // =====================================================
   // MASKING DATA PUBLIK GOJAK TECHOPS
   // =====================================================
@@ -75,7 +74,6 @@
       "*".repeat(name.length - 4) +
       name.slice(-2);
   }
-
 
   function normalizeArray(payload) {
     if (Array.isArray(payload)) return payload;
@@ -331,30 +329,29 @@
 
   function updateQRScanNavState() {
     const qrScanLink = $(".qrscan-nav-item");
-  
+
     if (!qrScanLink) return;
-  
+
     const isAdmin = !!state.authenticated;
-  
+
     qrScanLink.classList.toggle("is-admin", isAdmin);
-  
+
     qrScanLink.setAttribute(
       "aria-label",
       isAdmin
         ? "QRScan - mode Admin"
         : "QRScan - mode informasi publik"
     );
-  
+
     qrScanLink.title = isAdmin
       ? "QRScan - Admin dapat mengelola data"
       : "QRScan - hanya melihat informasi";
   }
-  
+
   function updateUserDisplay() {
     updateQRScanNavState();
     const avatar = $(".avatar");
 
-    // Hapus tombol akun terpisah dari versi sebelumnya.
     $("#techOpsLoginButton")?.remove();
     $("#techOpsUserInfo")?.remove();
     $("#techOpsLogout")?.remove();
@@ -1008,8 +1005,6 @@
         refreshed = await window.QRInfoPage.refresh();
 
       } else {
-        // Dashboard: mengambil seluruh data,
-        // termasuk jumlah arsip komputer dan printer.
         await loadAll();
 
         if (state.page === page) {
@@ -1079,18 +1074,19 @@
   ===================================================== */
 
   function renderCurrentPage() {
+    // Tunda render sampai pemuatan data awal selesai.
+    if (state.initializing) return;
+
     const page = location.hash.replace("#", "") || "dashboard";
 
-    // Simpan kode halaman, bukan nama tampilannya.
     state.page = pageNames[page] ? page : "dashboard";
 
-    
-$$(".nav-link").forEach(link => {
-  link.classList.toggle(
-    "active",
-    link.dataset.page === state.page
-  );
-});
+    $$(".nav-link").forEach(link => {
+      link.classList.toggle(
+        "active",
+        link.dataset.page === state.page
+      );
+    });
 
     const breadcrumb = $("#pageCrumb");
 
@@ -1140,14 +1136,12 @@ $$(".nav-link").forEach(link => {
       }
 
       if (state.authenticated && state.user) {
-        // Admin: gunakan scanner khusus Maintenance.
         window.MaintenancePage?.openScanner();
       } else {
-        // Publik: gunakan scanner QR Info.
         window.QRInfoPage?.openScanner();
       }
     });
-    
+
     // Tutup dropdown ketika klik di luar avatar dan menu.
     document.addEventListener("click", event => {
       const menu = $("#techOpsProfileMenu");
@@ -1177,16 +1171,41 @@ $$(".nav-link").forEach(link => {
 
     window.addEventListener("hashchange", renderCurrentPage);
 
-    // Tampilkan Dashboard langsung.
-    updateUserDisplay();
-    renderCurrentPage();
+    // Tampilkan indikator loading selama data dan sesi diperiksa.
+    const host = $("#appContent");
 
-    // Validasi Admin berjalan di belakang layar.
-    // Tidak menghambat tampilan Dashboard dan pemuatan data.
-    (async function restoreAdminSession() {
+    if (host) {
+      host.innerHTML = `
+        <section class="panel" style="
+          min-height:180px;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          text-align:center;
+          gap:10px;
+        ">
+          <i data-lucide="loader-circle"
+             style="width:28px;height:28px"></i>
+
+          <strong>Memuat GoJak TechOps...</strong>
+
+          <p class="muted">
+            Menghubungkan database dan memeriksa sesi Admin.
+          </p>
+        </section>
+      `;
+
+      iconRefresh();
+    }
+
+    // Pulihkan sesi Admin.
+    async function restoreAdminSession() {
       try {
-        if (!window.TechOpsAPI ||
-            typeof TechOpsAPI.validateSession !== "function") {
+        if (
+          !window.TechOpsAPI ||
+          typeof TechOpsAPI.validateSession !== "function"
+        ) {
           throw new Error("TechOpsAPI belum tersedia.");
         }
 
@@ -1207,7 +1226,9 @@ $$(".nav-link").forEach(link => {
           state.authenticated = false;
 
           if (sessionValid === false) {
-            console.log("Sesi Admin tidak valid atau telah berakhir.");
+            console.log(
+              "Sesi Admin tidak valid atau telah berakhir."
+            );
           } else {
             console.warn(
               "Validasi sesi belum berhasil. Session ID tetap dipertahankan."
@@ -1220,29 +1241,49 @@ $$(".nav-link").forEach(link => {
 
         state.user = null;
         state.authenticated = false;
+
+      } finally {
+        state.authChecking = false;
       }
-
-      state.authChecking = false;
-
-      // Perbarui tampilan setelah validasi sesi selesai.
-      updateUserDisplay();
-      renderCurrentPage();
-    })();
-
-    // Data dimuat tanpa menunggu validasi Admin.
-    try {
-      await loadAll();
-      renderCurrentPage();
-
-    } catch (error) {
-      console.error("Gagal memuat data GoJak TechOps:", error);
-      renderError(error);
     }
 
-    if ("serviceWorker" in navigator &&
-        location.protocol === "https:") {
+    // Pemulihan sesi dan pengambilan data berjalan bersamaan.
+    // Halaman baru dirender setelah keduanya selesai.
+    const [, loadError] = await Promise.all([
+      restoreAdminSession(),
+
+      loadAll()
+        .then(() => null)
+        .catch(error => error)
+    ]);
+
+    // Perbarui avatar sesuai status sesi terakhir.
+    updateUserDisplay();
+
+    // Inisialisasi selesai; render halaman yang sedang dipilih.
+    state.initializing = false;
+
+    if (loadError) {
+      console.error(
+        "Gagal memuat data GoJak TechOps:",
+        loadError
+      );
+
+      renderError(loadError);
+
+    } else {
+      renderCurrentPage();
+    }
+
+    // Registrasi Service Worker tetap berjalan.
+    if (
+      "serviceWorker" in navigator &&
+      location.protocol === "https:"
+    ) {
       navigator.serviceWorker.register("./service-worker.js")
-        .catch(err => console.warn("PWA service worker:", err));
+        .catch(err => {
+          console.warn("PWA service worker:", err);
+        });
     }
   }
 
@@ -1262,11 +1303,11 @@ $$(".nav-link").forEach(link => {
     bindRefresh,
     iconRefresh,
     refreshAndRender,
-  
+
     maskSerial,
     maskComputerName
   };
-  
+
   document.addEventListener("DOMContentLoaded", init);
 
 })();
