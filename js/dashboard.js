@@ -251,6 +251,25 @@
       return "";
     }
 
+      // Menyamarkan nama komputer untuk pengguna publik.
+      // Nama printer tetap ditampilkan seperti aslinya.
+      function displayAssetName(type, name) {
+        const assetType = normalizeAssetType(type);
+        const assetName = String(name || "").trim();
+      
+        if (!assetName) return "Perangkat";
+      
+        if (
+          assetType === "komputer" &&
+          window.TechOpsUI &&
+          typeof window.TechOpsUI.maskComputerName === "function"
+        ) {
+          return window.TechOpsUI.maskComputerName(assetName);
+        }
+      
+        return assetName;
+      }
+
     function deviceKey(type, serial, name) {
       const normalizedType = normalizeAssetType(type);
       const identity = String(serial || name || "")
@@ -404,7 +423,7 @@
                 return `
                   <div class="dash-missing-row">
                     <div>
-                      <strong>${esc(device.name)}</strong>
+                      <strong>${esc(displayAssetName(device.type, device.name))}</strong>
                       <small>
                         Serial: ${esc(maskedSerial || "-")}
                         ${device.latestDate
@@ -563,9 +582,10 @@
           ? "Printer"
           : String(row.jenis_aset || "Perangkat");
 
-      const assetName = String(
+      const assetName = displayAssetName(
+        row.jenis_aset,
         row.nama_aset || "Nama perangkat tidak tersedia"
-      ).trim();
+      );
 
       const serial = String(row.serial || "").trim();
 
@@ -639,36 +659,42 @@
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
 
-    const recentHtml = datedMaintenance.length
-      ? `
-        <div class="dash-activity-list">
-          ${datedMaintenance.slice(0, 6).map(row => `
-            <div class="dash-activity-row">
-              <span class="dash-activity-mark">
-                <i data-lucide="wrench"></i>
-              </span>
+  const recentHtml = datedMaintenance.length
+  ? `
+    <div class="dash-activity-list">
+      ${datedMaintenance.slice(0, 6).map(row => {
+        const assetName = displayAssetName(
+          row.jenis_aset,
+          row.nama_aset || "Perangkat"
+        );
 
-              <div class="dash-activity-copy">
-                <strong>
-                  ${esc(row.nama_aset || "Perangkat")}
-                </strong>
+        return `
+          <div class="dash-activity-row">
+            <span class="dash-activity-mark">
+              <i data-lucide="wrench"></i>
+            </span>
 
-                <small>
-                  ${esc(row.kegiatan || "Maintenance")}
-                  ·
-                  ${esc(row.kondisi || "Kondisi belum diisi")}
-                </small>
-              </div>
+            <div class="dash-activity-copy">
+              <strong>
+                ${esc(assetName)}
+              </strong>
 
-              <time>${esc(
-                fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
-              )}</time>
+              <small>
+                ${esc(row.kegiatan || "Maintenance")}
+                ·
+                ${esc(row.kondisi || "Kondisi belum diisi")}
+              </small>
             </div>
-          `).join("")}
-        </div>
-      `
-      : empty("Belum ada aktivitas maintenance.");
 
+            <time>${esc(
+              fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
+            )}</time>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `
+  : empty("Belum ada aktivitas maintenance.");
     // ==========================================
     // 7. KARTU INVENTARIS
     // ==========================================
