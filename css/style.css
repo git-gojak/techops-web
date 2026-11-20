@@ -1359,9 +1359,10 @@ i[data-lucide] {
   background: #ccfbf1;
 }
 
+
 .dash-schedule-summary {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1371,6 +1372,7 @@ i[data-lucide] {
   gap: 5px;
   padding: 14px;
   border-radius: 9px;
+  min-width: 0;
 }
 
 .schedule-number strong {
@@ -1393,9 +1395,13 @@ i[data-lucide] {
   color: #b45309;
 }
 
+.schedule-number.scheduled {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .dash-schedule-next {
-  display: grid;
-  gap: 5px;
+  display: block;
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid #edf1f6;
@@ -1415,6 +1421,106 @@ i[data-lucide] {
   color: #64748b;
   font-size: 10px;
 }
+
+.dash-schedule-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 10px;
+}
+
+.dash-schedule-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid #edf1f6;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.dash-schedule-device {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dash-schedule-device strong {
+  color: #334155;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.dash-schedule-device span {
+  color: #64748b;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.dash-schedule-all {
+  margin-top: 12px;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dash-schedule-all summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 9px 0;
+}
+
+.dash-schedule-all summary::-webkit-details-marker {
+  display: none;
+}
+
+.dash-schedule-all summary::after {
+  content: "＋";
+  float: right;
+}
+
+.dash-schedule-all[open] summary::after {
+  content: "－";
+}
+
+@media (max-width: 760px) {
+  .dash-schedule-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .schedule-number {
+    padding: 11px 8px;
+  }
+
+  .schedule-number strong {
+    font-size: 21px;
+  }
+
+  .schedule-number span {
+    font-size: 9px;
+  }
+
+  .dash-schedule-row {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 390px) {
+  .dash-schedule-summary {
+    gap: 5px;
+  }
+
+  .schedule-number strong {
+    font-size: 18px;
+  }
+
+  .schedule-number span {
+    font-size: 8px;
+  }
+}
+
 
 .dash-condition-list {
   display: grid;
