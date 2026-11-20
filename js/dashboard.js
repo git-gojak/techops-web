@@ -14,23 +14,54 @@
     "'": "&#39;"
   }[c]));
 
-  function parseDate(value) {
-    if (!value) return null;
-    if (value instanceof Date && !isNaN(value)) return value;
+function parseDate(value) {
+  if (!value) return null;
 
-    const s = String(value).trim();
-    let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-
-    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
-
-    m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-
-    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
-
-    const d = new Date(s);
-    return isNaN(d) ? null : d;
+  if (value instanceof Date && !isNaN(value)) {
+    return value;
   }
 
+  const s = String(value).trim();
+
+  // ISO datetime: pertahankan jam dan menit.
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) {
+    const parsed = new Date(s.replace(" ", "T"));
+    return isNaN(parsed) ? null : parsed;
+  }
+
+  // dd-MM-yyyy HH:mm:ss
+  let m = s.match(
+    /^(\d{2})-(\d{2})-(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?$/
+  );
+
+  if (m) {
+    return new Date(
+      +m[3],
+      +m[2] - 1,
+      +m[1],
+      +(m[4] || 0),
+      +(m[5] || 0),
+      +(m[6] || 0)
+    );
+  }
+
+  // yyyy-MM-dd
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+  if (m) {
+    return new Date(+m[1], +m[2] - 1, +m[3]);
+  }
+
+  // dd/MM/yyyy
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  if (m) {
+    return new Date(+m[3], +m[2] - 1, +m[1]);
+  }
+
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
   function yearOf(value) {
     if (value == null || value === "") return null;
 
@@ -197,11 +228,17 @@
     // 4. MONITORING KONDISI KOMPUTER & PRINTER
     // ==========================================
 
-    const datedMaintenance = maintenance
-      .map(row => ({
-        ...row,
-        _date: parseDate(row.Tanggal)
-      }))
+const datedMaintenance = maintenance
+  .map(row => ({
+    ...row,
+    _date: parseDate(
+      row["Waktu Dibuat"] || row.Tanggal
+    )
+  }))
+  .sort((a, b) =>
+    (b._date?.getTime() || 0) -
+    (a._date?.getTime() || 0)
+  );
       .sort((a, b) =>
         (b._date?.getTime() || 0) -
         (a._date?.getTime() || 0)
@@ -567,7 +604,9 @@
                 </small>
               </div>
 
-              <time>${esc(fmtDate(row.Tanggal))}</time>
+              <time>${esc(
+  fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
+)}</time>
             </div>
           `).join("")}
         </div>
