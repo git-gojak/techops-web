@@ -227,23 +227,18 @@ function parseDate(value) {
     // ==========================================
     // 4. MONITORING KONDISI KOMPUTER & PRINTER
     // ==========================================
-
-const datedMaintenance = maintenance
-  .map(row => ({
-    ...row,
-    _date: parseDate(
-      row["Waktu Dibuat"] || row.Tanggal
-    )
-  }))
-  .sort((a, b) =>
-    (b._date?.getTime() || 0) -
-    (a._date?.getTime() || 0)
-  );
+    const datedMaintenance = maintenance
+      .map(row => ({
+        ...row,
+        _date: parseDate(
+          row["Waktu Dibuat"] || row.Tanggal
+        )
+      }))
       .sort((a, b) =>
         (b._date?.getTime() || 0) -
         (a._date?.getTime() || 0)
       );
-
+     
     function normalizeAssetType(value) {
       const type = String(value || "").trim().toLowerCase();
 
