@@ -1,4 +1,3 @@
-
 /* GoJak TechOps — Dashboard
    Frontend only. Menggunakan data dari app.js.
    Data arsip dihitung melalui API inventory.archiveCounts.
@@ -724,16 +723,19 @@
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
 
-    // datedMaintenance sudah diurutkan berdasarkan Waktu Dibuat
-    // dari terbaru ke terlama pada bagian Monitoring Kondisi.
+    // Ambil maksimal 5 aktivitas terbaru untuk setiap jenis perangkat.
+    // datedMaintenance sudah diurutkan berdasarkan Waktu Dibuat terbaru.
+    const computerActivities = datedMaintenance
+      .filter(row =>
+        normalizeAssetType(row.jenis_aset) === "komputer"
+      )
+      .slice(0, 5);
 
-    const computerActivities = datedMaintenance.filter(row =>
-      normalizeAssetType(row.jenis_aset) === "komputer"
-    );
-
-    const printerActivities = datedMaintenance.filter(row =>
-      normalizeAssetType(row.jenis_aset) === "printer"
-    );
+    const printerActivities = datedMaintenance
+      .filter(row =>
+        normalizeAssetType(row.jenis_aset) === "printer"
+      )
+      .slice(0, 5);
 
     const totalRecentActivities =
       computerActivities.length + printerActivities.length;
@@ -748,7 +750,9 @@
         ? window.TechOpsUI.maskSerial(row.serial || "")
         : (row.serial || "-");
 
-      const activity = row.jenis_kegiatan || row.kegiatan || "Maintenance";
+      const activity =
+        row.jenis_kegiatan || row.kegiatan || "Maintenance";
+
       const condition = row.kondisi || "Belum diisi";
       const activityDate = row["Waktu Dibuat"] || row.Tanggal;
 
@@ -778,7 +782,9 @@
               font-size:12px;
               overflow-wrap:anywhere;
             ">${esc(activity)}</strong>
-            <small style="display:block;">Kondisi: ${esc(condition)}</small>
+            <small style="display:block;">
+              Kondisi: ${esc(condition)}
+            </small>
             <small style="
               display:block;
               margin-top:3px;
@@ -789,8 +795,6 @@
       `;
     }
 
-    // Lima aktivitas terbaru tampil terlebih dahulu.
-    // Aktivitas berikutnya dapat dibuka dari masing-masing kolom.
     function buildActivityList(rows, type) {
       if (!rows.length) {
         return empty(
@@ -800,24 +804,10 @@
         );
       }
 
-      const visibleRows = rows.slice(0, 5);
-      const remainingRows = rows.slice(5);
-
       return `
         <div class="dash-missing-list">
-          ${visibleRows.map(activityRowHtml).join("")}
+          ${rows.map(activityRowHtml).join("")}
         </div>
-
-        ${remainingRows.length ? `
-          <details class="dash-missing-details" style="margin-top:8px;">
-            <summary>
-              <span>Aktivitas lainnya · ${remainingRows.length}</span>
-            </summary>
-            <div class="dash-missing-list">
-              ${remainingRows.map(activityRowHtml).join("")}
-            </div>
-          </details>
-        ` : ""}
       `;
     }
 
@@ -831,24 +821,23 @@
       "printer"
     );
 
-    // Satu kontrol utama buka/tutup, dengan dua kolom seperti monitoring jadwal.
+    // Satu kontrol buka/tutup. Isi dibatasi 5 komputer + 5 printer.
     const recentHtml = totalRecentActivities
       ? `
         <details class="dash-missing-details">
           <summary>
-            <span>Seluruh Aktivitas Maintenance · ${totalRecentActivities} aktivitas</span>
+            <span>Aktivitas Maintenance Terbaru · Maksimal 10 aktivitas</span>
           </summary>
 
           <div style="
             display:grid;
-            grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+            grid-template-columns:repeat(2,minmax(0,1fr));
             gap:12px;
             width:100%;
             min-width:0;
             padding-top:12px;
-            white-space:normal;
           ">
-            <div style="min-width:0;white-space:normal;">
+            <div style="min-width:0;">
               <div style="
                 display:flex;
                 align-items:center;
@@ -870,16 +859,19 @@
                   color:#1976D2;
                   background:#EAF3FF;
                 ">
-                  <i data-lucide="monitor" style="width:19px;height:19px;"></i>
+                  <i data-lucide="monitor"
+                    style="width:19px;height:19px;"></i>
                 </span>
                 <span>Komputer</span>
-                <strong style="margin-left:auto;color:#1976D2;">${computerActivities.length}</strong>
+                <strong style="margin-left:auto;color:#1976D2;">
+                  ${computerActivities.length}
+                </strong>
               </div>
 
               ${computerActivityHtml}
             </div>
 
-            <div style="min-width:0;white-space:normal;">
+            <div style="min-width:0;">
               <div style="
                 display:flex;
                 align-items:center;
@@ -901,10 +893,13 @@
                   color:#0D9488;
                   background:#E5F7F4;
                 ">
-                  <i data-lucide="printer" style="width:19px;height:19px;"></i>
+                  <i data-lucide="printer"
+                    style="width:19px;height:19px;"></i>
                 </span>
                 <span>Printer</span>
-                <strong style="margin-left:auto;color:#0D9488;">${printerActivities.length}</strong>
+                <strong style="margin-left:auto;color:#0D9488;">
+                  ${printerActivities.length}
+                </strong>
               </div>
 
               ${printerActivityHtml}
