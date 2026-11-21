@@ -656,11 +656,12 @@
     `;
 
 
+    
     // ==========================================
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
 
-    // Membuat daftar aktivitas berdasarkan jenis aset.
+    // Daftar aktivitas dipisah berdasarkan jenis aset.
     function buildActivityList(type) {
       const typeRows = datedMaintenance
         .filter(row =>
@@ -677,7 +678,7 @@
       }
 
       return `
-        <div class="dash-activity-list">
+        <div style="display:block;white-space:normal;min-width:0;">
           ${typeRows.map(row => {
             const assetName = displayAssetName(
               row.jenis_aset,
@@ -689,28 +690,66 @@
               : (row.serial || "-");
 
             return `
-              <div class="dash-activity-row">
-                <span class="dash-activity-mark">
-                  <i data-lucide="wrench"></i>
-                </span>
+              <div style="
+                display:block;
+                padding:10px 0;
+                border-bottom:1px solid #edf1f6;
+                min-width:0;
+                white-space:normal;
+              ">
+                <div style="
+                  display:flex;
+                  align-items:center;
+                  gap:7px;
+                  margin-bottom:7px;
+                ">
+                  <span class="dash-activity-mark">
+                    <i data-lucide="wrench"></i>
+                  </span>
 
-                <div class="dash-activity-copy">
-                  <strong>${esc(assetName)}</strong>
-
-                  <small>
-                    Serial: ${esc(serial || "-")}
-                  </small>
-
-                  <small>
-                    ${esc(row.kegiatan || "Maintenance")}
-                    ·
-                    ${esc(row.kondisi || "Kondisi belum diisi")}
-                  </small>
+                  <strong style="
+                    display:block;
+                    min-width:0;
+                    white-space:normal;
+                    overflow-wrap:anywhere;
+                    color:#334155;
+                    font-size:11px;
+                  ">
+                    ${esc(assetName)}
+                  </strong>
                 </div>
 
-                <time>${esc(
-                  fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
-                )}</time>
+                <div style="
+                  display:block;
+                  padding-left:36px;
+                  white-space:normal;
+                  overflow-wrap:anywhere;
+                  line-height:1.6;
+                  font-size:10px;
+                  color:#64748b;
+                ">
+                  <div>Serial: ${esc(serial || "-")}</div>
+
+                  <div>
+                    ${esc(row.kegiatan || "Maintenance")}
+                  </div>
+
+                  <div>
+                    Kondisi: ${esc(row.kondisi || "Belum diisi")}
+                  </div>
+
+                  <time style="
+                    display:block;
+                    margin-top:4px;
+                    color:#94a3b8;
+                    font-size:9px;
+                    white-space:normal;
+                  ">
+                    ${esc(
+                      fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
+                    )}
+                  </time>
+                </div>
               </div>
             `;
           }).join("")}
@@ -721,34 +760,46 @@
     const computerActivityHtml = buildActivityList("komputer");
     const printerActivityHtml = buildActivityList("printer");
 
-    // Dua bagian berdampingan dalam satu kartu Dashboard.
+    // Dua kolom dalam satu panel Dashboard.
     const recentHtml = `
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>
-              <i data-lucide="monitor"></i>
-              Komputer
-            </th>
-            <th>
-              <i data-lucide="printer"></i>
-              Printer
-            </th>
-          </tr>
-        </thead>
+      <div style="
+        display:grid;
+        grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+        gap:12px;
+        width:100%;
+        min-width:0;
+        white-space:normal;
+      ">
+        <div style="min-width:0;white-space:normal;">
+          <div style="
+            font-size:11px;
+            font-weight:700;
+            color:#475569;
+            padding-bottom:8px;
+            border-bottom:1px solid #e2e8f0;
+          ">
+            <i data-lucide="monitor"></i>
+            Komputer
+          </div>
 
-        <tbody>
-          <tr>
-            <td style="vertical-align:top;width:50%">
-              ${computerActivityHtml}
-            </td>
+          ${computerActivityHtml}
+        </div>
 
-            <td style="vertical-align:top;width:50%">
-              ${printerActivityHtml}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <div style="min-width:0;white-space:normal;">
+          <div style="
+            font-size:11px;
+            font-weight:700;
+            color:#475569;
+            padding-bottom:8px;
+            border-bottom:1px solid #e2e8f0;
+          ">
+            <i data-lucide="printer"></i>
+            Printer
+          </div>
+
+          ${printerActivityHtml}
+        </div>
+      </div>
     `;
 
     // ==========================================
