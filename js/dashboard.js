@@ -1,3 +1,4 @@
+
 /* GoJak TechOps — Dashboard
    Frontend only. Menggunakan data dari app.js.
    Data arsip dihitung melalui API inventory.archiveCounts.
@@ -723,15 +724,75 @@
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
 
-    // Daftar aktivitas dipisah berdasarkan jenis aset.
-    function buildActivityList(type) {
-      const typeRows = datedMaintenance
-        .filter(row =>
-          normalizeAssetType(row.jenis_aset) === type
-        )
-        .slice(0, 5);
+    // datedMaintenance sudah diurutkan berdasarkan Waktu Dibuat
+    // dari terbaru ke terlama pada bagian Monitoring Kondisi.
 
-      if (!typeRows.length) {
+    const computerActivities = datedMaintenance.filter(row =>
+      normalizeAssetType(row.jenis_aset) === "komputer"
+    );
+
+    const printerActivities = datedMaintenance.filter(row =>
+      normalizeAssetType(row.jenis_aset) === "printer"
+    );
+
+    const totalRecentActivities =
+      computerActivities.length + printerActivities.length;
+
+    function activityRowHtml(row) {
+      const assetName = displayAssetName(
+        row.jenis_aset,
+        row.nama_aset || "Perangkat"
+      );
+
+      const serial = window.TechOpsUI
+        ? window.TechOpsUI.maskSerial(row.serial || "")
+        : (row.serial || "-");
+
+      const activity = row.jenis_kegiatan || row.kegiatan || "Maintenance";
+      const condition = row.kondisi || "Belum diisi";
+      const activityDate = row["Waktu Dibuat"] || row.Tanggal;
+
+      return `
+        <div class="dash-missing-row" style="
+          align-items:flex-start;
+          gap:10px;
+          padding:10px 0;
+        ">
+          <div style="min-width:0;flex:1;">
+            <strong style="
+              display:block;
+              overflow-wrap:anywhere;
+              white-space:normal;
+            ">${esc(assetName)}</strong>
+            <small>Serial: ${esc(serial || "-")}</small>
+          </div>
+
+          <div style="
+            flex:0 0 auto;
+            max-width:48%;
+            text-align:right;
+            white-space:normal;
+          ">
+            <strong style="
+              display:block;
+              font-size:12px;
+              overflow-wrap:anywhere;
+            ">${esc(activity)}</strong>
+            <small style="display:block;">Kondisi: ${esc(condition)}</small>
+            <small style="
+              display:block;
+              margin-top:3px;
+              color:#94a3b8;
+            ">${esc(fmtDateTime(activityDate))}</small>
+          </div>
+        </div>
+      `;
+    }
+
+    // Lima aktivitas terbaru tampil terlebih dahulu.
+    // Aktivitas berikutnya dapat dibuka dari masing-masing kolom.
+    function buildActivityList(rows, type) {
+      if (!rows.length) {
         return empty(
           type === "komputer"
             ? "Belum ada aktivitas komputer."
@@ -739,130 +800,119 @@
         );
       }
 
+      const visibleRows = rows.slice(0, 5);
+      const remainingRows = rows.slice(5);
+
       return `
-        <div style="display:block;white-space:normal;min-width:0;">
-          ${typeRows.map(row => {
-            const assetName = displayAssetName(
-              row.jenis_aset,
-              row.nama_aset || "Perangkat"
-            );
-
-            const serial = window.TechOpsUI
-              ? window.TechOpsUI.maskSerial(row.serial || "")
-              : (row.serial || "-");
-
-            return `
-              <div style="
-                display:block;
-                padding:10px 0;
-                border-bottom:1px solid #edf1f6;
-                min-width:0;
-                white-space:normal;
-              ">
-                <div style="
-                  display:flex;
-                  align-items:center;
-                  gap:7px;
-                  margin-bottom:7px;
-                ">
-                  <span class="dash-activity-mark">
-                    <i data-lucide="wrench"></i>
-                  </span>
-
-                  <strong style="
-                    display:block;
-                    min-width:0;
-                    white-space:normal;
-                    overflow-wrap:anywhere;
-                    color:#334155;
-                    font-size:11px;
-                  ">
-                    ${esc(assetName)}
-                  </strong>
-                </div>
-
-                <div style="
-                  display:block;
-                  padding-left:36px;
-                  white-space:normal;
-                  overflow-wrap:anywhere;
-                  line-height:1.6;
-                  font-size:10px;
-                  color:#64748b;
-                ">
-                  <div>Serial: ${esc(serial || "-")}</div>
-
-                  <div>
-                    ${esc(row.kegiatan || "Maintenance")}
-                  </div>
-
-                  <div>
-                    Kondisi: ${esc(row.kondisi || "Belum diisi")}
-                  </div>
-
-                  <time style="
-                    display:block;
-                    margin-top:4px;
-                    color:#94a3b8;
-                    font-size:9px;
-                    white-space:normal;
-                  ">
-                    ${esc(
-                      fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
-                    )}
-                  </time>
-                </div>
-              </div>
-            `;
-          }).join("")}
+        <div class="dash-missing-list">
+          ${visibleRows.map(activityRowHtml).join("")}
         </div>
+
+        ${remainingRows.length ? `
+          <details class="dash-missing-details" style="margin-top:8px;">
+            <summary>
+              <span>Aktivitas lainnya · ${remainingRows.length}</span>
+            </summary>
+            <div class="dash-missing-list">
+              ${remainingRows.map(activityRowHtml).join("")}
+            </div>
+          </details>
+        ` : ""}
       `;
     }
 
-    const computerActivityHtml = buildActivityList("komputer");
-    const printerActivityHtml = buildActivityList("printer");
+    const computerActivityHtml = buildActivityList(
+      computerActivities,
+      "komputer"
+    );
 
-    // Dua kolom dalam satu panel Dashboard.
-    const recentHtml = `
-      <div style="
-        display:grid;
-        grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-        gap:12px;
-        width:100%;
-        min-width:0;
-        white-space:normal;
-      ">
-        <div style="min-width:0;white-space:normal;">
+    const printerActivityHtml = buildActivityList(
+      printerActivities,
+      "printer"
+    );
+
+    // Satu kontrol utama buka/tutup, dengan dua kolom seperti monitoring jadwal.
+    const recentHtml = totalRecentActivities
+      ? `
+        <details class="dash-missing-details">
+          <summary>
+            <span>Seluruh Aktivitas Maintenance · ${totalRecentActivities} aktivitas</span>
+          </summary>
+
           <div style="
-            font-size:11px;
-            font-weight:700;
-            color:#475569;
-            padding-bottom:8px;
-            border-bottom:1px solid #e2e8f0;
+            display:grid;
+            grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+            gap:12px;
+            width:100%;
+            min-width:0;
+            padding-top:12px;
+            white-space:normal;
           ">
-            <i data-lucide="monitor"></i>
-            Komputer
+            <div style="min-width:0;white-space:normal;">
+              <div style="
+                display:flex;
+                align-items:center;
+                gap:8px;
+                font-size:12px;
+                font-weight:700;
+                color:#475569;
+                padding-bottom:8px;
+                border-bottom:1px solid #e2e8f0;
+              ">
+                <span style="
+                  width:36px;
+                  height:36px;
+                  min-width:36px;
+                  border-radius:50%;
+                  display:inline-flex;
+                  align-items:center;
+                  justify-content:center;
+                  color:#1976D2;
+                  background:#EAF3FF;
+                ">
+                  <i data-lucide="monitor" style="width:19px;height:19px;"></i>
+                </span>
+                <span>Komputer</span>
+                <strong style="margin-left:auto;color:#1976D2;">${computerActivities.length}</strong>
+              </div>
+
+              ${computerActivityHtml}
+            </div>
+
+            <div style="min-width:0;white-space:normal;">
+              <div style="
+                display:flex;
+                align-items:center;
+                gap:8px;
+                font-size:12px;
+                font-weight:700;
+                color:#475569;
+                padding-bottom:8px;
+                border-bottom:1px solid #e2e8f0;
+              ">
+                <span style="
+                  width:36px;
+                  height:36px;
+                  min-width:36px;
+                  border-radius:50%;
+                  display:inline-flex;
+                  align-items:center;
+                  justify-content:center;
+                  color:#0D9488;
+                  background:#E5F7F4;
+                ">
+                  <i data-lucide="printer" style="width:19px;height:19px;"></i>
+                </span>
+                <span>Printer</span>
+                <strong style="margin-left:auto;color:#0D9488;">${printerActivities.length}</strong>
+              </div>
+
+              ${printerActivityHtml}
+            </div>
           </div>
-
-          ${computerActivityHtml}
-        </div>
-
-        <div style="min-width:0;white-space:normal;">
-          <div style="
-            font-size:11px;
-            font-weight:700;
-            color:#475569;
-            padding-bottom:8px;
-            border-bottom:1px solid #e2e8f0;
-          ">
-            <i data-lucide="printer"></i>
-            Printer
-          </div>
-
-          ${printerActivityHtml}
-        </div>
-      </div>
-    `;
+        </details>
+      `
+      : empty("Belum ada aktivitas Maintenance.");
 
     // ==========================================
     // 7. KARTU INVENTARIS
