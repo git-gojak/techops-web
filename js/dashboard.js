@@ -539,11 +539,13 @@
       }
     });
 
-    // Jadwal dari catatan Perawatan terbaru.
+    // Jadwal dari catatan Perawatan terbaru setiap perangkat.
+    // Urutan tampilan: Waktu Dibuat paling lama ke paling baru.
     const schedules = [...latestCareByDevice.values()]
       .filter(row => row._schedule)
       .sort((a, b) =>
-        a._schedule.getTime() - b._schedule.getTime()
+        (a._created?.getTime() || 0) -
+        (b._created?.getTime() || 0)
       );
 
     const today = new Date(
@@ -573,7 +575,8 @@
     );
 
      
-    // Daftar jadwal menggunakan pola baris Monitoring Kondisi.
+    
+    // Daftar jadwal mengikuti pola Monitoring Kondisi.
     function scheduleRowHtml(row) {
       const assetName = displayAssetName(
         row.jenis_aset,
@@ -597,7 +600,7 @@
       `;
     }
 
-    // Pisahkan jadwal berdasarkan jenis perangkat.
+    // Pisahkan jadwal komputer dan printer.
     const computerSchedules = schedules.filter(
       row => normalizeAssetType(row.jenis_aset) === "komputer"
     );
@@ -606,7 +609,7 @@
       row => normalizeAssetType(row.jenis_aset) === "printer"
     );
 
-    // Bagian jadwal dengan struktur daftar yang sama seperti Monitoring Kondisi.
+    // Bagian daftar masing-masing perangkat.
     function buildScheduleSection(title, rows) {
       return `
         <div class="dash-condition-item">
@@ -628,6 +631,29 @@
         </div>
       `;
     }
+
+    // Satu tombol buka/tutup, dua kolom jadwal.
+    const scheduleListHtml = schedules.length
+      ? `
+        <details class="dash-missing-details">
+          <summary>
+            <span>
+              Seluruh Jadwal Perawatan · ${schedules.length} perangkat
+            </span>
+          </summary>
+
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:12px;
+            padding-top:12px;
+          ">
+            ${buildScheduleSection("Jadwal Komputer", computerSchedules)}
+            ${buildScheduleSection("Jadwal Printer", printerSchedules)}
+          </div>
+        </details>
+      `
+      : empty("Belum ada jadwal Perawatan.");
 
     // Satu tombol buka/tutup untuk seluruh daftar jadwal.
     const scheduleListHtml = schedules.length
