@@ -573,86 +573,79 @@
     );
 
      
-// Baris jadwal tanpa judul kolom.
-function scheduleRowHtml(row) {
-  const assetName = displayAssetName(
-    row.jenis_aset,
-    row.nama_aset || "Nama perangkat tidak tersedia"
-  );
+    // Daftar jadwal menggunakan pola baris Monitoring Kondisi.
+    function scheduleRowHtml(row) {
+      const assetName = displayAssetName(
+        row.jenis_aset,
+        row.nama_aset || "Nama perangkat tidak tersedia"
+      );
 
-  const serial = String(row.serial || "").trim();
+      const serial = String(row.serial || "").trim();
 
-  const maskedSerial = window.TechOpsUI
-    ? window.TechOpsUI.maskSerial(serial)
-    : serial || "-";
+      const maskedSerial = window.TechOpsUI
+        ? window.TechOpsUI.maskSerial(serial)
+        : serial || "-";
 
-  return `
-    <tr>
-      <td class="primary-cell">${esc(assetName)}</td>
-      <td>${esc(maskedSerial || "-")}</td>
-      <td>${esc(fmtDate(row.jadwal))}</td>
-    </tr>
-  `;
-}
+      return `
+        <div class="dash-missing-row">
+          <div>
+            <strong>${esc(assetName)}</strong>
+            <small>Serial: ${esc(maskedSerial || "-")}</small>
+          </div>
+          <span>${esc(fmtDate(row.jadwal))}</span>
+        </div>
+      `;
+    }
 
-// Pisahkan jadwal komputer dan printer.
-const computerSchedules = schedules.filter(
-  row => normalizeAssetType(row.jenis_aset) === "komputer"
-);
+    // Pisahkan jadwal berdasarkan jenis perangkat.
+    const computerSchedules = schedules.filter(
+      row => normalizeAssetType(row.jenis_aset) === "komputer"
+    );
 
-const printerSchedules = schedules.filter(
-  row => normalizeAssetType(row.jenis_aset) === "printer"
-);
+    const printerSchedules = schedules.filter(
+      row => normalizeAssetType(row.jenis_aset) === "printer"
+    );
 
-// Tampilkan satu bagian jadwal.
-function buildScheduleSection(title, rows) {
-  return `
-    <div style="margin-bottom:16px;">
-      <div style="
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        margin-bottom:8px;
-        font-weight:600;
-      ">
-        <span>${title}</span>
-        <span>${rows.length} perangkat</span>
-      </div>
+    // Bagian jadwal dengan struktur daftar yang sama seperti Monitoring Kondisi.
+    function buildScheduleSection(title, rows) {
+      return `
+        <div class="dash-condition-item">
+          <div class="dash-condition-summary">
+            <span class="dash-condition-label">
+              <span>${title}</span>
+            </span>
+          </div>
 
-      ${
-        rows.length
-          ? `
-            <div class="table-wrap">
-              <table class="data-table">
-                <tbody>
+          ${
+            rows.length
+              ? `
+                <div class="dash-missing-list">
                   ${rows.map(scheduleRowHtml).join("")}
-                </tbody>
-              </table>
-            </div>
-          `
-          : empty(`Belum ada jadwal ${title.toLowerCase()}.`)
-      }
-    </div>
-  `;
-}
+                </div>
+              `
+              : empty(`Belum ada jadwal ${title.toLowerCase()}.`)
+          }
+        </div>
+      `;
+    }
 
-// Satu area buka/tutup, berisi dua bagian bertumpuk.
-const scheduleListHtml = schedules.length
-  ? `
-    <details class="dash-missing-details">
-      <summary>
-        <span>
-          Seluruh Jadwal Perawatan · ${schedules.length} perangkat
-        </span>
-      </summary>
+    // Satu tombol buka/tutup untuk seluruh daftar jadwal.
+    const scheduleListHtml = schedules.length
+      ? `
+        <details class="dash-missing-details">
+          <summary>
+            <span>
+              Seluruh Jadwal Perawatan · ${schedules.length} perangkat
+            </span>
+          </summary>
 
-      <div style="padding-top:12px;">
-        ${buildScheduleSection("Jadwal Komputer", computerSchedules)}
-        ${buildScheduleSection("Jadwal Printer", printerSchedules)}
-      </div>
-    </details>
-  `
-  : empty("Belum ada jadwal Perawatan.");
+          <div class="dash-condition-combined">
+            ${buildScheduleSection("Jadwal Komputer", computerSchedules)}
+            ${buildScheduleSection("Jadwal Printer", printerSchedules)}
+          </div>
+        </details>
+      `
+      : empty("Belum ada jadwal Perawatan.");
 
 
     const scheduleHtml = `
