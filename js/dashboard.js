@@ -655,25 +655,6 @@
       `
       : empty("Belum ada jadwal Perawatan.");
 
-    // Satu tombol buka/tutup untuk seluruh daftar jadwal.
-    const scheduleListHtml = schedules.length
-      ? `
-        <details class="dash-missing-details">
-          <summary>
-            <span>
-              Seluruh Jadwal Perawatan · ${schedules.length} perangkat
-            </span>
-          </summary>
-
-          <div class="dash-condition-combined">
-            ${buildScheduleSection("Jadwal Komputer", computerSchedules)}
-            ${buildScheduleSection("Jadwal Printer", printerSchedules)}
-          </div>
-        </details>
-      `
-      : empty("Belum ada jadwal Perawatan.");
-
-
     const scheduleHtml = `
       <div class="dash-schedule-summary">
         <div class="schedule-number overdue">
