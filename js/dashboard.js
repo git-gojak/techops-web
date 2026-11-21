@@ -1,4 +1,3 @@
-
 /* GoJak TechOps — Dashboard
    Frontend only. Menggunakan data dari app.js.
    Data arsip dihitung melalui API inventory.archiveCounts.
@@ -251,24 +250,24 @@
       return "";
     }
 
-      // Menyamarkan nama komputer untuk pengguna publik.
-      // Nama printer tetap ditampilkan seperti aslinya.
-      function displayAssetName(type, name) {
-        const assetType = normalizeAssetType(type);
-        const assetName = String(name || "").trim();
-      
-        if (!assetName) return "Perangkat";
-      
-        if (
-          assetType === "komputer" &&
-          window.TechOpsUI &&
-          typeof window.TechOpsUI.maskComputerName === "function"
-        ) {
-          return window.TechOpsUI.maskComputerName(assetName);
-        }
-      
-        return assetName;
+    // Menyamarkan nama komputer untuk pengguna publik.
+    // Nama printer tetap ditampilkan seperti aslinya.
+    function displayAssetName(type, name) {
+      const assetType = normalizeAssetType(type);
+      const assetName = String(name || "").trim();
+
+      if (!assetName) return "Perangkat";
+
+      if (
+        assetType === "komputer" &&
+        window.TechOpsUI &&
+        typeof window.TechOpsUI.maskComputerName === "function"
+      ) {
+        return window.TechOpsUI.maskComputerName(assetName);
       }
+
+      return assetName;
+    }
 
     function deviceKey(type, serial, name) {
       const normalizedType = normalizeAssetType(type);
@@ -574,9 +573,7 @@
       row => row._schedule > next30Days
     );
 
-     
-    
-    // Daftar jadwal mengikuti pola Monitoring Kondisi.
+    // Baris jadwal mengikuti pola Monitoring Kondisi.
     function scheduleRowHtml(row) {
       const assetName = displayAssetName(
         row.jenis_aset,
@@ -609,14 +606,49 @@
       row => normalizeAssetType(row.jenis_aset) === "printer"
     );
 
-    // Bagian daftar masing-masing perangkat.
-    function buildScheduleSection(title, rows) {
+    // Judul bagian dengan ikon lingkaran, warna, dan total perangkat.
+    function buildScheduleSection(title, rows, type) {
+      const isComputer = type === "komputer";
+
+      const color = isComputer ? "#1976D2" : "#0D9488";
+      const background = isComputer ? "#EAF3FF" : "#E5F7F4";
+      const icon = isComputer ? "monitor" : "printer";
+
       return `
         <div class="dash-condition-item">
-          <div class="dash-condition-summary">
-            <span class="dash-condition-label">
+          <div class="dash-condition-summary"
+            style="
+              display:flex;
+              align-items:center;
+              justify-content:space-between;
+              gap:8px;
+            ">
+
+            <span class="dash-condition-label"
+              style="display:flex;align-items:center;gap:9px;">
+
+              <span style="
+                width:36px;
+                height:36px;
+                min-width:36px;
+                border-radius:50%;
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                color:${color};
+                background:${background};
+              ">
+                <i data-lucide="${icon}"
+                  style="width:19px;height:19px;">
+                </i>
+              </span>
+
               <span>${title}</span>
             </span>
+
+            <strong style="color:${color};">
+              ${rows.length}
+            </strong>
           </div>
 
           ${
@@ -648,8 +680,17 @@
             gap:12px;
             padding-top:12px;
           ">
-            ${buildScheduleSection("Jadwal Komputer", computerSchedules)}
-            ${buildScheduleSection("Jadwal Printer", printerSchedules)}
+            ${buildScheduleSection(
+              "Jadwal Komputer",
+              computerSchedules,
+              "komputer"
+            )}
+
+            ${buildScheduleSection(
+              "Jadwal Printer",
+              printerSchedules,
+              "printer"
+            )}
           </div>
         </details>
       `
@@ -678,8 +719,6 @@
       </div>
     `;
 
-
-    
     // ==========================================
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
