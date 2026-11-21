@@ -723,7 +723,7 @@
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
 
-    // Ambil maksimal 5 aktivitas terbaru untuk setiap jenis perangkat.
+    // Maksimal 5 aktivitas terbaru untuk setiap jenis perangkat.
     // datedMaintenance sudah diurutkan berdasarkan Waktu Dibuat terbaru.
     const computerActivities = datedMaintenance
       .filter(row =>
@@ -756,41 +756,29 @@
       const condition = row.kondisi || "Belum diisi";
       const activityDate = row["Waktu Dibuat"] || row.Tanggal;
 
+      // Pola baris mengikuti scheduleRowHtml().
+      // Bagian kanan: jenis kegiatan, kondisi, tanggal dan waktu.
       return `
-        <div class="dash-missing-row" style="
-          align-items:flex-start;
-          gap:10px;
-          padding:10px 0;
-        ">
-          <div style="min-width:0;flex:1;">
-            <strong style="
-              display:block;
-              overflow-wrap:anywhere;
-              white-space:normal;
-            ">${esc(assetName)}</strong>
+        <div class="dash-missing-row">
+          <div>
+            <strong>${esc(assetName)}</strong>
             <small>Serial: ${esc(serial || "-")}</small>
           </div>
 
-          <div style="
-            flex:0 0 auto;
-            max-width:48%;
+          <span style="
             text-align:right;
             white-space:normal;
           ">
-            <strong style="
-              display:block;
-              font-size:12px;
-              overflow-wrap:anywhere;
-            ">${esc(activity)}</strong>
+            <strong style="display:block;">
+              ${esc(activity)}
+            </strong>
             <small style="display:block;">
-              Kondisi: ${esc(condition)}
+              ${esc(condition)}
             </small>
-            <small style="
-              display:block;
-              margin-top:3px;
-              color:#94a3b8;
-            ">${esc(fmtDateTime(activityDate))}</small>
-          </div>
+            <small style="display:block;">
+              ${esc(fmtDateTime(activityDate))}
+            </small>
+          </span>
         </div>
       `;
     }
@@ -821,12 +809,12 @@
       "printer"
     );
 
-    // Satu kontrol buka/tutup. Isi dibatasi 5 komputer + 5 printer.
+    // Satu kontrol buka/tutup untuk kedua kolom.
     const recentHtml = totalRecentActivities
       ? `
         <details class="dash-missing-details">
           <summary>
-            <span>Aktivitas Maintenance Terbaru · Maksimal 10 aktivitas</span>
+            <span>Aktivitas Maintenance Terbaru</span>
           </summary>
 
           <div style="
@@ -863,9 +851,6 @@
                     style="width:19px;height:19px;"></i>
                 </span>
                 <span>Komputer</span>
-                <strong style="margin-left:auto;color:#1976D2;">
-                  ${computerActivities.length}
-                </strong>
               </div>
 
               ${computerActivityHtml}
@@ -897,9 +882,6 @@
                     style="width:19px;height:19px;"></i>
                 </span>
                 <span>Printer</span>
-                <strong style="margin-left:auto;color:#0D9488;">
-                  ${printerActivities.length}
-                </strong>
               </div>
 
               ${printerActivityHtml}
