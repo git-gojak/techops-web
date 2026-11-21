@@ -655,46 +655,102 @@
       </div>
     `;
 
+
     // ==========================================
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
 
-  const recentHtml = datedMaintenance.length
-  ? `
-    <div class="dash-activity-list">
-      ${datedMaintenance.slice(0, 6).map(row => {
-        const assetName = displayAssetName(
-          row.jenis_aset,
-          row.nama_aset || "Perangkat"
+    // Membuat daftar aktivitas berdasarkan jenis aset.
+    function buildActivityList(type) {
+      const typeRows = datedMaintenance
+        .filter(row =>
+          normalizeAssetType(row.jenis_aset) === type
+        )
+        .slice(0, 5);
+
+      if (!typeRows.length) {
+        return empty(
+          type === "komputer"
+            ? "Belum ada aktivitas komputer."
+            : "Belum ada aktivitas printer."
         );
+      }
 
-        return `
-          <div class="dash-activity-row">
-            <span class="dash-activity-mark">
-              <i data-lucide="wrench"></i>
-            </span>
+      return `
+        <div class="dash-activity-list">
+          ${typeRows.map(row => {
+            const assetName = displayAssetName(
+              row.jenis_aset,
+              row.nama_aset || "Perangkat"
+            );
 
-            <div class="dash-activity-copy">
-              <strong>
-                ${esc(assetName)}
-              </strong>
+            const serial = window.TechOpsUI
+              ? window.TechOpsUI.maskSerial(row.serial || "")
+              : (row.serial || "-");
 
-              <small>
-                ${esc(row.kegiatan || "Maintenance")}
-                ·
-                ${esc(row.kondisi || "Kondisi belum diisi")}
-              </small>
-            </div>
+            return `
+              <div class="dash-activity-row">
+                <span class="dash-activity-mark">
+                  <i data-lucide="wrench"></i>
+                </span>
 
-            <time>${esc(
-              fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
-            )}</time>
-          </div>
-        `;
-      }).join("")}
-    </div>
-  `
-  : empty("Belum ada aktivitas maintenance.");
+                <div class="dash-activity-copy">
+                  <strong>${esc(assetName)}</strong>
+
+                  <small>
+                    Serial: ${esc(serial || "-")}
+                  </small>
+
+                  <small>
+                    ${esc(row.kegiatan || "Maintenance")}
+                    ·
+                    ${esc(row.kondisi || "Kondisi belum diisi")}
+                  </small>
+                </div>
+
+                <time>${esc(
+                  fmtDateTime(row["Waktu Dibuat"] || row.Tanggal)
+                )}</time>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+
+    const computerActivityHtml = buildActivityList("komputer");
+    const printerActivityHtml = buildActivityList("printer");
+
+    // Dua bagian berdampingan dalam satu kartu Dashboard.
+    const recentHtml = `
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>
+              <i data-lucide="monitor"></i>
+              Komputer
+            </th>
+            <th>
+              <i data-lucide="printer"></i>
+              Printer
+            </th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr>
+            <td style="vertical-align:top;width:50%">
+              ${computerActivityHtml}
+            </td>
+
+            <td style="vertical-align:top;width:50%">
+              ${printerActivityHtml}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
     // ==========================================
     // 7. KARTU INVENTARIS
     // ==========================================
