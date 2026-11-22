@@ -1697,6 +1697,58 @@ i[data-lucide] {
 }
 
 
+/*=========================================
+   DASHBOARD — KONDISI PERANGKAT GABUNGAN
+=========================================*/
+
+.condition-overview-panel {
+  grid-column: 1 / -1;
+}
+
+.dash-condition-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.dash-condition-column {
+  min-width: 0;
+}
+
+.dash-condition-column + .dash-condition-column {
+  border-left: 1px solid #e5eaf2;
+  padding-left: 18px;
+}
+
+.dash-condition-column-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  min-height: 40px;
+}
+
+.dash-condition-column-header strong {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dash-condition-column-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.dash-condition-column-icon i {
+  width: 19px;
+  height: 19px;
+}
+
 @media (max-width:520px) {
   .dash-content-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1704,13 +1756,9 @@ i[data-lucide] {
 
   .unit-panel,
   .schedule-panel,
-  .activity-panel {
+  .activity-panel,
+  .condition-overview-panel {
     grid-column: 1 / -1;
-  }
-
-  .condition-panel {
-    grid-column: auto;
-    min-width: 0;
   }
 }
 
