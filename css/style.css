@@ -1261,6 +1261,9 @@ i[data-lucide] {
 
 .dash-panel {
   padding: 18px;
+}
+
+.dash-panel:not(.schedule-panel):not(.activity-panel) {
   min-height: 210px;
 }
 
@@ -1407,9 +1410,9 @@ i[data-lucide] {
 
 /* Lima jadwal terdekat */
 .dash-schedule-next {
-  margin-top: 15px;
-  border-top: 1px solid #edf1f6;
-  padding-top: 12px;
+  margin-top: 8px;
+  border-top: 0;
+  padding-top: 6px;
 }
 
 .dash-schedule-next > small {
