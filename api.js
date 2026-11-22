@@ -21,12 +21,18 @@
 const SESSION_STORAGE_KEY = "GOJAK_TECHOPS_SESSION";
 
 let sessionId = "";
-
+try {
+  sessionId = localStorage.getItem(SESSION_STORAGE_KEY) || "";
+} catch (error) {
+  console.warn("Tidak dapat membaca sesi Admin:", error);
+}
+/*
 try {
   sessionId = sessionStorage.getItem(SESSION_STORAGE_KEY) || "";
 } catch (error) {
   console.warn("Tidak dapat membaca sesi Admin:", error);
 }
+*/
 
 let user = null;
 let requestCounter = 0;
@@ -57,13 +63,23 @@ let requestCounter = 0;
   user = null;
 
   try {
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    //sessionStorage.removeItem(SESSION_STORAGE_KEY);
   } catch (error) {
     console.warn("Tidak dapat menghapus sesi Admin:", error);
   }
-
   notifyAuthChange();
-}
+  }
+
+  // Sinkronisasi session antar-tab browser
+  window.addEventListener("storage", function (event) {
+    if (event.key !== SESSION_STORAGE_KEY) return;
+  
+    sessionId = event.newValue || "";
+    user = null;
+  
+    notifyAuthChange();
+  });
 
   function isTrustedBridgeOrigin(origin) {
     try {
@@ -302,7 +318,8 @@ try {
 sessionId = result.sessionId;
 
 try {
-  sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+  localStorage.setItem(SESSION_STORAGE_KEY, sessionId);
+  //sessionStorage.setItem(SESSION_STORAGE_KEY, sessionId);
 } catch (error) {
   console.warn("Tidak dapat menyimpan sesi Admin:", error);
 }
