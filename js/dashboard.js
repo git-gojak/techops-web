@@ -92,9 +92,55 @@
       : "Belum tersedia";
   }
 
-  function panel(title, subtitle, icon, body, extraClass = "") {
-    return `
-      <article class="panel dash-panel ${extraClass}">
+  // Header panel.
+  // Panel biasa tetap menggunakan desain lama.
+  // Panel kondisi menggunakan ikon di kiri sebelum label.
+  function panel(
+    title,
+    subtitle,
+    icon,
+    body,
+    extraClass = "",
+    iconBefore = false
+  ) {
+    const isComputer = extraClass.includes("computer-condition-panel");
+
+    const iconColor = isComputer ? "#1976D2" : "#0D9488";
+    const iconBackground = isComputer ? "#EAF3FF" : "#E5F7F4";
+
+    const header = iconBefore
+      ? `
+        <div class="panel-header"
+          style="
+            display:flex;
+            align-items:center;
+            justify-content:flex-start;
+            gap:10px;
+          ">
+
+          <span class="dash-panel-icon"
+            style="
+              width:40px;
+              height:40px;
+              min-width:40px;
+              border-radius:50%;
+              display:inline-flex;
+              align-items:center;
+              justify-content:center;
+              color:${iconColor};
+              background:${iconBackground};
+            ">
+            <i data-lucide="${icon}"
+              style="width:21px;height:21px;"></i>
+          </span>
+
+          <div style="min-width:0;">
+            <h2>${title}</h2>
+            <div class="panel-subtitle">${subtitle}</div>
+          </div>
+        </div>
+      `
+      : `
         <div class="panel-header">
           <div>
             <h2>${title}</h2>
@@ -104,6 +150,11 @@
             <i data-lucide="${icon}"></i>
           </span>
         </div>
+      `;
+
+    return `
+      <article class="panel dash-panel ${extraClass}">
+        ${header}
         ${body}
       </article>
     `;
@@ -1158,7 +1209,8 @@
           "Monitoring kondisi dan riwayat Maintenance komputer",
           "monitor",
           computerConditionHtml,
-          "condition-panel computer-condition-panel"
+          "condition-panel computer-condition-panel",
+          true
         )}
 
         ${panel(
@@ -1166,7 +1218,8 @@
           "Monitoring kondisi dan riwayat Maintenance printer",
           "printer",
           printerConditionHtml,
-          "condition-panel printer-condition-panel"
+          "condition-panel printer-condition-panel",
+          true
         )}
       </section>
     `;
