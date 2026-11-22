@@ -1259,7 +1259,39 @@
 
     // Perbarui avatar sesuai status sesi terakhir.
     updateUserDisplay();
-
+    // Sinkronisasi status Admin antar-tab
+    TechOpsAPI.onAuthChange(function (auth) {
+      if (auth.authenticated) {
+        // Login di tab ini sudah ditangani handleLogin().
+        // Hindari validasi dan render ganda.
+        if (state.authenticated) return;
+    
+        TechOpsAPI.validateSession().then(async function (valid) {
+          if (valid !== true) return;
+    
+          state.user = TechOpsAPI.getUser() || {
+            nama: "Admin",
+            role: "Admin"
+          };
+    
+          state.authenticated = true;
+          updateUserDisplay();
+    
+          await loadAll();
+          renderCurrentPage();
+        });
+    
+        return;
+      }
+    
+      if (!state.authenticated) return;
+    
+      state.user = null;
+      state.authenticated = false;
+    
+      updateUserDisplay();
+      renderCurrentPage();
+    });
     // Inisialisasi selesai; render halaman yang sedang dipilih.
     state.initializing = false;
 
