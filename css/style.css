@@ -1696,16 +1696,24 @@ i[data-lucide] {
 
 }
 
+
 @media (max-width:520px) {
   .dash-content-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .unit-panel {
+  .unit-panel,
+  .schedule-panel,
+  .activity-panel {
+    grid-column: 1 / -1;
+  }
+
+  .condition-panel {
     grid-column: auto;
+    min-width: 0;
   }
-
 }
+
 
 /*FIX KHUSUS BARIS KARTU STATISTIK DASHBOARD MOBILE*/
 
