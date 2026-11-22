@@ -1,3 +1,4 @@
+
 /* GoJak TechOps — Dashboard
    Frontend only. Menggunakan data dari app.js.
    Data arsip dihitung melalui API inventory.archiveCounts.
@@ -302,15 +303,76 @@
       komputer: activeComputers.map(row => ({
         type: "komputer",
         name: row.komputer || "Komputer tanpa nama",
-        serial: row.serial || ""
+        serial: row.serial || "",
+        model: row.model || row.Model || ""
       })),
 
       printer: activePrinters.map(row => ({
         type: "printer",
         name: row.unit || "Printer tanpa nama",
-        serial: row.serial || ""
+        serial: row.serial || "",
+        model: row.model || row.Model || ""
       }))
     };
+
+    // Referensi Model dari inventaris untuk catatan Maintenance.
+    // Pencocokan menggunakan jenis perangkat + serial, lalu nama perangkat.
+    const modelByDevice = new Map();
+    const modelByName = new Map();
+
+    Object.keys(inventoryByType).forEach(type => {
+      inventoryByType[type].forEach(device => {
+        const model = String(device.model || "").trim();
+        if (!model) return;
+
+        const key = deviceKey(
+          device.type,
+          device.serial,
+          device.name
+        );
+
+        if (key) modelByDevice.set(key, model);
+
+        const nameKey = type + "|" +
+          String(device.name || "").trim().toUpperCase();
+
+        if (device.name && !modelByName.has(nameKey)) {
+          modelByName.set(nameKey, model);
+        }
+      });
+    });
+
+    function getDeviceModel(row) {
+      const directModel = String(
+        row?.model || row?.Model || ""
+      ).trim();
+
+      if (directModel) return directModel;
+
+      const type = normalizeAssetType(
+        row?.type || row?.jenis_aset
+      );
+
+      if (!type) return "";
+
+      const key = deviceKey(
+        type,
+        row?.serial,
+        row?.name || row?.nama_aset
+      );
+
+      if (key && modelByDevice.has(key)) {
+        return modelByDevice.get(key);
+      }
+
+      const name = String(
+        row?.name || row?.nama_aset || ""
+      ).trim().toUpperCase();
+
+      return name
+        ? (modelByName.get(type + "|" + name) || "")
+        : "";
+    }
 
     // Menghindari perangkat ganda berdasarkan jenis + serial.
     Object.keys(inventoryByType).forEach(type => {
@@ -424,7 +486,8 @@
                     <div>
                       <strong>${esc(displayAssetName(device.type, device.name))}</strong>
                       <small>
-                        Serial: ${esc(maskedSerial || "-")}
+                        Model: ${esc(getDeviceModel(device) || "Model tidak tersedia")}
+                        · Serial: ${esc(maskedSerial || "-")}
                         ${device.latestDate
                           ? " · Maintenance: " + esc(fmtDateTime(device.latestDate))
                           : " · Belum ada catatan"}
@@ -590,7 +653,10 @@
         <div class="dash-missing-row">
           <div>
             <strong>${esc(assetName)}</strong>
-            <small>Serial: ${esc(maskedSerial || "-")}</small>
+            <small>
+              Model: ${esc(getDeviceModel(row) || "Model tidak tersedia")}
+              · Serial: ${esc(maskedSerial || "-")}
+            </small>
           </div>
           <span>${esc(fmtDate(row.jadwal))}</span>
         </div>
@@ -762,7 +828,10 @@
         <div class="dash-missing-row">
           <div>
             <strong>${esc(assetName)}</strong>
-            <small>Serial: ${esc(serial || "-")}</small>
+            <small>
+              Model: ${esc(getDeviceModel(row) || "Model tidak tersedia")}
+              · Serial: ${esc(serial || "-")}
+            </small>
           </div>
 
           <span style="
