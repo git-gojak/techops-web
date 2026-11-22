@@ -17,9 +17,7 @@
   function parseDate(value) {
     if (!value) return null;
 
-    if (value instanceof Date && !isNaN(value)) {
-      return value;
-    }
+    if (value instanceof Date && !isNaN(value)) return value;
 
     const s = String(value).trim();
 
@@ -34,26 +32,16 @@
 
     if (m) {
       return new Date(
-        +m[3],
-        +m[2] - 1,
-        +m[1],
-        +(m[4] || 0),
-        +(m[5] || 0),
-        +(m[6] || 0)
+        +m[3], +m[2] - 1, +m[1],
+        +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)
       );
     }
 
     m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-
-    if (m) {
-      return new Date(+m[1], +m[2] - 1, +m[3]);
-    }
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
 
     m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-
-    if (m) {
-      return new Date(+m[3], +m[2] - 1, +m[1]);
-    }
+    if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
 
     const d = new Date(s);
     return isNaN(d) ? null : d;
@@ -92,55 +80,9 @@
       : "Belum tersedia";
   }
 
-  // Header panel.
-  // Panel biasa tetap menggunakan desain lama.
-  // Panel kondisi menggunakan ikon di kiri sebelum label.
-  function panel(
-    title,
-    subtitle,
-    icon,
-    body,
-    extraClass = "",
-    iconBefore = false
-  ) {
-    const isComputer = extraClass.includes("computer-condition-panel");
-
-    const iconColor = isComputer ? "#1976D2" : "#0D9488";
-    const iconBackground = isComputer ? "#EAF3FF" : "#E5F7F4";
-
-    const header = iconBefore
-      ? `
-        <div class="panel-header"
-          style="
-            display:flex;
-            align-items:center;
-            justify-content:flex-start;
-            gap:10px;
-          ">
-
-          <span class="dash-panel-icon"
-            style="
-              width:40px;
-              height:40px;
-              min-width:40px;
-              border-radius:50%;
-              display:inline-flex;
-              align-items:center;
-              justify-content:center;
-              color:${iconColor};
-              background:${iconBackground};
-            ">
-            <i data-lucide="${icon}"
-              style="width:21px;height:21px;"></i>
-          </span>
-
-          <div style="min-width:0;">
-            <h2>${title}</h2>
-            <div class="panel-subtitle">${subtitle}</div>
-          </div>
-        </div>
-      `
-      : `
+  function panel(title, subtitle, icon, body, extraClass = "") {
+    return `
+      <article class="panel dash-panel ${extraClass}">
         <div class="panel-header">
           <div>
             <h2>${title}</h2>
@@ -150,11 +92,6 @@
             <i data-lucide="${icon}"></i>
           </span>
         </div>
-      `;
-
-    return `
-      <article class="panel dash-panel ${extraClass}">
-        ${header}
         ${body}
       </article>
     `;
@@ -295,9 +232,7 @@
         return "komputer";
       }
 
-      if (type === "printer") {
-        return "printer";
-      }
+      if (type === "printer") return "printer";
 
       return "";
     }
@@ -367,7 +302,6 @@
     };
 
     // Referensi Model dari inventaris untuk catatan Maintenance.
-    // Pencocokan menggunakan jenis perangkat + serial, lalu nama perangkat.
     const modelByDevice = new Map();
     const modelByName = new Map();
 
@@ -605,10 +539,51 @@
     );
 
     // ==========================================
+    // SATU KARTU KONDISI PERANGKAT
+    // ==========================================
+
+    function conditionColumn(title, icon, color, background, content) {
+      return `
+        <section class="dash-condition-column">
+          <div class="dash-condition-column-header">
+            <span class="dash-condition-column-icon"
+              style="color:${color};background:${background};">
+              <i data-lucide="${icon}"></i>
+            </span>
+            <strong>${title}</strong>
+          </div>
+
+          ${content}
+        </section>
+      `;
+    }
+
+    const conditionOverviewHtml = `
+      <div class="dash-condition-columns">
+
+        ${conditionColumn(
+          "Komputer",
+          "monitor",
+          "#1976D2",
+          "#EAF3FF",
+          computerConditionHtml
+        )}
+
+        ${conditionColumn(
+          "Printer",
+          "printer",
+          "#0D9488",
+          "#E5F7F4",
+          printerConditionHtml
+        )}
+
+      </div>
+    `;
+
+    // ==========================================
     // 5. MONITORING JADWAL MAINTENANCE
     // ==========================================
 
-    // Hanya catatan Perawatan yang menjadi sumber jadwal.
     const maintenanceCare = maintenance
       .filter(row => {
         const activity = String(
@@ -633,7 +608,6 @@
                (a._created?.getTime() || 0);
       });
 
-    // Ambil catatan Perawatan terbaru untuk setiap perangkat.
     const latestCareByDevice = new Map();
 
     maintenanceCare.forEach(row => {
@@ -652,8 +626,6 @@
       }
     });
 
-    // Jadwal dari catatan Perawatan terbaru setiap perangkat.
-    // Urutan tampilan: Waktu Dibuat paling lama ke paling baru.
     const schedules = [...latestCareByDevice.values()]
       .filter(row => row._schedule)
       .sort((a, b) =>
@@ -687,7 +659,6 @@
       row => row._schedule > next30Days
     );
 
-    // Baris jadwal mengikuti pola Monitoring Kondisi.
     function scheduleRowHtml(row) {
       const assetName = displayAssetName(
         row.jenis_aset,
@@ -714,7 +685,6 @@
       `;
     }
 
-    // Pisahkan jadwal komputer dan printer.
     const computerSchedules = schedules.filter(
       row => normalizeAssetType(row.jenis_aset) === "komputer"
     );
@@ -723,7 +693,6 @@
       row => normalizeAssetType(row.jenis_aset) === "printer"
     );
 
-    // Judul bagian dengan ikon lingkaran, warna, dan total perangkat.
     function buildScheduleSection(title, rows, type) {
       const isComputer = type === "komputer";
 
@@ -781,7 +750,6 @@
       `;
     }
 
-    // Satu tombol buka/tutup, dua kolom jadwal.
     const scheduleListHtml = schedules.length
       ? `
         <details class="dash-missing-details">
@@ -840,8 +808,6 @@
     // 6. AKTIVITAS MAINTENANCE TERBARU
     // ==========================================
 
-    // Maksimal 5 aktivitas terbaru untuk setiap jenis perangkat.
-    // datedMaintenance sudah diurutkan berdasarkan Waktu Dibuat terbaru.
     const computerActivities = datedMaintenance
       .filter(row =>
         normalizeAssetType(row.jenis_aset) === "komputer"
@@ -873,8 +839,6 @@
       const condition = row.kondisi || "Belum diisi";
       const activityDate = row["Waktu Dibuat"] || row.Tanggal;
 
-      // Pola baris mengikuti scheduleRowHtml().
-      // Bagian kanan: jenis kegiatan, kondisi, tanggal dan waktu.
       return `
         <div class="dash-missing-row">
           <div>
@@ -929,7 +893,6 @@
       "printer"
     );
 
-    // Satu kontrol buka/tutup untuk kedua kolom.
     const recentHtml = totalRecentActivities
       ? `
         <details class="dash-missing-details">
@@ -1205,28 +1168,16 @@
         )}
 
         ${panel(
-          "Kondisi Komputer",
-          "Monitoring kondisi dan riwayat Maintenance komputer",
-          "monitor",
-          computerConditionHtml,
-          "condition-panel computer-condition-panel",
-          true
-        )}
-
-        ${panel(
-          "Kondisi Printer",
-          "Monitoring kondisi dan riwayat Maintenance printer",
-          "printer",
-          printerConditionHtml,
-          "condition-panel printer-condition-panel",
-          true
+          "Kondisi Perangkat",
+          "Monitoring kondisi komputer dan printer",
+          "activity",
+          conditionOverviewHtml,
+          "condition-overview-panel"
         )}
       </section>
     `;
 
-    // Tidak membuat tombol refresh tambahan di header.
     // Tombol Data Terakhir Diperbarui diikat oleh app.js.
-
     if (window.lucide) {
       window.lucide.createIcons();
     }
