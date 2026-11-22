@@ -486,10 +486,10 @@
                     <div>
                       <strong>${esc(displayAssetName(device.type, device.name))}</strong>
                       <small>
-                        Model: ${esc(getDeviceModel(device) || "Model tidak tersedia")}
-                        · Serial: ${esc(maskedSerial || "-")}
+                        ${esc(getDeviceModel(device) || "Model tidak tersedia")}
+                        · ${esc(maskedSerial || "-")}
                         ${device.latestDate
-                          ? " · Maintenance: " + esc(fmtDateTime(device.latestDate))
+                          ? " · " + esc(fmtDateTime(device.latestDate))
                           : " · Belum ada catatan"}
                       </small>
                     </div>
@@ -654,8 +654,8 @@
           <div>
             <strong>${esc(assetName)}</strong>
             <small>
-              Model: ${esc(getDeviceModel(row) || "Model tidak tersedia")}
-              · Serial: ${esc(maskedSerial || "-")}
+              ${esc(getDeviceModel(row) || "Model tidak tersedia")}
+              · ${esc(maskedSerial || "-")}
             </small>
           </div>
           <span>${esc(fmtDate(row.jadwal))}</span>
@@ -829,8 +829,8 @@
           <div>
             <strong>${esc(assetName)}</strong>
             <small>
-              Model: ${esc(getDeviceModel(row) || "Model tidak tersedia")}
-              · Serial: ${esc(serial || "-")}
+              ${esc(getDeviceModel(row) || "Model tidak tersedia")}
+              · ${esc(serial || "-")}
             </small>
           </div>
 
