@@ -1,7 +1,10 @@
 
 #!/usr/bin/env bash
 # GOJAK TECHOPS - LINUX HARDWARE SCANNER
-# Ubuntu / Linux - local scanner bridge for TechOps Web
+# Version 1.1.0
+# Hardware identification aligned with invcpu.ps1 where Linux data permits.
+# Read-only. No Google Sheets writes.
+# Local API: 127.0.0.1:47831
 
 set -Eeuo pipefail
 
@@ -9,7 +12,7 @@ PORT=47831
 ALLOWED_ORIGIN="https://git-gojak.github.io"
 IDLE_TIMEOUT=900
 
-for cmd in python3 sudo hostname lscpu lsblk awk sed tr sort wc; do
+for cmd in python3 sudo hostname lscpu lsblk awk sed tr sort; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "ERROR: Perintah '$cmd' belum tersedia."
     exit 1
@@ -18,10 +21,10 @@ done
 
 echo
 echo "========== GOJAK TECHOPS LINUX SCANNER =========="
-echo "Meminta izin sudo untuk membaca Serial BIOS..."
+echo "Memeriksa akses informasi perangkat..."
 
 sudo -v || {
-  echo "ERROR: Izin sudo diperlukan."
+  echo "ERROR: Izin sudo diperlukan untuk membaca Serial BIOS."
   exit 1
 }
 
@@ -47,24 +50,47 @@ read_dmi() {
   clean "$value"
 }
 
-# ==============================
+# ==========================================
 # IDENTITAS KOMPUTER
-# ==============================
+# ==========================================
 
 computer_name="$(clean "$(hostname 2>/dev/null || true)")"
 manufacturer="$(read_dmi /sys/class/dmi/id/sys_vendor)"
 model="$(read_dmi /sys/class/dmi/id/product_name)"
 serial="$(read_dmi /sys/class/dmi/id/product_serial)"
 
+# Serial palsu mengikuti aturan invcpu.ps1
 case "${serial^^}" in
   ""|"-"|"TO BE FILLED BY O.E.M."|"TO BE FILLED BY OEM"|"DEFAULT STRING"|"SYSTEM SERIAL NUMBER"|"UNKNOWN"|"NONE"|"NOT SPECIFIED")
     serial="-"
     ;;
 esac
 
-# ==============================
+# Normalisasi merek
+case "${manufacturer^^}" in
+  *DELL*) manufacturer="Dell" ;;
+  *LENOVO*) manufacturer="Lenovo" ;;
+  *HEWLETT*|*HP*) manufacturer="HP" ;;
+  *ASUSTEK*|*ASUS*) manufacturer="ASUS" ;;
+  *ACER*) manufacturer="Acer" ;;
+  *ZYREX*) manufacturer="Zyrex" ;;
+esac
+
+case "${manufacturer^^}" in
+  ""|"-"|"SYSTEM MANUFACTURER"|"TO BE FILLED"|"DEFAULT STRING")
+    manufacturer="Rakitan"
+    ;;
+esac
+
+case "${model^^}" in
+  ""|"-"|"SYSTEM PRODUCT NAME"|"TO BE FILLED"|"DEFAULT STRING")
+    model="-"
+    ;;
+esac
+
+# ==========================================
 # CPU
-# ==============================
+# ==========================================
 
 cpu="$(
   LC_ALL=C lscpu 2>/dev/null |
@@ -74,8 +100,14 @@ cpu="$(
     exit
   }'
 )"
+
+cpu="$(clean "$cpu")"
+cpu="$(printf '%s' "$cpu" |
+  sed -E 's/\(R\)//g; s/\(TM\)//g; s/ CPU / /g; s/[[:space:]]+/ /g')"
 cpu="$(clean "$cpu")"
 
+# Linux menghitung seluruh core fisik dan thread yang terdeteksi.
+# Ini tidak selalu identik dengan processor pertama pada Windows.
 core="$(
   LC_ALL=C lscpu -p=CORE,SOCKET 2>/dev/null |
   awk -F, '!/^#/ && NF>=2 {print $1 "," $2}' |
@@ -92,68 +124,188 @@ thread="$(
 [[ "$core" == "0" ]] && core="-"
 [[ "$thread" == "0" ]] && thread="-"
 
-# ==============================
+# ==========================================
 # RAM
-# ==============================
+# ==========================================
 
-ram="$(
+# Total RAM menggunakan MemTotal Linux.
+# Detail modul diambil dari dmidecode jika tersedia.
+total_ram="$(
   awk '/MemTotal:/ {
-    printf "%.1f GB", $2/1048576
+    printf "%.0f", $2/1048576
   }' /proc/meminfo 2>/dev/null
 )"
-ram="$(clean "$ram")"
 
-# ==============================
+[[ -z "$total_ram" ]] && total_ram="-"
+
+ram_parts=()
+
+if command -v dmidecode >/dev/null 2>&1; then
+
+  ram_detail="$(
+    sudo -n dmidecode --type 17 2>/dev/null |
+    awk '
+      BEGIN { RS=""; FS="\n" }
+
+      {
+        size=""
+        type=""
+        speed=""
+
+        for (i=1; i<=NF; i++) {
+          line=$i
+          sub(/^[ \t]+/, "", line)
+
+          if (line ~ /^Size:/) {
+            sub(/^Size:[ \t]*/, "", line)
+            size=line
+          }
+
+          if (line ~ /^Type:/) {
+            sub(/^Type:[ \t]*/, "", line)
+            type=line
+          }
+
+          if (line ~ /^Configured Memory Speed:/) {
+            sub(/^Configured Memory Speed:[ \t]*/, "", line)
+            speed=line
+          }
+
+          if (line ~ /^Configured Clock Speed:/ && speed=="") {
+            sub(/^Configured Clock Speed:[ \t]*/, "", line)
+            speed=line
+          }
+
+          if (line ~ /^Speed:/ && speed=="") {
+            sub(/^Speed:[ \t]*/, "", line)
+            speed=line
+          }
+        }
+
+        if (size != "" &&
+            size !~ /No Module Installed|Unknown|Not Installed/) {
+
+          if (type == "" || type == "Unknown") type="Unknown"
+
+          if (speed == "" || speed == "Unknown") {
+            printf "%s %s\n", size, type
+          } else {
+            printf "%s %s %s\n", size, type, speed
+          }
+        }
+      }
+    '
+  )"
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+
+    read -r size type speed_unit speed_value <<< "$line"
+
+    size_value="$(printf '%s' "$size" | awk '{print $1}')"
+    size_unit="$(printf '%s' "$size" | awk '{print toupper($2)}')"
+
+    case "$size_unit" in
+      GB)
+        module_gb="$(awk -v n="$size_value" 'BEGIN {printf "%.0f", n}')"
+        ;;
+      MB)
+        module_gb="$(awk -v n="$size_value" 'BEGIN {printf "%.0f", n/1024}')"
+        ;;
+      *)
+        continue
+        ;;
+    esac
+
+    [[ -z "$module_gb" || "$module_gb" == "0" ]] && continue
+
+    type="$(clean "$type")"
+
+    if [[ -n "${speed_value:-}" && "${speed_value^^}" =~ ^[0-9]+$ ]]; then
+      ram_parts+=("${module_gb} GB ${type} ${speed_value} MHz")
+    else
+      ram_parts+=("${module_gb} GB ${type}")
+    fi
+  done <<< "$ram_detail"
+fi
+
+if [[ "$total_ram" != "-" && ${#ram_parts[@]} -gt 0 ]]; then
+  ram="${total_ram} GB ($(IFS=' + '; echo "${ram_parts[*]}"))"
+elif [[ "$total_ram" != "-" ]]; then
+  ram="${total_ram} GB"
+else
+  ram="-"
+fi
+
+# ==========================================
 # STORAGE
-# ==============================
+# ==========================================
 
 storage="$(
-  lsblk -dn -o NAME,SIZE,TYPE,MODEL 2>/dev/null |
-  awk '$3=="disk" {
-    model=""
-    for(i=4;i<=NF;i++)
-      model=model (i==4?"":" ") $i
+  lsblk -dn -b -o SIZE,MODEL,TYPE 2>/dev/null |
+  awk '
+    $3=="disk" {
+      size_gb=sprintf("%.0f", $1/1073741824)
+      model=$2
 
-    item=$1 " " $2
+      for (i=4; i<=NF; i++) {
+        model=model " " $i
+      }
 
-    if(model!="")
-      item=item " (" model ")"
+      if (model=="") model="Unknown"
 
-    printf "%s%s", sep, item
-    sep=" + "
-  }
-  END {
-    if(sep=="") print "-"
-  }'
+      printf "%s%s (%s GB)", sep, model, size_gb
+      sep=" + "
+    }
+
+    END {
+      if (sep=="") print "-"
+    }
+  '
 )"
+
 storage="$(clean "$storage")"
 
-# ==============================
+# ==========================================
 # GPU
-# ==============================
+# ==========================================
 
 gpu="-"
 
 if command -v lspci >/dev/null 2>&1; then
   gpu="$(
     lspci 2>/dev/null |
-    awk 'BEGIN{IGNORECASE=1}
+    awk '
+      BEGIN { IGNORECASE=1 }
+
       /VGA compatible controller|3D controller|Display controller/ {
         sub(/^[^:]*: /,"")
-        printf "%s%s", sep, $0
-        sep=" + "
+
+        if (
+          $0 ~ /Microsoft Remote|Basic Display|Virtual|VMware|VirtualBox|Hyper-V/
+        ) next
+
+        if (!seen[$0]++) {
+          printf "%s%s", sep, $0
+          sep=" + "
+        }
       }
+
       END {
-        if(sep=="") print "-"
-      }'
+        if (sep=="") print "-"
+      }
+    '
   )"
 fi
 
 gpu="$(clean "$gpu")"
+gpu="$(printf '%s' "$gpu" |
+  sed -E 's/\(R\)//g; s/\(TM\)//g; s/[[:space:]]+/ /g')"
+gpu="$(clean "$gpu")"
 
-# ==============================
+# ==========================================
 # OPERATING SYSTEM
-# ==============================
+# ==========================================
 
 operating_system="-"
 
@@ -166,9 +318,9 @@ fi
 
 operating_system="$(clean "$operating_system")"
 
-# ==============================
+# ==========================================
 # NETWORK
-# ==============================
+# ==========================================
 
 ip_address="$(hostname -I 2>/dev/null || true)"
 ip_address="$(clean "$ip_address")"
@@ -184,23 +336,21 @@ fi
 
 gateway="$(clean "$gateway")"
 
-# ==============================
+# ==========================================
 # VALIDASI SERIAL
-# ==============================
+# ==========================================
 
 if [[ "$serial" == "-" ]]; then
   echo
   echo "ERROR: Serial BIOS tidak terbaca."
-  echo "Data tidak dikirim karena pencocokan inventaris"
-  echo "TechOps menggunakan Asset / Serial ID."
-  echo
+  echo "Data tidak dapat dicocokkan dengan inventaris TechOps."
   echo "Periksa dukungan DMI/BIOS dan izin sudo."
   exit 2
 fi
 
-# ==============================
+# ==========================================
 # TAMPILKAN HASIL SCAN
-# ==============================
+# ==========================================
 
 echo
 printf '%-18s: %s\n' "Computer Name" "$computer_name"
@@ -217,9 +367,9 @@ printf '%-18s: %s\n' "Operating System" "$operating_system"
 printf '%-18s: %s\n' "IP Address" "$ip_address"
 printf '%-18s: %s\n' "Gateway" "$gateway"
 
-# ==============================
+# ==========================================
 # DATA UNTUK LOCAL API
-# ==============================
+# ==========================================
 
 export SCAN_COMPUTER_NAME="$computer_name"
 export SCAN_MANUFACTURER="$manufacturer"
@@ -248,9 +398,9 @@ echo "Berhenti otomatis setelah 15 menit tanpa aktivitas."
 echo "Tekan Ctrl+C untuk berhenti."
 echo
 
-# ==============================
+# ==========================================
 # LOCAL HTTP BRIDGE
-# ==============================
+# ==========================================
 
 python3 - <<'PY'
 import json
@@ -278,7 +428,6 @@ data = {
     "operatingSystem": os.environ.get("SCAN_OS", "-"),
     "ipAddress": os.environ.get("SCAN_IP", "-"),
     "gateway": os.environ.get("SCAN_GATEWAY", "-"),
-    "scannedAt": time.strftime("%Y-%m-%d %H:%M:%S"),
 }
 
 class Handler(BaseHTTPRequestHandler):
@@ -357,14 +506,20 @@ class Handler(BaseHTTPRequestHandler):
             self.respond(200, {
                 "success": True,
                 "service": "GoJak Linux Hardware Scanner",
-                "version": "1.0.0"
+                "version": "1.1.0"
             })
 
         elif path == "/scan":
+            response_data = dict(data)
+            response_data["scannedAt"] = time.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
             self.respond(200, {
                 "success": True,
-                "data": data
+                "data": response_data
             })
+
             print("Scan berhasil: " + data["computerName"])
 
         else:
